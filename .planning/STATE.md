@@ -9,7 +9,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 1 of 6 (CLI and Local Governance)
+Phase: 1 of 7 (CLI and Local Governance)
 Plan: 0 of 3 in current phase
 Status: Ready to plan
 Last activity: 2026-03-22 -- Roadmap revised (eval replaces pub/sub in v0.1.0, gateway added to v0.2.0)
@@ -47,8 +47,10 @@ Recent decisions affecting current work:
 - [Scope]: Skills gateway is part of skillctl (v0.2.0), not a separate product
 - [Scope]: A-F eval grades map to certification tiers (verified/community/rejected)
 - [Scope]: LLM-as-judge (Anthropic API) layered on top of deterministic eval
-- [Roadmap]: 6 phases total -- 3 for v0.1.0 (CLI + Registry + Eval), 3 for v0.2.0 (Gateway + PubSub + Identity)
+- [Roadmap]: 7 phases total -- 3 for v0.1.0 (CLI + Registry + Eval), 2 for v0.2.0 (Gateway + PubSub/Governance), 2 for v0.3.0 (Optimizer + Opt Governance)
+- [Scope]: Agent Identity + Observability moved to Out of Scope (cloud-layer candidate, crowded space)
 - [Roadmap]: Coarse granularity, quality model profile (Opus for planning agents)
+- [Scope]: v0.3.0 adds automated skill optimization (autoresearch pattern) — eval as reward signal, LLM-generated variants, failure-driven improvement
 
 ### Key References
 
@@ -68,5 +70,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-22
-Stopped at: Roadmap revised, ready to plan Phase 1
+Stopped at: Init tasks complete (GTM.md + CLAUDE.md updated), ready to plan Phase 1
 Resume file: None

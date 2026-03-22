@@ -107,7 +107,7 @@ Requirements for public v0.1.0 release: CLI + Registry + Eval.
 
 ## v0.2.0 Requirements
 
-Gateway, Pub/Sub, Agent Identity, and Observability.
+Gateway, Pub/Sub, SDK, and Governance.
 
 ### Skills Gateway
 
@@ -129,20 +129,6 @@ Gateway, Pub/Sub, Agent Identity, and Observability.
 - **PUB-06**: Event replay (up to 30 days)
 - **PUB-07**: EventBus interface — replaceable implementation (cloud layer swaps Kafka/SQS)
 
-### Agent Identity
-
-- **AID-01**: Agent service identity (distinct from human user identity)
-- **AID-02**: Scoped tokens per agent with minimal necessary skill permissions
-- **AID-03**: OAuth 2.1 / PKCE support for agent authentication
-- **AID-04**: Agent identity in audit log (which agent invoked which skill)
-
-### Observability
-
-- **OBS-01**: Skill invocation dashboard (top skills, top agents, timeline)
-- **OBS-02**: Anomaly detection — agent calling skills outside historical profile
-- **OBS-03**: Chain-of-thought tracing for LLM-backed skills
-- **OBS-04**: Shadow skill detection — identify ungoverned skill usage
-
 ### TypeScript SDK
 
 - **SDK-01**: `@skillctl/sdk` npm package with registry client
@@ -157,6 +143,33 @@ Gateway, Pub/Sub, Agent Identity, and Observability.
 - **GOV-04**: `skillctl audit` with time-range filtering and JSON export
 - **GOV-05**: OPA/Rego policy evaluation engine (`skillctl policy check`)
 
+## v0.3.0 Requirements
+
+Automated skill optimization — closing the loop between eval and improvement.
+
+### Skill Optimizer
+
+- **OPT-01**: `skillctl optimize` runs an automated improvement loop: eval → failure analysis → variant generation → re-eval → promotion
+- **OPT-02**: Failure analysis engine reads eval reports and identifies weakest scenarios, most common failure patterns, and assertion categories with lowest pass rates
+- **OPT-03**: Variant generator uses LLM to produce N candidate skill versions (default 3), each with a single targeted hypothesis based on failure analysis
+- **OPT-04**: Each variant is evaluated using existing `skillctl eval` infrastructure — no separate eval system
+- **OPT-05**: Promotion gate: candidate replaces current only if it exceeds current score by configurable threshold (default: +5%)
+- **OPT-06**: Plateau detection: optimization stops when no variant improves score for N consecutive cycles (default: 3)
+- **OPT-07**: Cost budget enforcement: max spend per optimization run (USD), tracked via token counting per LLM call
+- **OPT-08**: Iteration cap: configurable max iterations (default: 50) to prevent runaway optimization
+- **OPT-09**: Full provenance chain: every variant links to the failure analysis that produced it, the eval report that scored it, and the parent version it derived from
+- **OPT-10**: `skillctl optimize history` shows all optimization runs with iteration count, starting score, final score, cost, and promoted version
+- **OPT-11**: Human-in-the-loop mode: `--approve` flag requires human confirmation before promoting a variant to current
+- **OPT-12**: `skillctl optimize diff` shows what changed between the original skill and the optimized version (content diff + score delta)
+
+### Optimization Governance
+
+- **OPG-01**: Optimization runs are recorded in the audit log (who triggered, how many iterations, what was promoted, total cost)
+- **OPG-02**: Registry server can require eval-gated publish after optimization — optimized skill must pass full eval before publish
+- **OPG-03**: Variant history is content-addressed and stored in local registry (~/.skillctl/optimize/<run-id>/)
+- **OPG-04**: `--dry-run` flag runs the full loop but does not promote or publish any variant
+- **OPG-05**: Optimized skills carry `metadata.optimized_from` field linking to the original version and optimization run ID
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -165,10 +178,12 @@ Gateway, Pub/Sub, Agent Identity, and Observability.
 | SSO/SAML/OIDC | Beyond basic token auth + OAuth 2.1, enterprise cloud feature |
 | Skill certification badges (visual) | Cloud feature — requires UI/marketplace |
 | Payment/revenue marketplace | Cloud feature — requires billing integration |
-| RL feedback loop | Cloud feature — requires execution analytics pipeline |
+| RL feedback loop (production) | v0.3.0 covers offline optimization; production RL from live traffic is cloud-only |
 | Web UI for registry | CLI-first for OSS; cloud layer adds UI |
 | Semantic skill discovery (embeddings) | Requires vector store — cloud feature |
-| Inter-agent trust federation | Complex identity problem — deferred beyond v0.2.0 |
+| Agent identity & scoped tokens | Crowded space (Datadog, Arize, LangSmith); cloud-layer candidate |
+| Observability dashboards & anomaly detection | Platform feature needing UI + persistent storage; cloud-layer candidate |
+| Inter-agent trust federation | Complex identity problem — cloud-layer candidate |
 
 ## Traceability
 
@@ -193,23 +208,26 @@ Gateway, Pub/Sub, Agent Identity, and Observability.
 | QAL-08 | Phase 3 | Pending |
 | GW-01 to GW-07 | Phase 4 (v0.2.0) | Pending |
 | PUB-01 to PUB-07 | Phase 5 (v0.2.0) | Pending |
-| AID-01 to AID-04 | Phase 6 (v0.2.0) | Pending |
-| OBS-01 to OBS-04 | Phase 6 (v0.2.0) | Pending |
 | SDK-01 to SDK-03 | Phase 5 (v0.2.0) | Pending |
 | GOV-01 to GOV-05 | Phase 5 (v0.2.0) | Pending |
+| OPT-01 to OPT-12 | Phase 6 (v0.3.0) | Pending |
+| OPG-01 to OPG-05 | Phase 7 (v0.3.0) | Pending |
 
 **Coverage:**
 - v0.1.0 requirements: 73 total
 - Phase 1: 43 (CLI, Format, Validation, Security, Local Registry, Diff, Dependencies, QAL-01/04/05)
 - Phase 2: 12 (Registry Server, QAL-02)
 - Phase 3: 18 (Eval Suite, QAL-03/06/07/08)
-- v0.2.0 requirements: 30 total
+- v0.2.0 requirements: 22 total
 - Phase 4: 7 (Gateway)
 - Phase 5: 15 (Pub/Sub, SDK, Governance)
-- Phase 6: 8 (Agent Identity, Observability)
-- Mapped to phases: 103
+- v0.3.0 requirements: 17 total
+- Phase 6: 12 (Skill Optimizer)
+- Phase 7: 5 (Optimization Governance)
+- Mapped to phases: 112
+- Out of scope (moved): 8 (AID-01 to AID-04, OBS-01 to OBS-04)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after scope revision (eval replaces pub/sub in v0.1.0, gateway added to v0.2.0)*
+*Last updated: 2026-03-22 — added v0.3.0 Skill Optimization requirements (OPT-01 to OPT-12, OPG-01 to OPG-05)*

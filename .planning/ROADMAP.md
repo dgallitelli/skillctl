@@ -2,13 +2,14 @@
 
 ## Overview
 
-skillctl delivers a governance-first CLI, registry, and evaluation platform for agent skills in two milestone releases. v0.1.0 covers the full "validate, evaluate, distribute" story: a CLI for local governance, a self-hosted registry for teams, and an eval suite (forked from AWS Agent Skill Eval) with certification grading. v0.2.0 adds runtime enforcement via a skills gateway, pub/sub channels, agent identity, and observability.
+skillctl delivers a governance-first CLI, registry, and evaluation platform for agent skills in three milestone releases. v0.1.0 covers the full "validate, evaluate, distribute" story: a CLI for local governance, a self-hosted registry for teams, and an eval suite (forked from AWS Agent Skill Eval) with certification grading. v0.2.0 adds runtime enforcement via a skills gateway, pub/sub channels, and governance workflows. v0.3.0 closes the loop with automated skill optimization — using eval as a reward signal to iteratively improve skills without human supervision.
 
 ## Phases
 
 **Phase Numbering:**
 - Phases 1-3: v0.1.0 milestone
-- Phases 4-6: v0.2.0 milestone
+- Phases 4-5: v0.2.0 milestone
+- Phases 6-7: v0.3.0 milestone
 - Decimal phases (e.g. 2.1): Urgent insertions (marked with INSERTED)
 
 - [ ] **Phase 1: CLI and Local Governance** - Single-developer tool: init, validate, scan, push/pull, diff, dependencies, local registry
@@ -16,7 +17,8 @@ skillctl delivers a governance-first CLI, registry, and evaluation platform for 
 - [ ] **Phase 3: Eval Suite** - Fork AWS Agent Skill Eval, extend with LLM-as-judge, certification grades, registry integration
 - [ ] **Phase 4: Skills Gateway** - Policy enforcement proxy between agents and MCP servers
 - [ ] **Phase 5: Pub/Sub, SDK, and Governance** - Channel distribution, TypeScript SDK, approval workflows, policy engine
-- [ ] **Phase 6: Agent Identity and Observability** - Agent-as-identity, invocation tracing, anomaly detection
+- [ ] **Phase 6: Skill Optimizer** - Automated improvement loop: eval → failure analysis → variant generation → promotion
+- [ ] **Phase 7: Optimization Governance** - Audit, provenance, cost controls, and registry integration for optimization runs
 
 ## Phase Details
 
@@ -101,26 +103,42 @@ Plans:
 - [ ] 05-01: TBD
 - [ ] 05-02: TBD
 
-### Phase 6: Agent Identity and Observability (v0.2.0)
-**Goal**: Agents are first-class identities with scoped permissions, and platform teams have full visibility into skill usage patterns
-**Depends on**: Phase 4 (gateway provides invocation data)
-**Requirements**: AID-01 to AID-04, OBS-01 to OBS-04
+### Phase 6: Skill Optimizer (v0.3.0)
+**Goal**: Developers can run `skillctl optimize` to automatically improve a skill's eval score through iterative failure analysis and LLM-generated variants — overnight, unattended
+**Depends on**: Phase 3 (eval suite provides scoring infrastructure)
+**Requirements**: OPT-01 to OPT-12
 **Success Criteria** (what must be TRUE):
-  1. Agents authenticate with service identity tokens distinct from human users
-  2. Agent tokens are scoped to specific skills — invocations outside scope are blocked
-  3. Skill invocation dashboard shows top skills, top agents, and usage timeline
-  4. Anomaly detection flags agents calling skills outside their historical usage profile
+  1. `skillctl optimize` reads eval failures, generates 3 variants, evaluates them, and promotes the best — in a single automated loop
+  2. An optimization run of 10 iterations on a skill with 20 test scenarios completes without human intervention
+  3. Plateau detection correctly halts optimization when 3 consecutive cycles produce no improvement
+  4. Cost budget enforcement stops the run before exceeding the configured USD limit
+  5. Every promoted variant has a full provenance chain: parent version → failure analysis → hypothesis → eval report → promotion decision
 **Plans**: TBD
 
 Plans:
 - [ ] 06-01: TBD
 - [ ] 06-02: TBD
 
+### Phase 7: Optimization Governance (v0.3.0)
+**Goal**: Platform teams have full visibility and control over automated skill optimization — audit trails, cost tracking, and publish gates
+**Depends on**: Phase 6 (optimizer engine), Phase 2 (registry for audit/publish)
+**Requirements**: OPG-01 to OPG-05
+**Success Criteria** (what must be TRUE):
+  1. Every optimization run is recorded in the audit log with trigger, iteration count, score delta, cost, and promoted version
+  2. Optimized skills carry `metadata.optimized_from` linking to source version and run ID
+  3. `--dry-run` executes the full loop without promoting or publishing any variant
+  4. Registry rejects optimized skills that haven't passed a full eval after optimization (eval-gated publish)
+**Plans**: TBD
+
+Plans:
+- [ ] 07-01: TBD
+
 ## Progress
 
 **Execution Order:**
 v0.1.0: 1 -> 2 -> 3
-v0.2.0: 4, 5 (parallel, both depend on Phase 2) -> 6 (depends on Phase 4)
+v0.2.0: 4, 5 (parallel, both depend on Phase 2)
+v0.3.0: 6 (depends on Phase 3) -> 7 (depends on Phase 6 + Phase 2)
 
 | Phase | Plans Complete | Status | Milestone | Completed |
 |-------|----------------|--------|-----------|-----------|
@@ -129,4 +147,5 @@ v0.2.0: 4, 5 (parallel, both depend on Phase 2) -> 6 (depends on Phase 4)
 | 3. Eval Suite | 0/2 | Not started | v0.1.0 | - |
 | 4. Skills Gateway | 0/2 | Not started | v0.2.0 | - |
 | 5. Pub/Sub, SDK, Governance | 0/2 | Not started | v0.2.0 | - |
-| 6. Agent Identity & Observability | 0/2 | Not started | v0.2.0 | - |
+| 6. Skill Optimizer | 0/2 | Not started | v0.3.0 | - |
+| 7. Optimization Governance | 0/1 | Not started | v0.3.0 | - |

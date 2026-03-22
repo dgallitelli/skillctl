@@ -4,9 +4,14 @@
 
 **Tagline:** "What Terraform did for infrastructure, skillctl does for agent skills."
 
-**Elevator pitch:** Agent skills grew to npm-scale in two months with zero governance. skillctl is the open-source CLI that gives platform teams validation, versioning, security scanning, and audit trails for every skill touching production — across any agent runtime.
+**Elevator pitch:** Agent skills grew to npm-scale in two months with zero governance. skillctl is the open-source CLI that gives platform teams validation, evaluation, security scanning, and audit trails for every skill touching production — across any agent runtime. Skills get an A-F certification grade before they reach consumers.
 
 **Category:** Developer tools / Infrastructure governance
+
+**Three pillars of v0.1.0:**
+1. **Validate** — schema, security, and capability checks (`skillctl validate` + `skillctl scan`)
+2. **Evaluate** — A-F certification grading with deterministic + LLM-as-judge scoring (`skillctl eval`)
+3. **Distribute** — self-hosted registry with auth and audit (`skillctl publish`)
 
 ## Strategic Moat
 
@@ -29,8 +34,11 @@ This mirrors Terraform's HCL / HashiCorp's playbook: own the format, own the eco
 | SkillsMP66 | Community aggregation | Centralized verification, security | Security scanning + validation that SkillsMP66 lacks |
 | Anthropic/OpenAI native | Vendor org management | Cross-platform, independent marketplace | Vendor-neutral — works across all agent runtimes |
 | Chainguard | Security hardening + audit | Governance, RBAC, versioning, marketplace | Full lifecycle governance, not just security |
+| AWS Agent Skill Eval | Open-source eval framework (621 tests) | No governance, no registry, no CLI | Fork + extend — eval is a component of skillctl, not a competitor |
 
 **Key threat:** Chainguard (entered March 17, 2026). They have security credibility. If they expand into governance/RBAC/versioning, they're the most dangerous competitor. **Speed matters.**
+
+**Eval as differentiator:** Nobody else grades skills. skills.sh has a leaderboard but no quality assessment. Chainguard audits security but doesn't measure whether a skill actually improves agent performance. skillctl's A-F certification (40% audit + 40% functional + 20% trigger reliability) is the first standardized quality signal for agent skills. Research backs this: lightweight skills improve F1 by 34%, but heavyweight skills degrade performance (Melanie Li). Eval makes this measurable.
 
 ## Business Model (Future)
 
@@ -64,12 +72,13 @@ The pain is real and quantified:
 ## Launch Criteria (v0.1.0)
 
 Before public announcement:
-- All Milestones 0-3 complete (CLI + security + registry + pub/sub)
+- All Phases 1-3 complete (CLI + Registry + Eval)
 - Zero known vulnerabilities in Go deps (govulncheck clean)
 - Copy-paste quickstart for macOS + Linux
 - Docker image at ghcr.io/skillctl/registry:0.1.0
-- 3+ example skills passing validate + scan
+- 3+ example skills passing validate + scan + eval (with A-F grades)
 - GitHub Actions CI green on main
+- At least one example eval suite demonstrating skill certification flow
 
 ---
-*Extracted from CLAUDE.md on 2026-03-21*
+*Extracted from CLAUDE.md on 2026-03-21. Updated 2026-03-22: eval positioning, AWS Agent Skill Eval fork, certification grading, revised launch criteria.*

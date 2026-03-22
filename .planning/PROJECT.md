@@ -36,8 +36,7 @@ An open-source governance platform for agent skills — "what Terraform did for 
 - [ ] Certification grades: A/B = verified, C = community, D/F = rejected
 - [ ] v0.2.0: Skills gateway (policy proxy between agents and MCP servers)
 - [ ] v0.2.0: Pub/sub channels + TypeScript SDK + approval workflows
-- [ ] v0.2.0: Agent identity (service tokens, OAuth 2.1/PKCE)
-- [ ] v0.2.0: Observability (invocation logging, anomaly detection)
+- [ ] v0.3.0: Automated skill optimization (autoresearch pattern — eval→failure analysis→LLM variants→promotion)
 
 ### Out of Scope
 
@@ -49,6 +48,8 @@ An open-source governance platform for agent skills — "what Terraform did for 
 - Cross-tenant skill sharing — cloud feature
 - SLA guarantees on pub/sub delivery — cloud feature
 - Compliance pack bundles (MiFID, HIPAA, Legal) — cloud feature
+- Agent identity & scoped tokens — crowded space, cloud-layer candidate
+- Observability dashboards & anomaly detection — platform feature, cloud-layer candidate
 - Mobile or web UI for the registry — CLI-first for OSS
 
 ## Context
@@ -113,6 +114,8 @@ The agent skills ecosystem grew from 0 to npm-scale in ~2 months (2026). This ex
 | Eval before pub/sub in v0.1.0 | Proving skills work > distributing them. Eval makes governance credible | -- Pending |
 | Gateway in v0.2.0 (not v0.1.0) | Runtime enforcement is a separate concern from build-time governance | -- Pending |
 | A-F grades = certification tiers | Reuse eval scoring as certification mechanism (verified/community/rejected) | -- Pending |
+| v0.3.0: Automated skill optimization | Autoresearch pattern — eval as reward signal, LLM variants, failure-driven | -- Pending |
+| Optimizer in v0.3.0, not v0.2.0 | v0.2.0 is runtime enforcement; optimization is build-time, needs eval maturity | -- Pending |
 
 ---
-*Last updated: 2026-03-22 after scope revision (eval in v0.1.0, gateway in v0.2.0)*
+*Last updated: 2026-03-22 — added v0.3.0 skill optimization milestone*
