@@ -2,31 +2,33 @@
 
 ## Overview
 
-skillctl delivers a governance-first CLI and registry for agent skills in three phases: first a complete single-developer experience (validate, scan, store locally), then a self-hostable team registry server, and finally organization-scale distribution via pub/sub channels and a TypeScript SDK. Each phase is self-contained and shippable. Together they constitute the public v0.1.0 release.
+skillctl delivers a governance-first CLI, registry, and evaluation platform for agent skills in two milestone releases. v0.1.0 covers the full "validate, evaluate, distribute" story: a CLI for local governance, a self-hosted registry for teams, and an eval suite (forked from AWS Agent Skill Eval) with certification grading. v0.2.0 adds runtime enforcement via a skills gateway, pub/sub channels, agent identity, and observability.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
+- Phases 1-3: v0.1.0 milestone
+- Phases 4-6: v0.2.0 milestone
+- Decimal phases (e.g. 2.1): Urgent insertions (marked with INSERTED)
 
 - [ ] **Phase 1: CLI and Local Governance** - Single-developer tool: init, validate, scan, push/pull, diff, dependencies, local registry
 - [ ] **Phase 2: Registry Server** - Self-hostable team registry with auth, publish/search, and audit logging
-- [ ] **Phase 3: Distribution and Release Readiness** - Pub/sub channels, TypeScript SDK, and v0.1.0 release polish
+- [ ] **Phase 3: Eval Suite** - Fork AWS Agent Skill Eval, extend with LLM-as-judge, certification grades, registry integration
+- [ ] **Phase 4: Skills Gateway** - Policy enforcement proxy between agents and MCP servers
+- [ ] **Phase 5: Pub/Sub, SDK, and Governance** - Channel distribution, TypeScript SDK, approval workflows, policy engine
+- [ ] **Phase 6: Agent Identity and Observability** - Agent-as-identity, invocation tracing, anomaly detection
 
 ## Phase Details
 
 ### Phase 1: CLI and Local Governance
 **Goal**: A single developer can create, validate, security-scan, version-diff, and locally store skills with full governance enforcement -- no network required
 **Depends on**: Nothing (first phase)
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, CLI-05, CLI-06, CLI-07, FMT-01, FMT-02, FMT-03, FMT-04, FMT-05, VAL-01, VAL-02, VAL-03, VAL-04, VAL-05, VAL-06, SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, SEC-06, SEC-07, SEC-08, SEC-09, SEC-10, REG-01, REG-02, REG-03, REG-04, REG-05, DIF-01, DIF-02, DIF-03, DEP-01, DEP-02, DEP-03, QAL-01, QAL-04, QAL-05
+**Requirements**: CLI-01 to CLI-07, FMT-01 to FMT-06, VAL-01 to VAL-06, SEC-01 to SEC-10, REG-01 to REG-05, DIF-01 to DIF-03, DEP-01 to DEP-03, QAL-01, QAL-04, QAL-05
 **Success Criteria** (what must be TRUE):
   1. Developer can run `skillctl init && skillctl validate && skillctl push` on a new skill in under 2 minutes
   2. `skillctl scan` catches all 8 security detection patterns (SKL-S001 through SKL-S008) against the 50+ case test corpus
   3. `skillctl diff` between two skill versions correctly flags breaking changes (removed parameters, narrowed types) with visible red highlighting
-  4. `skillctl doctor` diagnoses and reports all known environment failure modes (missing auth, unreachable registry, corrupt store)
+  4. `skillctl doctor` diagnoses and reports all known environment failure modes
   5. Three or more example skills in /examples pass both `skillctl validate` and `skillctl scan`
 **Plans**: TBD
 
@@ -38,7 +40,7 @@ Plans:
 ### Phase 2: Registry Server
 **Goal**: Teams can deploy a self-hosted registry in under 10 minutes and use it to publish, search, and audit skills remotely
 **Depends on**: Phase 1
-**Requirements**: SRV-01, SRV-02, SRV-03, SRV-04, SRV-05, SRV-06, SRV-07, SRV-08, SRV-09, SRV-10, SRV-11, QAL-02
+**Requirements**: SRV-01 to SRV-11, QAL-02
 **Success Criteria** (what must be TRUE):
   1. `docker compose up` starts a working registry server with zero external dependencies
   2. `skillctl publish` uploads a validated skill to the remote registry and `skillctl pull` retrieves it over HTTP
@@ -51,29 +53,80 @@ Plans:
 - [ ] 02-01: TBD
 - [ ] 02-02: TBD
 
-### Phase 3: Distribution and Release Readiness
-**Goal**: Organizations can subscribe to skill channels for automatic distribution, TypeScript consumers can integrate via SDK, and the project meets all v0.1.0 launch criteria
-**Depends on**: Phase 2
-**Requirements**: PUB-01, PUB-02, PUB-03, PUB-04, PUB-05, PUB-06, PUB-07, PUB-08, PUB-09, PUB-10, PUB-11, SDK-01, SDK-02, SDK-03, QAL-03, QAL-06, QAL-07, QAL-08
+### Phase 3: Eval Suite
+**Goal**: Developers can evaluate skill quality across safety, functional correctness, and trigger reliability — with A-F certification grades stored in the registry
+**Depends on**: Phase 2 (registry integration for storing eval reports)
+**Requirements**: EVL-01 to EVL-12, QAL-03, QAL-06, QAL-07, QAL-08
 **Success Criteria** (what must be TRUE):
-  1. Subscriber webhook receives a `skill.published` event within 5 seconds of `skillctl channel publish`
-  2. Breaking change in a new skill version is detected and blocks auto-update on the channel (requires --force-breaking to override)
-  3. `@skillctl/sdk` npm package can connect to the registry, list skills, and subscribe to channel events from TypeScript
-  4. README quickstart works end-to-end on macOS and Linux (install to first published skill in under 15 minutes)
-  5. `govulncheck ./...` is clean, license headers are present in all source files, and CHANGELOG.md is current
+  1. `skillctl eval audit` scans a skill and produces an A-F grade using the 100-point scoring system
+  2. `skillctl eval functional` compares agent performance with vs without a skill and reports quality delta
+  3. `skillctl eval report` produces a unified score (40% audit, 40% functional, 20% trigger) with certification tier
+  4. `skillctl eval regression` detects score drops between two skill versions and exits non-zero
+  5. Eval reports are stored in the registry alongside skill metadata and retrievable via `skillctl show --eval`
 **Plans**: TBD
 
 Plans:
 - [ ] 03-01: TBD
 - [ ] 03-02: TBD
 
+### Phase 4: Skills Gateway (v0.2.0)
+**Goal**: Platform teams can deploy a policy enforcement proxy between agents and MCP servers that controls which agents can invoke which skills at runtime
+**Depends on**: Phase 2 (registry as policy source)
+**Requirements**: GW-01 to GW-07
+**Success Criteria** (what must be TRUE):
+  1. Gateway proxies agent-to-MCP-server traffic and enforces per-agent skill permissions
+  2. Every skill invocation is logged with agent identity, skill name, input/output, and timestamp
+  3. Unauthorized skill invocations are blocked and logged (not silently dropped)
+  4. Gateway fetches allowed skills configuration from registry server
+  5. OpenTelemetry spans emitted for all proxied requests
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01: TBD
+- [ ] 04-02: TBD
+
+### Phase 5: Pub/Sub, SDK, and Governance (v0.2.0)
+**Goal**: Organizations can distribute skills via channels, integrate from TypeScript, and enforce approval workflows
+**Depends on**: Phase 2
+**Requirements**: PUB-01 to PUB-07, SDK-01 to SDK-03, GOV-01 to GOV-05
+**Success Criteria** (what must be TRUE):
+  1. Subscriber webhook receives `skill.published` event within 5 seconds of publish
+  2. `@skillctl/sdk` npm package connects to registry and subscribes to channels
+  3. Skills published without required approvals are rejected by registry
+  4. `skillctl policy check` evaluates custom Rego rules against skill content
+  5. `skillctl audit` shows full event history with time-range filtering
+**Plans**: TBD
+
+Plans:
+- [ ] 05-01: TBD
+- [ ] 05-02: TBD
+
+### Phase 6: Agent Identity and Observability (v0.2.0)
+**Goal**: Agents are first-class identities with scoped permissions, and platform teams have full visibility into skill usage patterns
+**Depends on**: Phase 4 (gateway provides invocation data)
+**Requirements**: AID-01 to AID-04, OBS-01 to OBS-04
+**Success Criteria** (what must be TRUE):
+  1. Agents authenticate with service identity tokens distinct from human users
+  2. Agent tokens are scoped to specific skills — invocations outside scope are blocked
+  3. Skill invocation dashboard shows top skills, top agents, and usage timeline
+  4. Anomaly detection flags agents calling skills outside their historical usage profile
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: TBD
+- [ ] 06-02: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3
+v0.1.0: 1 -> 2 -> 3
+v0.2.0: 4, 5 (parallel, both depend on Phase 2) -> 6 (depends on Phase 4)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. CLI and Local Governance | 0/3 | Not started | - |
-| 2. Registry Server | 0/2 | Not started | - |
-| 3. Distribution and Release Readiness | 0/2 | Not started | - |
+| Phase | Plans Complete | Status | Milestone | Completed |
+|-------|----------------|--------|-----------|-----------|
+| 1. CLI and Local Governance | 0/3 | Not started | v0.1.0 | - |
+| 2. Registry Server | 0/2 | Not started | v0.1.0 | - |
+| 3. Eval Suite | 0/2 | Not started | v0.1.0 | - |
+| 4. Skills Gateway | 0/2 | Not started | v0.2.0 | - |
+| 5. Pub/Sub, SDK, Governance | 0/2 | Not started | v0.2.0 | - |
+| 6. Agent Identity & Observability | 0/2 | Not started | v0.2.0 | - |

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An open-source CLI and governance layer for agent skills — "what Terraform did for infrastructure, skillctl does for agent skills." It gives platform teams a single tool to validate, version, publish, audit, and distribute skills across any agent runtime (Anthropic, OpenAI, Gemini). The CLI is backed by a self-hostable registry server and a pub/sub channel system for skill distribution at scale.
+An open-source governance platform for agent skills — "what Terraform did for infrastructure, skillctl does for agent skills." It gives platform teams a single tool to validate, evaluate, publish, audit, and enforce policy on skills across any agent runtime (Anthropic, OpenAI, Gemini). The platform has three layers: a CLI for local governance, a self-hostable registry server for team distribution, and an eval suite (forked from AWS Agent Skill Eval) that grades skills A-F across safety, quality, and reliability. A runtime gateway for policy enforcement is planned for v0.2.0.
 
 ## Core Value
 
@@ -29,17 +29,15 @@ An open-source CLI and governance layer for agent skills — "what Terraform did
 - [ ] Self-hostable registry server (Go, filesystem + S3 backends, SQLite index)
 - [ ] Token-based auth with scoped permissions (read, write:<ns>, admin)
 - [ ] `skillctl publish/search` — remote registry interaction
-- [ ] Pub/sub channel system with webhook subscribers
-- [ ] `skillctl channel subscribe/list/publish/status` commands
-- [ ] Breaking change protection on channel updates
-- [ ] Append-only audit log (JSONL, HMAC-SHA256 signed)
-- [ ] TypeScript SDK (`@skillctl/sdk`) with channel subscription support
+- [ ] Eval suite (forked from AWS Agent Skill Eval) with A-F grading, LLM-as-judge, certification tiers
+- [ ] Eval registry integration — reports stored alongside skill metadata
 - [ ] Backward compatibility with plain SKILL.md files (auto-wrap in manifest)
-- [ ] Approval workflows (pending state, N-of-M approvals, role-based)
-- [ ] `skillctl deprecate` with sunset date enforcement
-- [ ] OPA/Rego policy evaluation engine
-- [ ] Eval suite (`skillctl eval run/report/diff/history`) with LLM-as-judge + deterministic judges
-- [ ] GitHub Action for CI/CD (validate + scan + publish)
+- [ ] Append-only audit log (JSONL, HMAC-SHA256 signed)
+- [ ] Certification grades: A/B = verified, C = community, D/F = rejected
+- [ ] v0.2.0: Skills gateway (policy proxy between agents and MCP servers)
+- [ ] v0.2.0: Pub/sub channels + TypeScript SDK + approval workflows
+- [ ] v0.2.0: Agent identity (service tokens, OAuth 2.1/PKCE)
+- [ ] v0.2.0: Observability (invocation logging, anomaly detection)
 
 ### Out of Scope
 
@@ -111,6 +109,10 @@ The agent skills ecosystem grew from 0 to npm-scale in ~2 months (2026). This ex
 | Content-addressed storage | Git-like integrity — prevents tampering, enables verification | -- Pending |
 | EventBus interface for pub/sub | Cloud layer swaps in Kafka/SQS without touching business logic | -- Pending |
 | RE2 regex engine | Guaranteed linear time — no ReDoS in security scanner | -- Pending |
+| Fork AWS Agent Skill Eval (MIT-0) | Battle-tested eval with 621 tests; extend don't rebuild | -- Pending |
+| Eval before pub/sub in v0.1.0 | Proving skills work > distributing them. Eval makes governance credible | -- Pending |
+| Gateway in v0.2.0 (not v0.1.0) | Runtime enforcement is a separate concern from build-time governance | -- Pending |
+| A-F grades = certification tiers | Reuse eval scoring as certification mechanism (verified/community/rejected) | -- Pending |
 
 ---
-*Last updated: 2026-03-21 after initialization*
+*Last updated: 2026-03-22 after scope revision (eval in v0.1.0, gateway in v0.2.0)*

@@ -1,11 +1,11 @@
 # Requirements: skillctl
 
-**Defined:** 2026-03-21
+**Defined:** 2026-03-22
 **Core Value:** No skill reaches production without passing through a governance gate
 
-## v1 Requirements
+## v0.1.0 Requirements
 
-Requirements for public v0.1.0 release (Milestones 0-3).
+Requirements for public v0.1.0 release: CLI + Registry + Eval.
 
 ### CLI Foundation
 
@@ -24,6 +24,7 @@ Requirements for public v0.1.0 release (Milestones 0-3).
 - [ ] **FMT-03**: Metadata supports name (namespace/skill), version (semver), description, authors, license, tags, timestamps
 - [ ] **FMT-04**: Spec supports content (inline or path), parameters (typed with defaults), capabilities, dependencies, compatibility
 - [ ] **FMT-05**: Governance section supports approvals config, channel subscriptions, deprecation policy
+- [ ] **FMT-06**: Metadata supports `certification` field (community | verified | enterprise) derived from eval grade
 
 ### Validation
 
@@ -78,92 +79,103 @@ Requirements for public v0.1.0 release (Milestones 0-3).
 - [ ] **SRV-10**: /healthz and /readyz endpoints for liveness/readiness probes
 - [ ] **SRV-11**: All HTTP calls respect HTTPS_PROXY and NO_PROXY environment variables
 
-### Pub/Sub & Channels
+### Eval Suite (forked from AWS Agent Skill Eval)
 
-- [ ] **PUB-01**: Channel management endpoints in registry server (CRUD + subscribe)
-- [ ] **PUB-02**: `skillctl channel subscribe` saves subscription to .skillctlrc
-- [ ] **PUB-03**: `skillctl channel list` shows available channels
-- [ ] **PUB-04**: `skillctl channel publish` publishes skill version to channel
-- [ ] **PUB-05**: `skillctl channel status` shows subscribers and pinned versions
-- [ ] **PUB-06**: Registry emits structured events on skill lifecycle changes (published, deprecated, removed, approved)
-- [ ] **PUB-07**: Webhook subscriber support (registry POSTs events to subscriber URL)
-- [ ] **PUB-08**: Auto-update: channel event triggers `skillctl install --update` via webhook
-- [ ] **PUB-09**: Breaking change detected on channel update blocks auto-update (requires --force-breaking)
-- [ ] **PUB-10**: Event replay: subscribers can request missed events (up to 30 days)
-- [ ] **PUB-11**: EventBus interface — replaceable implementation (cloud layer swaps Kafka/SQS)
-
-### TypeScript SDK
-
-- [ ] **SDK-01**: `@skillctl/sdk` npm package with registry client
-- [ ] **SDK-02**: TypeScript type definitions for skill.yaml manifest, events, channels
-- [ ] **SDK-03**: Channel subscription support in SDK
+- [ ] **EVL-01**: Fork of aws-samples/sample-agent-skill-eval integrated into skillctl CLI
+- [ ] **EVL-02**: `skillctl eval audit` — safety scan (secrets, injection, permissions) with A-F grading (100pt scoring)
+- [ ] **EVL-03**: `skillctl eval functional` — baseline comparison (with/without skill) measuring output correctness
+- [ ] **EVL-04**: `skillctl eval trigger` — activation reliability testing (relevant vs irrelevant queries)
+- [ ] **EVL-05**: `skillctl eval report` — unified scoring (40% audit, 40% functional, 20% trigger) with A-F grade
+- [ ] **EVL-06**: `skillctl eval snapshot` — baseline creation for regression detection
+- [ ] **EVL-07**: `skillctl eval regression` — detect score drops between skill versions
+- [ ] **EVL-08**: LLM-as-judge engine — rubric-based scoring via Anthropic API on top of deterministic eval
+- [ ] **EVL-09**: Registry integration — eval reports stored alongside skill metadata in registry server
+- [ ] **EVL-10**: Certification mapping — A/B grade = verified, C = community, D/F = rejected. Stored in skill metadata
+- [ ] **EVL-11**: `skillctl eval compare` — side-by-side comparison of two skill versions
+- [ ] **EVL-12**: CI/CD integration — exit codes for pipeline gates (0 = pass, 1 = warnings, 2 = critical)
 
 ### Quality & DX
 
 - [ ] **QAL-01**: >60% test coverage on core packages
 - [ ] **QAL-02**: Integration tests against live registry server
 - [ ] **QAL-03**: README with copy-paste 5-minute quickstart (macOS + Linux)
-- [ ] **QAL-04**: 3+ example skills in /examples passing validate + scan
+- [ ] **QAL-04**: 3+ example skills in /examples passing validate + scan + eval
 - [ ] **QAL-05**: `skillctl validate` completes in < 500ms on 100KB skill
 - [ ] **QAL-06**: Zero known vulnerabilities (govulncheck clean)
 - [ ] **QAL-07**: License headers present in all source files
 - [ ] **QAL-08**: CHANGELOG.md up to date
 
-## v2 Requirements
+## v0.2.0 Requirements
 
-Deferred to post-v0.1.0. Milestones 4-6.
+Gateway, Pub/Sub, Agent Identity, and Observability.
 
-### Governance Layer (Milestone 4)
+### Skills Gateway
+
+- **GW-01**: HTTP proxy between agents and MCP servers with policy enforcement
+- **GW-02**: Policy check per invocation: is this agent allowed to invoke this skill?
+- **GW-03**: Skill invocation logging (who, what input, what output, context)
+- **GW-04**: Rate limiting per agent per skill
+- **GW-05**: Integration with registry — gateway fetches allowed skills from registry
+- **GW-06**: `skillctl gateway start` command with config file
+- **GW-07**: OpenTelemetry telemetry emission
+
+### Pub/Sub & Channels
+
+- **PUB-01**: Channel management endpoints in registry server (CRUD + subscribe)
+- **PUB-02**: `skillctl channel subscribe/list/publish/status` commands
+- **PUB-03**: Registry emits structured events on skill lifecycle changes
+- **PUB-04**: Webhook subscriber support (registry POSTs events to subscriber URL)
+- **PUB-05**: Breaking change protection on channel updates
+- **PUB-06**: Event replay (up to 30 days)
+- **PUB-07**: EventBus interface — replaceable implementation (cloud layer swaps Kafka/SQS)
+
+### Agent Identity
+
+- **AID-01**: Agent service identity (distinct from human user identity)
+- **AID-02**: Scoped tokens per agent with minimal necessary skill permissions
+- **AID-03**: OAuth 2.1 / PKCE support for agent authentication
+- **AID-04**: Agent identity in audit log (which agent invoked which skill)
+
+### Observability
+
+- **OBS-01**: Skill invocation dashboard (top skills, top agents, timeline)
+- **OBS-02**: Anomaly detection — agent calling skills outside historical profile
+- **OBS-03**: Chain-of-thought tracing for LLM-backed skills
+- **OBS-04**: Shadow skill detection — identify ungoverned skill usage
+
+### TypeScript SDK
+
+- **SDK-01**: `@skillctl/sdk` npm package with registry client
+- **SDK-02**: TypeScript type definitions for skill.yaml manifest, events, channels
+- **SDK-03**: Channel subscription support in SDK
+
+### Governance Layer
 
 - **GOV-01**: Approval workflow — skill lands in `pending` state, requires N approvals
 - **GOV-02**: `skillctl approve` command with role-based authorization
 - **GOV-03**: `skillctl deprecate` with sunset date enforcement
 - **GOV-04**: `skillctl audit` with time-range filtering and JSON export
 - **GOV-05**: OPA/Rego policy evaluation engine (`skillctl policy check`)
-- **GOV-06**: Example policy files (no-network-skills.rego, require-tests.rego, version-freeze.rego)
-- **GOV-07**: SCIM-compatible user/role provisioning endpoint (stub)
-- **GOV-08**: S3-compatible storage backend for registry server
-
-### GitHub Action & DX Polish (Milestone 5)
-
-- **ACT-01**: GitHub Action runs validate + scan + publish on push
-- **ACT-02**: `skillctl init --template` with 5 built-in templates
-- **ACT-03**: Full documentation site structure
-- **ACT-04**: Open RFC documents (SKILL_FORMAT.md, PUBSUB_PROTOCOL.md, REGISTRY_API.md)
-- **ACT-05**: CONTRIBUTING.md
-- **ACT-06**: End-to-end test suite covering full lifecycle
-
-### Eval Suite (Milestone 6)
-
-- **EVL-01**: `evalsuit.yaml` schema + parser
-- **EVL-02**: `skillctl eval run` with multi-variant execution
-- **EVL-03**: Deterministic judge engine (assert_contains, regex, max_tokens)
-- **EVL-04**: LLM-as-judge engine (Anthropic API, user-defined rubric)
-- **EVL-05**: Human judge queue (async, stored in registry)
-- **EVL-06**: `skillctl eval report` with rich terminal table
-- **EVL-07**: `skillctl eval diff` for regression detection
-- **EVL-08**: Registry stores eval reports alongside skill metadata
-- **EVL-09**: `governance.requireEval` enforcement on publish
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
 | Multi-tenant isolation | Reserved for SkillOS Cloud managed platform |
-| SSO/SAML/OIDC | Beyond basic token auth, enterprise cloud feature |
-| Skill certification badges | Cloud feature — requires trust scoring infrastructure |
+| SSO/SAML/OIDC | Beyond basic token auth + OAuth 2.1, enterprise cloud feature |
+| Skill certification badges (visual) | Cloud feature — requires UI/marketplace |
 | Payment/revenue marketplace | Cloud feature — requires billing integration |
 | RL feedback loop | Cloud feature — requires execution analytics pipeline |
 | Web UI for registry | CLI-first for OSS; cloud layer adds UI |
-| Mobile client | No use case for mobile skill management |
-| GraphQL API | REST is sufficient; GraphQL adds complexity without clear benefit |
+| Semantic skill discovery (embeddings) | Requires vector store — cloud feature |
+| Inter-agent trust federation | Complex identity problem — deferred beyond v0.2.0 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CLI-01 to CLI-07 | Phase 1 | Pending |
-| FMT-01 to FMT-05 | Phase 1 | Pending |
+| FMT-01 to FMT-06 | Phase 1 | Pending |
 | VAL-01 to VAL-06 | Phase 1 | Pending |
 | SEC-01 to SEC-10 | Phase 1 | Pending |
 | REG-01 to REG-05 | Phase 1 | Pending |
@@ -174,21 +186,30 @@ Deferred to post-v0.1.0. Milestones 4-6.
 | QAL-05 | Phase 1 | Pending |
 | SRV-01 to SRV-11 | Phase 2 | Pending |
 | QAL-02 | Phase 2 | Pending |
-| PUB-01 to PUB-11 | Phase 3 | Pending |
-| SDK-01 to SDK-03 | Phase 3 | Pending |
+| EVL-01 to EVL-12 | Phase 3 | Pending |
 | QAL-03 | Phase 3 | Pending |
 | QAL-06 | Phase 3 | Pending |
 | QAL-07 | Phase 3 | Pending |
 | QAL-08 | Phase 3 | Pending |
+| GW-01 to GW-07 | Phase 4 (v0.2.0) | Pending |
+| PUB-01 to PUB-07 | Phase 5 (v0.2.0) | Pending |
+| AID-01 to AID-04 | Phase 6 (v0.2.0) | Pending |
+| OBS-01 to OBS-04 | Phase 6 (v0.2.0) | Pending |
+| SDK-01 to SDK-03 | Phase 5 (v0.2.0) | Pending |
+| GOV-01 to GOV-05 | Phase 5 (v0.2.0) | Pending |
 
 **Coverage:**
-- v1 requirements: 72 total
-- Phase 1: 42 (CLI, Format, Validation, Security, Local Registry, Diff, Dependencies, QAL-01/04/05)
+- v0.1.0 requirements: 73 total
+- Phase 1: 43 (CLI, Format, Validation, Security, Local Registry, Diff, Dependencies, QAL-01/04/05)
 - Phase 2: 12 (Registry Server, QAL-02)
-- Phase 3: 18 (Pub/Sub, TypeScript SDK, QAL-03/06/07/08)
-- Mapped to phases: 72
+- Phase 3: 18 (Eval Suite, QAL-03/06/07/08)
+- v0.2.0 requirements: 30 total
+- Phase 4: 7 (Gateway)
+- Phase 5: 15 (Pub/Sub, SDK, Governance)
+- Phase 6: 8 (Agent Identity, Observability)
+- Mapped to phases: 103
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-21*
-*Last updated: 2026-03-21 after roadmap creation*
+*Requirements defined: 2026-03-22*
+*Last updated: 2026-03-22 after scope revision (eval replaces pub/sub in v0.1.0, gateway added to v0.2.0)*
