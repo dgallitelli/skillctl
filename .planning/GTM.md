@@ -34,7 +34,7 @@ This mirrors Terraform's HCL / HashiCorp's playbook: own the format, own the eco
 | SkillsMP66 | Community aggregation | Centralized verification, security | Security scanning + validation that SkillsMP66 lacks |
 | Anthropic/OpenAI native | Vendor org management | Cross-platform, independent marketplace | Vendor-neutral — works across all agent runtimes |
 | Chainguard | Security hardening + audit | Governance, RBAC, versioning, marketplace | Full lifecycle governance, not just security |
-| AWS Agent Skill Eval | Open-source eval framework (621 tests) | No governance, no registry, no CLI | Fork + extend — eval is a component of skillctl, not a competitor |
+| OSS eval frameworks | Open-source eval frameworks | No governance, no registry, no CLI | Eval is a component of skillctl, not a standalone tool |
 
 **Key threat:** Chainguard (entered March 17, 2026). They have security credibility. If they expand into governance/RBAC/versioning, they're the most dangerous competitor. **Speed matters.**
 
@@ -81,4 +81,4 @@ Before public announcement:
 - At least one example eval suite demonstrating skill certification flow
 
 ---
-*Extracted from CLAUDE.md on 2026-03-21. Updated 2026-03-22: eval positioning, AWS Agent Skill Eval fork, certification grading, revised launch criteria.*
+*Extracted from CLAUDE.md on 2026-03-21. Updated 2026-03-22: eval positioning, certification grading, revised launch criteria.*

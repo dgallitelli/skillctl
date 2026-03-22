@@ -2,7 +2,7 @@
 
 ## Overview
 
-skillctl delivers a governance-first CLI, registry, and evaluation platform for agent skills in three milestone releases. v0.1.0 covers the full "validate, evaluate, distribute" story: a CLI for local governance, a self-hosted registry for teams, and an eval suite (forked from AWS Agent Skill Eval) with certification grading. v0.2.0 adds runtime enforcement via a skills gateway, pub/sub channels, and governance workflows. v0.3.0 closes the loop with automated skill optimization — using eval as a reward signal to iteratively improve skills without human supervision.
+skillctl delivers a governance-first CLI, registry, and evaluation platform for agent skills in three milestone releases. v0.1.0 covers the full "validate, evaluate, distribute" story: a CLI for local governance, a self-hosted registry for teams, and an eval suite with certification grading. v0.2.0 adds runtime enforcement via a skills gateway, pub/sub channels, and governance workflows. v0.3.0 closes the loop with automated skill optimization — using eval as a reward signal to iteratively improve skills without human supervision.
 
 ## Phases
 
@@ -14,7 +14,7 @@ skillctl delivers a governance-first CLI, registry, and evaluation platform for 
 
 - [ ] **Phase 1: CLI and Local Governance** - Single-developer tool: init, validate, scan, push/pull, diff, dependencies, local registry
 - [ ] **Phase 2: Registry Server** - Self-hostable team registry with auth, publish/search, and audit logging
-- [ ] **Phase 3: Eval Suite** - Fork AWS Agent Skill Eval, extend with LLM-as-judge, certification grades, registry integration
+- [ ] **Phase 3: Eval Suite** - Eval engine with LLM-as-judge, certification grades, registry integration
 - [ ] **Phase 4: Skills Gateway** - Policy enforcement proxy between agents and MCP servers
 - [ ] **Phase 5: Pub/Sub, SDK, and Governance** - Channel distribution, TypeScript SDK, approval workflows, policy engine
 - [ ] **Phase 6: Skill Optimizer** - Automated improvement loop: eval → failure analysis → variant generation → promotion

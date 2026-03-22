@@ -42,7 +42,7 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Scope]: Fork AWS Agent Skill Eval (MIT-0) instead of building eval from scratch
+- [Scope]: Build on OSS eval patterns (MIT-0) instead of building eval from scratch
 - [Scope]: Eval suite moves to v0.1.0, pub/sub moves to v0.2.0
 - [Scope]: Skills gateway is part of skillctl (v0.2.0), not a separate product
 - [Scope]: A-F eval grades map to certification tiers (verified/community/rejected)
@@ -55,7 +55,7 @@ Recent decisions affecting current work:
 ### Key References
 
 - CLAUDE.md: Full technical spec (1051 lines)
-- AWS Agent Skill Eval: https://github.com/aws-samples/sample-agent-skill-eval (fork target)
+- OSS eval patterns: MIT-0 licensed eval framework (fork target)
 - Melanie Li research: Lightweight skills improve F1 by 34%; heavyweight degrade performance
 - Platform engineering analysis: 7 pillars (registry, approval, gateway, identity, audit, shadow detection, composability)
 

@@ -79,9 +79,9 @@ Requirements for public v0.1.0 release: CLI + Registry + Eval.
 - [ ] **SRV-10**: /healthz and /readyz endpoints for liveness/readiness probes
 - [ ] **SRV-11**: All HTTP calls respect HTTPS_PROXY and NO_PROXY environment variables
 
-### Eval Suite (forked from AWS Agent Skill Eval)
+### Eval Suite
 
-- [ ] **EVL-01**: Fork of aws-samples/sample-agent-skill-eval integrated into skillctl CLI
+- [ ] **EVL-01**: Eval engine integrated into skillctl CLI with A-F grading system
 - [ ] **EVL-02**: `skillctl eval audit` — safety scan (secrets, injection, permissions) with A-F grading (100pt scoring)
 - [ ] **EVL-03**: `skillctl eval functional` — baseline comparison (with/without skill) measuring output correctness
 - [ ] **EVL-04**: `skillctl eval trigger` — activation reliability testing (relevant vs irrelevant queries)
