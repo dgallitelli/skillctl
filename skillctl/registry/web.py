@@ -435,6 +435,7 @@ async def evaluate_form(request: Request, namespace: str, name: str, version: st
 
     return templates.TemplateResponse(request, "evaluate.html", {
         "skill": skill, "error": None, "report": None,
+        "evals_json": "", "trigger_queries_json": "",
     })
 
 
@@ -457,6 +458,8 @@ async def evaluate_submit(request: Request, namespace: str, name: str, version: 
     dry_run = bool(form.get("dry_run"))
     timeout = int(form.get("timeout", 120))
     agent = form.get("agent", "claude").strip()
+    evals_json_raw = form.get("evals_json", "").strip()
+    trigger_queries_raw = form.get("trigger_queries_json", "").strip()
 
     # Write skill content to a temp directory
     try:
@@ -475,6 +478,30 @@ async def evaluate_submit(request: Request, namespace: str, name: str, version: 
     (tmp_dir / "skill.yaml").write_text(
         _yaml.dump(manifest, default_flow_style=False)
     )
+
+    # Write eval test data if provided
+    evals_dir = tmp_dir / "evals"
+    if evals_json_raw:
+        try:
+            json.loads(evals_json_raw)  # validate JSON
+            evals_dir.mkdir(exist_ok=True)
+            (evals_dir / "evals.json").write_text(evals_json_raw)
+        except json.JSONDecodeError:
+            return templates.TemplateResponse(request, "evaluate.html", {
+                "skill": skill, "error": "Invalid JSON in eval cases field.", "report": None,
+                "evals_json": evals_json_raw, "trigger_queries_json": trigger_queries_raw,
+            }, status_code=400)
+
+    if trigger_queries_raw:
+        try:
+            json.loads(trigger_queries_raw)  # validate JSON
+            evals_dir.mkdir(exist_ok=True)
+            (evals_dir / "eval_queries.json").write_text(trigger_queries_raw)
+        except json.JSONDecodeError:
+            return templates.TemplateResponse(request, "evaluate.html", {
+                "skill": skill, "error": "Invalid JSON in trigger queries field.", "report": None,
+                "evals_json": evals_json_raw, "trigger_queries_json": trigger_queries_raw,
+            }, status_code=400)
 
     # Run unified report
     from skillctl.eval.unified_report import run_unified_report

@@ -201,6 +201,39 @@
     </div>
   </div>
 
+  <!-- Test data -->
+  <div class="detail-section" style="margin-top:1.25rem;">
+    <h3>Test Data <small style="text-transform:none;letter-spacing:normal;font-weight:normal;color:var(--pico-muted-color);">(optional — needed for Functional and Trigger phases)</small></h3>
+
+    <details style="margin-bottom:1rem;">
+      <summary style="cursor:pointer;font-weight:500;">Functional eval cases <code>evals.json</code></summary>
+      <p style="font-size:.8rem;color:var(--pico-muted-color);margin:.5rem 0;">
+        JSON array of test scenarios. Each case has an <code>id</code>, a <code>prompt</code> to send to the agent,
+        optional <code>expected_output</code>, and <code>assertions</code> to check against the response.
+      </p>
+      <textarea name="evals_json" rows="8" placeholder='[
+  {
+    "id": "review-security",
+    "prompt": "Review this code for security issues: def login(user, pw): ...",
+    "expected_output": "SQL injection vulnerability",
+    "assertions": ["mentions SQL injection", "suggests parameterized queries"]
+  }
+]' style="font-family:monospace;font-size:.8rem;">{{ evals_json or '' }}</textarea>
+    </details>
+
+    <details>
+      <summary style="cursor:pointer;font-weight:500;">Trigger queries <code>eval_queries.json</code></summary>
+      <p style="font-size:.8rem;color:var(--pico-muted-color);margin:.5rem 0;">
+        JSON array of queries to test activation. Each has a <code>query</code> string and
+        <code>should_trigger</code> boolean (true = skill should activate, false = should stay silent).
+      </p>
+      <textarea name="trigger_queries_json" rows="8" placeholder='[
+  {"query": "Review this PR for security issues", "should_trigger": true},
+  {"query": "What is the weather today?", "should_trigger": false}
+]' style="font-family:monospace;font-size:.8rem;">{{ trigger_queries_json or '' }}</textarea>
+    </details>
+  </div>
+
   <div style="margin-top:1.25rem;">
     <button type="submit" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600;width:100%;"
             onclick="this.disabled=true;this.textContent='Running…';this.form.submit()">
