@@ -1,0 +1,31 @@
+{% if skills %}
+<div class="skill-grid">
+  {% for skill in skills %}
+  <div class="skill-card">
+    <div class="card-top">
+      <h3><a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}">{{ skill.name }}</a></h3>
+      {% if skill.eval_grade %}
+        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.0f"|format(skill.eval_score) }}{% endif %}</span>
+      {% endif %}
+    </div>
+    <div class="desc">{{ skill.description or 'No description' }}</div>
+    <div class="card-footer">
+      <div class="tags">
+        {% if skill.tags %}
+          {% for tag in skill.tags %}
+            <span class="badge badge-tag">{{ tag }}</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+      <span class="badge badge-version">v{{ skill.version }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">📦</div>
+  <p>No skills found.</p>
+  <p><a href="/publish">Publish your first skill</a> to get started.</p>
+</div>
+{% endif %}

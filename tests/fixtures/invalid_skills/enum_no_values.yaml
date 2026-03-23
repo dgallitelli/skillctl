@@ -1,0 +1,15 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/enum-no-values
+  version: 1.0.0
+  description: "Skill with enum parameter but no values list"
+
+spec:
+  content:
+    inline: |
+      # Enum No Values Skill
+  parameters:
+    - name: level
+      type: enum

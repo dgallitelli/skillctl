@@ -1,0 +1,26 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/valid-skill
+  version: 1.2.3
+  description: "A fully valid skill manifest for testing"
+  authors:
+    - name: Test Author
+      email: test@example.com
+  license: MIT
+  tags:
+    - testing
+    - valid
+
+spec:
+  content:
+    path: ./SKILL.md
+  parameters:
+    - name: language
+      type: string
+      required: false
+      default: "python"
+  capabilities:
+    - read_file
+    - read_code

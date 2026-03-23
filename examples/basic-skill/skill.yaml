@@ -1,0 +1,21 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: my-org/code-reviewer
+  version: 1.0.0
+  description: "Reviews PRs for security issues and code quality"
+  authors:
+    - name: Alice
+      email: alice@example.com
+  license: MIT
+  tags:
+    - security
+    - code-review
+
+spec:
+  content:
+    path: ./SKILL.md
+  capabilities:
+    - read_file
+    - read_code

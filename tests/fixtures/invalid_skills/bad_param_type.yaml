@@ -1,0 +1,15 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/bad-param-type
+  version: 1.0.0
+  description: "Skill with invalid parameter type"
+
+spec:
+  content:
+    inline: |
+      # Bad Param Type Skill
+  parameters:
+    - name: foo
+      type: invalid_type

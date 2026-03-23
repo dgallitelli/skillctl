@@ -1,0 +1,12 @@
+.git
+.venv
+.pytest_cache
+.vscode
+.kiro
+.planning
+__pycache__
+*.egg-info
+*.pyc
+logs
+firebase-debug.log
+registry-data

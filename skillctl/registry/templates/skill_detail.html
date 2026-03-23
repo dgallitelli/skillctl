@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ skill.name }} — Skill Registry{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:.75rem;">
+  <a href="/" style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">← Back to browse</a>
+</div>
+
+<div class="detail-header">
+  <hgroup>
+    <h1>{{ skill.name }}</h1>
+    <div class="badges">
+      <span class="badge badge-version">v{{ skill.version }}</span>
+      {% if skill.eval_grade %}
+        <span class="badge badge-grade-{{ skill.eval_grade }}">Grade {{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.1f"|format(skill.eval_score) }}{% endif %}</span>
+      {% endif %}
+      {% if skill.license %}
+        <span class="badge badge-license">{{ skill.license }}</span>
+      {% endif %}
+      {% if skill.tags %}
+        {% for tag in skill.tags %}
+          <span class="badge badge-tag">{{ tag }}</span>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </hgroup>
+  <div class="detail-actions">
+    <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/evaluate"
+       role="button" style="font-size:.85rem;background:#0ea5e9;border-color:#0ea5e9;color:#fff;">
+      📊 Evaluate
+    </a>
+    <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/optimize"
+       role="button" style="font-size:.85rem;background:var(--accent);border-color:var(--accent);color:#fff;">
+      ⚙ Optimize
+    </a>
+    <a href="/api/v1/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/content"
+       role="button" download style="font-size:.85rem;background:var(--pico-color);border-color:var(--pico-color);color:var(--pico-background-color);">
+      ↓ Download
+    </a>
+    <button style="font-size:.85rem;background:var(--danger);border-color:var(--danger);color:#fff;"
+            hx-delete="/web/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
+            hx-confirm="Delete {{ skill.name }}@{{ skill.version }}? This cannot be undone."
+            hx-target="body">
+      Delete
+    </button>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div>
+    <!-- Details -->
+    <div class="detail-section" style="margin-bottom:1.25rem;">
+      <h3>Details</h3>
+      <table class="info-table" role="grid">
+        <tbody>
+          <tr><th>Namespace</th><td>{{ skill.namespace }}</td></tr>
+          <tr><th>Description</th><td>{{ skill.description or '—' }}</td></tr>
+          {% if skill.authors %}
+          <tr><th>Authors</th><td>{% for a in skill.authors %}{{ a.name }}{% if a.email %} &lt;{{ a.email }}&gt;{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+          {% endif %}
+          <tr><th>Hash</th><td><code style="font-size:.75rem;word-break:break-all;color:var(--pico-muted-color);">{{ skill.content_hash }}</code></td></tr>
+          <tr><th>Created</th><td>{{ skill.created_at[:19] }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Eval -->
+    <div class="detail-section">
+      <h3>Eval Score</h3>
+      {% if skill.eval_grade is not none %}
+      <p style="margin-bottom:.75rem;">
+        Current: <span class="badge badge-grade-{{ skill.eval_grade }}">{{ skill.eval_grade }}</span>
+        — {{ skill.eval_score }}/100
+      </p>
+      {% endif %}
+      <form hx-put="/web/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/eval"
+            hx-target="body" hx-swap="outerHTML">
+        <div class="eval-form">
+          <label>
+            <small>Grade</small>
+            <select name="grade" required aria-label="Grade">
+              <option value="">—</option>
+              {% for g in ['A','B','C','D','F'] %}
+              <option value="{{ g }}" {% if skill.eval_grade == g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label style="flex:1;">
+            <small>Score (0–100)</small>
+            <input type="number" name="score" min="0" max="100" step="0.1"
+                   value="{{ skill.eval_score if skill.eval_score is not none else '' }}"
+                   placeholder="0–100" required aria-label="Score" />
+          </label>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <!-- Content preview -->
+    {% if is_archive %}
+    <div class="detail-section" style="margin-bottom:1.25rem;">
+      <h3>Content</h3>
+      <p style="color:var(--pico-muted-color);font-size:.9rem;">
+        📦 Multi-file archive
+        {% if archive_files %}({{ archive_files|length }} files){% endif %}
+      </p>
+      {% if archive_files %}
+      <details style="margin-bottom:1rem;">
+        <summary style="font-size:.85rem;cursor:pointer;">File listing</summary>
+        <pre class="content-preview" style="margin-top:.5rem;max-height:200px;"><code>{% for f in archive_files %}{{ f }}
+{% endfor %}</code></pre>
+      </details>
+      {% endif %}
+      {% if content_preview %}
+      <h4 style="font-size:.85rem;color:var(--pico-muted-color);margin-bottom:.5rem;">SKILL.md</h4>
+      <pre class="content-preview"><code>{{ content_preview }}</code></pre>
+      {% endif %}
+    </div>
+    {% elif content_preview %}
+    <div class="detail-section" style="margin-bottom:1.25rem;">
+      <h3>Content Preview</h3>
+      <pre class="content-preview"><code>{{ content_preview }}</code></pre>
+    </div>
+    {% endif %}
+
+    <!-- Version history -->
+    {% if versions and versions|length > 1 %}
+    <div class="detail-section">
+      <h3>Versions</h3>
+      <table class="version-table" role="grid">
+        <thead><tr><th>Version</th><th>Created</th><th>Grade</th></tr></thead>
+        <tbody>
+          {% for v in versions %}
+          <tr>
+            <td {% if v.version == skill.version %}class="version-current"{% endif %}>
+              <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ v.version }}">
+                v{{ v.version }}
+              </a>
+              {% if v.version == skill.version %}<small style="color:var(--pico-muted-color);"> (current)</small>{% endif %}
+            </td>
+            <td>{{ v.created_at[:10] }}</td>
+            <td>
+              {% if v.eval_grade %}
+                <span class="badge badge-grade-{{ v.eval_grade }}">{{ v.eval_grade }}</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

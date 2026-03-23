@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Skills — Skill Registry{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Skills</h1>
+  <a href="/publish" role="button" style="background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;">+ Publish Skill</a>
+</div>
+
+<div class="search-bar">
+  <input
+    type="search"
+    name="q"
+    placeholder="Search skills…"
+    value="{{ query or '' }}"
+    hx-get="/skills"
+    hx-target="#skill-list"
+    hx-trigger="input changed delay:300ms, search"
+    hx-include="[name='namespace'],[name='tag']"
+    aria-label="Search skills"
+  />
+  <input
+    type="text"
+    name="namespace"
+    placeholder="Namespace"
+    value="{{ namespace or '' }}"
+    hx-get="/skills"
+    hx-target="#skill-list"
+    hx-trigger="input changed delay:500ms"
+    hx-include="[name='q'],[name='tag']"
+    aria-label="Filter by namespace"
+  />
+  <input
+    type="text"
+    name="tag"
+    placeholder="Tag"
+    value="{{ tag or '' }}"
+    hx-get="/skills"
+    hx-target="#skill-list"
+    hx-trigger="input changed delay:500ms"
+    hx-include="[name='q'],[name='namespace']"
+    aria-label="Filter by tag"
+  />
+</div>
+
+<div id="skill-list">
+  {% include "_skill_list.html" %}
+</div>
+{% endblock %}

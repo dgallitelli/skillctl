@@ -1,0 +1,12 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/missing-content
+  version: 1.0.0
+  description: "Skill with no content path or inline"
+
+spec:
+  content: {}
+  capabilities:
+    - read_file

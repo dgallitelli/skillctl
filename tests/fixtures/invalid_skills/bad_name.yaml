@@ -1,0 +1,12 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: InvalidName_NoSlash
+  version: 1.0.0
+  description: "Skill with invalid name format"
+
+spec:
+  content:
+    inline: |
+      # Bad Name Skill

@@ -1,2 +1,16 @@
+# Build / install
+*.egg-info/
+__pycache__/
+*.pyc
+.venv/
+
+# IDE / tools
+.vscode/
+.kiro/
+.planning/
+
+# Project artifacts
 firebase-debug.log
 logs/
+CLAUDE.md
+registry-data/

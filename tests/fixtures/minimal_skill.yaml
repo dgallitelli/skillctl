@@ -1,0 +1,13 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/minimal
+  version: 0.1.0
+  description: "Minimal valid manifest with only required fields"
+
+spec:
+  content:
+    inline: |
+      # Minimal Skill
+      Just the basics.

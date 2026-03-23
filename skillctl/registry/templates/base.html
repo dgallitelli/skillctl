@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Skill Registry{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+    <link rel="stylesheet" href="/static/pico.min.css" />
+    <script src="/static/htmx.min.js" defer></script>
+    <script>
+      // Persist theme preference
+      (function(){
+        const saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', 'dark');
+      })();
+    </script>
+    <style>
+      /* ── Tokens ───────────────────────────────────────────── */
+      :root {
+        --pico-font-size: 15px;
+        --accent: #6366f1;
+        --accent-light: #818cf8;
+        --accent-bg: rgba(99,102,241,.08);
+        --success: #22c55e;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --radius: .5rem;
+        --radius-lg: .75rem;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+      }
+      [data-theme="dark"] {
+        --accent-bg: rgba(99,102,241,.15);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.2);
+        --shadow-md: 0 4px 12px rgba(0,0,0,.3);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,.4);
+      }
+
+      /* ── Layout ───────────────────────────────────────────── */
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; display: flex; flex-direction: column; margin: 0; }
+      main.container { flex: 1; padding-top: 2rem; padding-bottom: 3rem; }
+
+      /* ── Nav ──────────────────────────────────────────────── */
+      .site-nav {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--pico-muted-border-color);
+        position: sticky; top: 0; z-index: 100;
+        background: color-mix(in srgb, var(--pico-background-color) 85%, transparent);
+      }
+      .site-nav .container-fluid {
+        display: flex; justify-content: space-between; align-items: center;
+        padding-top: .6rem; padding-bottom: .6rem;
+      }
+      .site-nav .logo { font-size: 1.15rem; font-weight: 700; text-decoration: none; color: var(--pico-color); display: flex; align-items: center; gap: .4rem; }
+      .site-nav .logo span { font-size: 1.3rem; }
+      .nav-links { display: flex; align-items: center; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+      .nav-links a { text-decoration: none; font-size: .9rem; padding: .35rem .7rem; border-radius: var(--radius); transition: background .15s; }
+      .nav-links a:hover { background: var(--accent-bg); }
+      .nav-links .btn-publish {
+        background: var(--accent); color: #fff; font-weight: 600;
+        padding: .4rem .9rem; border-radius: var(--radius);
+      }
+      .nav-links .btn-publish:hover { background: var(--accent-light); }
+
+      /* ── Theme toggle ─────────────────────────────────────── */
+      .theme-toggle {
+        background: none; border: none; cursor: pointer; font-size: 1.2rem;
+        padding: .3rem; border-radius: var(--radius); color: var(--pico-color);
+        transition: background .15s;
+      }
+      .theme-toggle:hover { background: var(--accent-bg); }
+      [data-theme="dark"] .icon-sun { display: inline; }
+      [data-theme="dark"] .icon-moon { display: none; }
+      [data-theme="light"] .icon-sun { display: none; }
+      [data-theme="light"] .icon-moon { display: inline; }
+
+      /* ── Footer ───────────────────────────────────────────── */
+      .site-footer {
+        border-top: 1px solid var(--pico-muted-border-color);
+        padding: 1.25rem 0; text-align: center;
+        font-size: .8rem; color: var(--pico-muted-color);
+      }
+      .site-footer a { color: var(--pico-muted-color); }
+
+      /* ── Page header ──────────────────────────────────────── */
+      .page-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem;
+      }
+      .page-header h1 { margin: 0; font-size: 1.75rem; }
+
+      /* ── Search bar ───────────────────────────────────────── */
+      .search-bar {
+        display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 2rem;
+        background: var(--pico-card-background-color);
+        padding: 1rem; border-radius: var(--radius-lg);
+        border: 1px solid var(--pico-muted-border-color);
+      }
+      .search-bar input { margin-bottom: 0; }
+      .search-bar input[type="search"] { flex: 3; min-width: 200px; }
+      .search-bar input[type="text"] { flex: 1; min-width: 100px; }
+
+      /* ── Skill cards ──────────────────────────────────────── */
+      .skill-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+      }
+      .skill-card {
+        background: var(--pico-card-background-color);
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        transition: transform .15s, box-shadow .15s;
+        display: flex; flex-direction: column;
+      }
+      .skill-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+      .skill-card .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+      .skill-card h3 { margin: 0; font-size: 1rem; line-height: 1.3; }
+      .skill-card h3 a { text-decoration: none; color: var(--pico-color); }
+      .skill-card h3 a:hover { color: var(--accent); }
+      .skill-card .desc { font-size: .875rem; color: var(--pico-muted-color); margin-bottom: .75rem; flex: 1; line-height: 1.5; }
+      .skill-card .card-footer { display: flex; justify-content: space-between; align-items: center; }
+      .skill-card .tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+      /* ── Badges ───────────────────────────────────────────── */
+      .badge {
+        display: inline-flex; align-items: center;
+        padding: .15rem .55rem; border-radius: 2rem;
+        font-size: .7rem; font-weight: 600; letter-spacing: .02em;
+        white-space: nowrap;
+      }
+      .badge-version { background: var(--accent-bg); color: var(--accent); }
+      .badge-grade-A { background: rgba(34,197,94,.12); color: #16a34a; }
+      .badge-grade-B { background: rgba(59,130,246,.12); color: #2563eb; }
+      .badge-grade-C { background: rgba(245,158,11,.12); color: #d97706; }
+      .badge-grade-D { background: rgba(249,115,22,.12); color: #ea580c; }
+      .badge-grade-F { background: rgba(239,68,68,.12); color: #dc2626; }
+      [data-theme="dark"] .badge-grade-A { color: #4ade80; }
+      [data-theme="dark"] .badge-grade-B { color: #60a5fa; }
+      [data-theme="dark"] .badge-grade-C { color: #fbbf24; }
+      [data-theme="dark"] .badge-grade-D { color: #fb923c; }
+      [data-theme="dark"] .badge-grade-F { color: #f87171; }
+      .badge-tag {
+        background: var(--pico-muted-border-color);
+        color: var(--pico-muted-color);
+        font-weight: 500;
+      }
+      .badge-license { background: rgba(168,85,247,.1); color: #7c3aed; }
+      [data-theme="dark"] .badge-license { color: #a78bfa; }
+
+      /* ── Detail page ──────────────────────────────────────── */
+      .detail-header {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+        padding-bottom: 1.5rem; border-bottom: 1px solid var(--pico-muted-border-color);
+      }
+      .detail-header hgroup { margin: 0; }
+      .detail-header hgroup h1 { margin-bottom: .35rem; font-size: 1.6rem; }
+      .detail-header hgroup .badges { display: flex; gap: .4rem; flex-wrap: wrap; }
+      .detail-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+      .detail-actions button, .detail-actions a[role="button"] { font-size: .85rem; padding: .4rem .8rem; }
+
+      .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+      @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+
+      .detail-section {
+        background: var(--pico-card-background-color);
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+      }
+      .detail-section h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--pico-muted-color); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+      .info-table { width: 100%; }
+      .info-table th { width: 100px; white-space: nowrap; font-weight: 500; color: var(--pico-muted-color); vertical-align: top; }
+      .info-table td { word-break: break-word; }
+
+      /* ── Content preview ──────────────────────────────────── */
+      .content-preview {
+        max-height: 450px; overflow: auto;
+        font-size: .82rem; line-height: 1.6;
+        background: var(--pico-card-background-color);
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--radius);
+        padding: 1rem;
+      }
+
+      /* ── Empty state ──────────────────────────────────────── */
+      .empty-state {
+        text-align: center; padding: 4rem 1rem;
+        color: var(--pico-muted-color);
+      }
+      .empty-state .icon { font-size: 3rem; margin-bottom: .75rem; opacity: .3; }
+      .empty-state p { font-size: 1rem; }
+      .empty-state a { color: var(--accent); }
+
+      /* ── Publish form ─────────────────────────────────────── */
+      .publish-form .form-section {
+        background: var(--pico-card-background-color);
+        border: 1px solid var(--pico-muted-border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem; margin-bottom: 1.25rem;
+      }
+      .publish-form .form-section h3 {
+        font-size: .9rem; margin-bottom: 1rem; color: var(--pico-muted-color);
+        text-transform: uppercase; letter-spacing: .05em; font-weight: 600;
+      }
+      .form-row { display: grid; gap: 1rem; }
+      .form-row-2 { grid-template-columns: 1fr 1fr; }
+      .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+      @media (max-width: 600px) { .form-row-2, .form-row-3 { grid-template-columns: 1fr; } }
+
+      /* ── Error banner ─────────────────────────────────────── */
+      .error-banner {
+        background: rgba(239,68,68,.08);
+        border: 1px solid rgba(239,68,68,.25);
+        border-left: 4px solid var(--danger);
+        border-radius: var(--radius);
+        padding: .75rem 1rem; margin-bottom: 1.5rem;
+        color: var(--danger); font-size: .9rem;
+      }
+
+      /* ── Toast ─────────────────────────────────────────────── */
+      .toast {
+        position: fixed; top: 1rem; right: 1rem; z-index: 999;
+        padding: .65rem 1.1rem; border-radius: var(--radius);
+        font-size: .875rem; font-weight: 500;
+        animation: slideIn .3s ease;
+        box-shadow: var(--shadow-lg);
+      }
+      .toast-success { background: var(--success); color: #fff; }
+      .toast-error { background: var(--danger); color: #fff; }
+      @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+      /* ── Btn danger ────────────────────────────────────────── */
+      .btn-danger {
+        --pico-color: var(--danger);
+        border-color: var(--danger);
+      }
+      .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+      /* ── Eval inline form ──────────────────────────────────── */
+      .eval-form { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
+      .eval-form label { margin-bottom: 0; }
+      .eval-form select, .eval-form input[type="number"] { margin-bottom: 0; }
+      .eval-form button { margin-bottom: 0; white-space: nowrap; }
+
+      /* ── Version table ─────────────────────────────────────── */
+      .version-table { font-size: .875rem; }
+      .version-table th { font-weight: 600; }
+      .version-current { font-weight: 700; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="site-nav">
+      <div class="container-fluid">
+        <a href="/" class="logo"><span>⚡</span> Skill Registry</a>
+        <ul class="nav-links">
+          <li><a href="/">Browse</a></li>
+          <li><a href="/publish" class="btn-publish">+ Publish</a></li>
+          <li>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="icon-moon">🌙</span>
+              <span class="icon-sun">☀️</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="container">
+        {% if flash_message %}
+        <div class="toast toast-{{ flash_type or 'success' }}" id="toast" onclick="this.remove()">
+            {{ flash_message }}
+        </div>
+        <script>setTimeout(()=>{const t=document.getElementById('toast');if(t)t.remove()},4000)</script>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer container">
+        Powered by skillctl · <a href="/api/v1/health">API</a>
+    </footer>
+
+    <script>
+      function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      }
+    </script>
+</body>
+</html>

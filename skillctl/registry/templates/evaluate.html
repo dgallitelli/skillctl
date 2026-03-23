@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluate {{ skill.name }} — Skill Registry{% endblock %}
+
+{% block head %}
+<style>
+  .eval-section-card {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem; margin-bottom: 1rem;
+  }
+  .eval-section-card h4 { margin: 0 0 .75rem; font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; color: var(--pico-muted-color); }
+  .score-big { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+  .score-big.pass { color: var(--success); }
+  .score-big.fail { color: var(--danger); }
+  .score-bar { height: 8px; border-radius: 4px; background: var(--pico-muted-border-color); overflow: hidden; margin: .5rem 0; }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+  .score-bar-fill.high { background: var(--success); }
+  .score-bar-fill.mid { background: var(--warning); }
+  .score-bar-fill.low { background: var(--danger); }
+  .stat-row { display: flex; justify-content: space-between; font-size: .85rem; color: var(--pico-muted-color); }
+  .eval-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:.75rem;">
+  <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
+     style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">
+    ← Back to {{ skill.name }}
+  </a>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1>Evaluate Skill</h1>
+    <p style="color:var(--pico-muted-color);margin:0;">
+      {{ skill.name }} <span class="badge badge-version">v{{ skill.version }}</span>
+    </p>
+  </div>
+</div>
+
+{% if error %}
+<div class="error-banner">{{ error }}</div>
+{% endif %}
+
+{% if report %}
+<!-- Evaluation results -->
+<div class="detail-section" style="margin-bottom:1.5rem;">
+  <h3>Overall Result</h3>
+  <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+    <div>
+      <div class="score-big {% if report.passed %}pass{% else %}fail{% endif %}">
+        {{ report.overall_grade }}
+      </div>
+      <div style="font-size:.85rem;color:var(--pico-muted-color);margin-top:.25rem;">
+        {{ "%.0f"|format(report.overall_score * 100) }}% · {% if report.passed %}Passed{% else %}Failed{% endif %}
+      </div>
+    </div>
+    <div style="flex:1;min-width:200px;">
+      <div class="score-bar">
+        <div class="score-bar-fill {% if report.overall_score >= 0.8 %}high{% elif report.overall_score >= 0.5 %}mid{% else %}low{% endif %}"
+             style="width:{{ "%.0f"|format(report.overall_score * 100) }}%"></div>
+      </div>
+      <div class="stat-row">
+        <span>{{ report.timestamp[:19] if report.timestamp else '' }}</span>
+        <span>{{ report.sections|length }} section(s) evaluated</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="eval-grid">
+  {% if report.sections.audit is defined and report.sections.audit.error is not defined and report.sections.audit.skipped is not defined %}
+  <div class="eval-section-card">
+    <h4>🔒 Security Audit</h4>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span class="badge badge-grade-{{ report.sections.audit.grade }}">{{ report.sections.audit.grade }}</span>
+      <span style="font-size:1.25rem;font-weight:700;">{{ report.sections.audit.score }}/100</span>
+    </div>
+    <div class="score-bar">
+      <div class="score-bar-fill {% if report.sections.audit.normalized >= 0.8 %}high{% elif report.sections.audit.normalized >= 0.5 %}mid{% else %}low{% endif %}"
+           style="width:{{ "%.0f"|format(report.sections.audit.normalized * 100) }}%"></div>
+    </div>
+    <div class="stat-row">
+      <span>{{ report.sections.audit.critical or 0 }} critical</span>
+      <span>{{ report.sections.audit.warning or 0 }} warnings</span>
+      <span>{{ report.sections.audit.info or 0 }} info</span>
+    </div>
+  </div>
+  {% elif report.sections.audit is defined and report.sections.audit.skipped is defined %}
+  <div class="eval-section-card">
+    <h4>🔒 Security Audit</h4>
+    <p style="color:var(--pico-muted-color);font-size:.85rem;">Skipped</p>
+  </div>
+  {% endif %}
+
+  {% if report.sections.functional is defined and report.sections.functional.error is not defined and report.sections.functional.skipped is not defined %}
+  <div class="eval-section-card">
+    <h4>🧪 Functional</h4>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span class="badge badge-grade-{{ report.sections.functional.grade }}">{{ report.sections.functional.grade }}</span>
+      <span style="font-size:1.25rem;font-weight:700;">{{ "%.0f"|format(report.sections.functional.overall * 100) }}%</span>
+    </div>
+    <div class="score-bar">
+      <div class="score-bar-fill {% if report.sections.functional.overall >= 0.8 %}high{% elif report.sections.functional.overall >= 0.5 %}mid{% else %}low{% endif %}"
+           style="width:{{ "%.0f"|format(report.sections.functional.overall * 100) }}%"></div>
+    </div>
+    {% if report.sections.functional.scores %}
+    <div class="stat-row" style="margin-top:.5rem;">
+      {% for k, v in report.sections.functional.scores.items() %}
+      <span>{{ k }}: {{ "%.0f"|format(v * 100) }}%</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% elif report.sections.functional is defined and report.sections.functional.skipped is defined %}
+  <div class="eval-section-card">
+    <h4>🧪 Functional</h4>
+    <p style="color:var(--pico-muted-color);font-size:.85rem;">{{ report.sections.functional.reason }}</p>
+  </div>
+  {% endif %}
+
+  {% if report.sections.trigger is defined and report.sections.trigger.error is not defined and report.sections.trigger.skipped is not defined %}
+  <div class="eval-section-card">
+    <h4>🎯 Trigger Reliability</h4>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span class="badge badge-grade-{{ report.sections.trigger.grade }}">{{ report.sections.trigger.grade }}</span>
+      <span style="font-size:1.25rem;font-weight:700;">{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}%</span>
+    </div>
+    <div class="score-bar">
+      <div class="score-bar-fill {% if report.sections.trigger.pass_rate >= 0.8 %}high{% elif report.sections.trigger.pass_rate >= 0.5 %}mid{% else %}low{% endif %}"
+           style="width:{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}%"></div>
+    </div>
+    <div class="stat-row">
+      <span>{{ report.sections.trigger.total_queries or 0 }} queries</span>
+    </div>
+  </div>
+  {% elif report.sections.trigger is defined and report.sections.trigger.skipped is defined %}
+  <div class="eval-section-card">
+    <h4>🎯 Trigger Reliability</h4>
+    <p style="color:var(--pico-muted-color);font-size:.85rem;">{{ report.sections.trigger.reason }}</p>
+  </div>
+  {% endif %}
+</div>
+
+<div style="margin-top:1.5rem;display:flex;gap:.75rem;">
+  <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
+     role="button" class="outline">Back to Skill</a>
+  <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/evaluate"
+     role="button" class="outline">Run Again</a>
+</div>
+
+{% else %}
+<!-- Evaluation form -->
+<form method="post" action="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/evaluate">
+  <div class="detail-grid">
+    <div class="detail-section">
+      <h3>Evaluation Phases</h3>
+      <label>
+        <input type="checkbox" name="include_audit" value="1" checked />
+        Security Audit
+        <br /><small style="color:var(--pico-muted-color);font-weight:normal;">Structure, permissions, capabilities</small>
+      </label>
+      <label>
+        <input type="checkbox" name="include_functional" value="1" checked />
+        Functional Eval
+        <br /><small style="color:var(--pico-muted-color);font-weight:normal;">Runs evals.json test cases</small>
+      </label>
+      <label>
+        <input type="checkbox" name="include_trigger" value="1" checked />
+        Trigger Reliability
+        <br /><small style="color:var(--pico-muted-color);font-weight:normal;">Tests query matching</small>
+      </label>
+    </div>
+
+    <div class="detail-section">
+      <h3>Settings</h3>
+      <label>
+        Timeout (seconds)
+        <input type="number" name="timeout" value="120" min="10" max="600" />
+      </label>
+      <label>
+        Agent
+        <select name="agent">
+          <option value="claude" selected>Claude</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" name="dry_run" value="1" />
+        Dry run
+        <br /><small style="color:var(--pico-muted-color);font-weight:normal;">Validate inputs without running agents</small>
+      </label>
+    </div>
+  </div>
+
+  <div style="margin-top:1.25rem;">
+    <button type="submit" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600;width:100%;">
+      Run Evaluation
+    </button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

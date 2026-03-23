@@ -1,0 +1,12 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: test-org/bad-semver
+  version: not-a-version
+  description: "Skill with invalid semver version"
+
+spec:
+  content:
+    inline: |
+      # Bad Semver Skill
