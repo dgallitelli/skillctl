@@ -5,7 +5,8 @@
     <div class="card-top">
       <h3><a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}">{{ skill.name }}</a></h3>
       {% if skill.eval_grade %}
-        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.0f"|format(skill.eval_score) }}{% endif %}</span>
+        {% if skill.eval_grade in ['A', 'B'] %}{% set grade_icon = '✓' %}{% elif skill.eval_grade in ['C', 'D'] %}{% set grade_icon = '⚠' %}{% else %}{% set grade_icon = '✕' %}{% endif %}
+        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ grade_icon }} {{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.0f"|format(skill.eval_score) }}{% endif %}</span>
       {% endif %}
     </div>
     <div class="desc">{{ skill.description or 'No description' }}</div>
@@ -25,7 +26,11 @@
 {% else %}
 <div class="empty-state">
   <div class="icon">📦</div>
+  {% if has_filters %}
+  <p>No skills match your filters.</p>
+  {% else %}
   <p>No skills found.</p>
   <p><a href="/publish">Publish your first skill</a> to get started.</p>
+  {% endif %}
 </div>
 {% endif %}

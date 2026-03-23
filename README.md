@@ -150,6 +150,8 @@ All commands follow the pattern: `skillctl <command> [args] [flags]`
 | `skillctl config set <key> <value>` | Configure registry URL and credentials |
 | `skillctl config get <key>` | Read a configuration value |
 
+Registry commands (`publish`, `search`, `token create`) accept `--registry-url` and `--token` flags to override the configured values.
+
 ### Eval commands
 
 | Command | Description |
@@ -320,7 +322,7 @@ The GitHub token is resolved in this order: `--github-token` flag > `SKILLCTL_GI
 |------------|---------|----------|-------------|
 | `github.repo` | `SKILLCTL_GITHUB_REPO` | `--github-repo` | Repository HTTPS URL |
 | `github.token` | `SKILLCTL_GITHUB_TOKEN` | `--github-token` | Access token (or use `skillctl login`) |
-| `github.client_id` | `SKILLCTL_GITHUB_CLIENT_ID` | `--client-id` | OAuth App client ID for device flow |
+| `github.client_id` | `SKILLCTL_GITHUB_CLIENT_ID` | `--client-id (login)` | OAuth App client ID for device flow |
 | `github.branch` | — | `--github-branch` | Git branch to use (default: main) |
 
 #### How it works

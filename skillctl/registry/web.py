@@ -60,13 +60,16 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
 # ---------------------------------------------------------------------------
 
 @web_router.get("/", response_class=HTMLResponse)
-async def index(request: Request, q: str | None = None, namespace: str | None = None, tag: str | None = None):
+async def index(request: Request, q: str | None = None, namespace: str | None = None, tag: str | None = None, flash: str | None = None):
     db: MetadataDB = request.app.state.db
     templates = request.app.state.templates
     skills = db.search(query=q, namespace=namespace, tag=tag, limit=50, offset=0)
+    has_filters = bool(q or namespace or tag)
     return templates.TemplateResponse(request, "index.html", {
         **_base_context(request),
         "skills": skills, "query": q, "namespace": namespace, "tag": tag,
+        "has_filters": has_filters,
+        **({"flash_message": flash} if flash else {}),
     })
 
 
@@ -76,7 +79,8 @@ async def skills_search(request: Request, q: str | None = None, namespace: str |
         db: MetadataDB = request.app.state.db
         templates = request.app.state.templates
         skills = db.search(query=q, namespace=namespace, tag=tag, limit=50, offset=0)
-        return templates.TemplateResponse(request, "_skill_list.html", {**_base_context(request), "skills": skills})
+        has_filters = bool(q or namespace or tag)
+        return templates.TemplateResponse(request, "_skill_list.html", {**_base_context(request), "skills": skills, "has_filters": has_filters})
 
     params = []
     if q:
@@ -102,14 +106,16 @@ async def skill_detail(request: Request, namespace: str, name: str):
     full_name = f"{namespace}/{name}"
     versions = db.get_versions(full_name)
     if not versions:
-        return HTMLResponse(content="<h1>Skill not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     skill = versions[0]
     info = await _load_content_info(storage, skill.content_hash)
 
+    flash = request.query_params.get("flash")
     return templates.TemplateResponse(request, "skill_detail.html", {
         **_base_context(request),
         "skill": skill, "versions": versions, **info,
+        **({"flash_message": flash} if flash else {}),
     })
 
 
@@ -122,14 +128,16 @@ async def skill_version_detail(request: Request, namespace: str, name: str, vers
     full_name = f"{namespace}/{name}"
     skill = db.get_skill(full_name, version)
     if skill is None:
-        return HTMLResponse(content="<h1>Skill version not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill version not found"}, status_code=404)
 
     versions = db.get_versions(full_name)
     info = await _load_content_info(storage, skill.content_hash)
 
+    flash = request.query_params.get("flash")
     return templates.TemplateResponse(request, "skill_detail.html", {
         **_base_context(request),
         "skill": skill, "versions": versions, **info,
+        **({"flash_message": flash} if flash else {}),
     })
 
 
@@ -256,7 +264,7 @@ async def publish_submit(
     )
 
     skill_name_part = name.strip().split("/")[1]
-    return RedirectResponse(url=f"/skills/{namespace}/{skill_name_part}", status_code=303)
+    return RedirectResponse(url=f"/skills/{namespace}/{skill_name_part}?flash=Skill+published+successfully", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -272,7 +280,7 @@ async def delete_skill_web(request: Request, namespace: str, name: str, version:
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        return HTMLResponse(content="<h1>Not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     try:
         await storage.delete_blob(record.content_hash)
@@ -289,8 +297,8 @@ async def delete_skill_web(request: Request, namespace: str, name: str, version:
     # If more versions remain, redirect to skill page; otherwise go home
     remaining = db.get_versions(full_name)
     if remaining:
-        return RedirectResponse(url=f"/skills/{namespace}/{name}", status_code=303)
-    return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url=f"/skills/{namespace}/{name}?flash=Skill+deleted", status_code=303)
+    return RedirectResponse(url="/?flash=Skill+deleted", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +317,7 @@ async def update_eval_web(request: Request, namespace: str, name: str, version: 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        return HTMLResponse(content="<h1>Not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     if not grade or grade not in "ABCDF":
         return RedirectResponse(url=f"/skills/{namespace}/{name}/{version}", status_code=303)
@@ -328,7 +336,7 @@ async def update_eval_web(request: Request, namespace: str, name: str, version: 
         details={"grade": grade, "score": score},
     )
 
-    return RedirectResponse(url=f"/skills/{namespace}/{name}/{version}", status_code=303)
+    return RedirectResponse(url=f"/skills/{namespace}/{name}/{version}?flash=Eval+score+saved", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -406,6 +414,8 @@ async def _load_content_info(storage, content_hash: str) -> dict:
         }
 
     preview = blob.decode("utf-8", errors="replace")[:2000]
+    if preview.count("\ufffd") > 10:
+        preview = None
     return {"content_preview": preview, "is_archive": False, "archive_files": []}
 
 
@@ -421,7 +431,7 @@ async def evaluate_form(request: Request, namespace: str, name: str, version: st
     full_name = f"{namespace}/{name}"
     skill = db.get_skill(full_name, version)
     if skill is None:
-        return HTMLResponse(content="<h1>Skill not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     return templates.TemplateResponse(request, "evaluate.html", {
         "skill": skill, "error": None, "report": None,
@@ -438,7 +448,7 @@ async def evaluate_submit(request: Request, namespace: str, name: str, version: 
     full_name = f"{namespace}/{name}"
     skill = db.get_skill(full_name, version)
     if skill is None:
-        return HTMLResponse(content="<h1>Skill not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     form = await request.form()
     include_audit = bool(form.get("include_audit"))
@@ -526,7 +536,7 @@ async def optimize_form(request: Request, namespace: str, name: str, version: st
     full_name = f"{namespace}/{name}"
     skill = db.get_skill(full_name, version)
     if skill is None:
-        return HTMLResponse(content="<h1>Skill not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     return templates.TemplateResponse(request, "optimize.html", {
         "skill": skill, "error": None, "result": None,
@@ -542,7 +552,7 @@ async def optimize_submit(request: Request, namespace: str, name: str, version: 
     full_name = f"{namespace}/{name}"
     skill = db.get_skill(full_name, version)
     if skill is None:
-        return HTMLResponse(content="<h1>Skill not found</h1>", status_code=404)
+        return _render(request, "404.html", {"message": "Skill not found"}, status_code=404)
 
     form = await request.form()
 

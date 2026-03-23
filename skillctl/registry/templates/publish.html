@@ -12,7 +12,7 @@
 </div>
 
 {% if error %}
-<div class="error-banner">{{ error }}</div>
+<div class="error-banner" aria-live="polite">{{ error }}</div>
 {% endif %}
 
 <form method="post" action="/publish" enctype="multipart/form-data" class="publish-form">
@@ -65,6 +65,7 @@
     <label>
       Or paste content directly <small style="color:var(--pico-muted-color);">(single-file skills only)</small>
       <textarea name="content_text" rows="12" placeholder="# My Skill&#10;&#10;## Instructions&#10;&#10;Describe what the agent should do…" style="font-family:monospace;font-size:.875rem;">{{ form.content_text or '' }}</textarea>
+      <small style="color:var(--pico-muted-color);">Recommended max: 50KB</small>
     </label>
   </div>
 

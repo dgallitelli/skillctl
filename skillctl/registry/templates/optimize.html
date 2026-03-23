@@ -31,7 +31,9 @@
     <p style="color:var(--pico-muted-color);margin:0;">
       {{ skill.name }} <span class="badge badge-version">v{{ skill.version }}</span>
       {% if skill.eval_grade %}
-        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ skill.eval_grade }}</span>
+        {% if skill.eval_grade in ['A', 'B'] %}{% set opt_icon = '✓' %}{% elif skill.eval_grade in ['C', 'D'] %}{% set opt_icon = '⚠' %}{% else %}{% set opt_icon = '✕' %}{% endif %}
+        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ opt_icon }} {{ skill.eval_grade }}</span>
+        {% if skill.eval_score is not none %} · {{ "%.1f"|format(skill.eval_score) }}/100{% endif %}
       {% endif %}
     </p>
   </div>

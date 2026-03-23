@@ -4,7 +4,7 @@
 
 {% block content %}
 <div style="margin-bottom:.75rem;">
-  <a href="/" style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">← Back to browse</a>
+  <a href="/" onclick="if(document.referrer.includes(location.host)){history.back();return false;}" style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">← Back to browse</a>
 </div>
 
 <div class="detail-header">
@@ -13,7 +13,8 @@
     <div class="badges">
       <span class="badge badge-version">v{{ skill.version }}</span>
       {% if skill.eval_grade %}
-        <span class="badge badge-grade-{{ skill.eval_grade }}">Grade {{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.1f"|format(skill.eval_score) }}{% endif %}</span>
+        {% if skill.eval_grade in ['A', 'B'] %}{% set grade_icon = '✓' %}{% elif skill.eval_grade in ['C', 'D'] %}{% set grade_icon = '⚠' %}{% else %}{% set grade_icon = '✕' %}{% endif %}
+        <span class="badge badge-grade-{{ skill.eval_grade }}">{{ grade_icon }} Grade {{ skill.eval_grade }}{% if skill.eval_score is not none %} · {{ "%.1f"|format(skill.eval_score) }}{% endif %}</span>
       {% endif %}
       {% if skill.license %}
         <span class="badge badge-license">{{ skill.license }}</span>
@@ -35,7 +36,7 @@
       ⚙ Optimize
     </a>
     <a href="/api/v1/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}/content"
-       role="button" download style="font-size:.85rem;background:var(--pico-color);border-color:var(--pico-color);color:var(--pico-background-color);">
+       role="button" download title="Download skill content" style="font-size:.85rem;background:var(--pico-color);border-color:var(--pico-color);color:var(--pico-background-color);">
       ↓ Download
     </a>
     <button style="font-size:.85rem;background:var(--danger);border-color:var(--danger);color:#fff;"
@@ -61,7 +62,7 @@
           <tr><th>Authors</th><td>{% for a in skill.authors %}{{ a.name }}{% if a.email %} &lt;{{ a.email }}&gt;{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
           {% endif %}
           <tr><th>Hash</th><td><code style="font-size:.75rem;word-break:break-all;color:var(--pico-muted-color);">{{ skill.content_hash }}</code></td></tr>
-          <tr><th>Created</th><td>{{ skill.created_at[:19] }}</td></tr>
+          <tr><th>Created</th><td>{{ skill.created_at[:10] }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -70,8 +71,9 @@
     <div class="detail-section">
       <h3>Eval Score</h3>
       {% if skill.eval_grade is not none %}
+      {% if skill.eval_grade in ['A', 'B'] %}{% set eval_icon = '✓' %}{% elif skill.eval_grade in ['C', 'D'] %}{% set eval_icon = '⚠' %}{% else %}{% set eval_icon = '✕' %}{% endif %}
       <p style="margin-bottom:.75rem;">
-        Current: <span class="badge badge-grade-{{ skill.eval_grade }}">{{ skill.eval_grade }}</span>
+        Current: <span class="badge badge-grade-{{ skill.eval_grade }}">{{ eval_icon }} {{ skill.eval_grade }}</span>
         — {{ skill.eval_score }}/100
       </p>
       {% endif %}
@@ -145,7 +147,8 @@
             <td>{{ v.created_at[:10] }}</td>
             <td>
               {% if v.eval_grade %}
-                <span class="badge badge-grade-{{ v.eval_grade }}">{{ v.eval_grade }}</span>
+                {% if v.eval_grade in ['A', 'B'] %}{% set v_icon = '✓' %}{% elif v.eval_grade in ['C', 'D'] %}{% set v_icon = '⚠' %}{% else %}{% set v_icon = '✕' %}{% endif %}
+                <span class="badge badge-grade-{{ v.eval_grade }}">{{ v_icon }} {{ v.eval_grade }}</span>
               {% else %}—{% endif %}
             </td>
           </tr>

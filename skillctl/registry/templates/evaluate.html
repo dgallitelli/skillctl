@@ -54,7 +54,7 @@
   <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
     <div>
       <div class="score-big {% if report.passed %}pass{% else %}fail{% endif %}">
-        {{ report.overall_grade }}
+        {% if report.overall_grade in ['A', 'B'] %}✓{% elif report.overall_grade in ['C', 'D'] %}⚠{% else %}✕{% endif %} {{ report.overall_grade }}
       </div>
       <div style="font-size:.85rem;color:var(--pico-muted-color);margin-top:.25rem;">
         {{ "%.0f"|format(report.overall_score * 100) }}% · {% if report.passed %}Passed{% else %}Failed{% endif %}
@@ -79,7 +79,7 @@
   <div class="eval-section-card">
     <h4>🔒 Security Audit</h4>
     <div style="display:flex;justify-content:space-between;align-items:baseline;">
-      <span class="badge badge-grade-{{ report.sections.audit.grade }}">{{ report.sections.audit.grade }}</span>
+      <span class="badge badge-grade-{{ report.sections.audit.grade }}">{% if report.sections.audit.grade in ['A', 'B'] %}✓{% elif report.sections.audit.grade in ['C', 'D'] %}⚠{% else %}✕{% endif %} {{ report.sections.audit.grade }}</span>
       <span style="font-size:1.25rem;font-weight:700;">{{ report.sections.audit.score }}/100</span>
     </div>
     <div class="score-bar">
@@ -104,7 +104,7 @@
   <div class="eval-section-card">
     <h4>🧪 Functional</h4>
     <div style="display:flex;justify-content:space-between;align-items:baseline;">
-      <span class="badge badge-grade-{{ report.sections.functional.grade }}">{{ report.sections.functional.grade }}</span>
+      <span class="badge badge-grade-{{ report.sections.functional.grade }}">{% if report.sections.functional.grade in ['A', 'B'] %}✓{% elif report.sections.functional.grade in ['C', 'D'] %}⚠{% else %}✕{% endif %} {{ report.sections.functional.grade }}</span>
       <span style="font-size:1.25rem;font-weight:700;">{{ "%.0f"|format(report.sections.functional.overall * 100) }}%</span>
     </div>
     <div class="score-bar">
@@ -131,7 +131,7 @@
   <div class="eval-section-card">
     <h4>🎯 Trigger Reliability</h4>
     <div style="display:flex;justify-content:space-between;align-items:baseline;">
-      <span class="badge badge-grade-{{ report.sections.trigger.grade }}">{{ report.sections.trigger.grade }}</span>
+      <span class="badge badge-grade-{{ report.sections.trigger.grade }}">{% if report.sections.trigger.grade in ['A', 'B'] %}✓{% elif report.sections.trigger.grade in ['C', 'D'] %}⚠{% else %}✕{% endif %} {{ report.sections.trigger.grade }}</span>
       <span style="font-size:1.25rem;font-weight:700;">{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}%</span>
     </div>
     <div class="score-bar">

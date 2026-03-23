@@ -41,7 +41,7 @@
   {% if github_user %}
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
     {% if github_avatar %}
-    <img src="{{ github_avatar }}" alt="{{ github_user }}" style="width:48px;height:48px;border-radius:50%;" />
+    <img src="{{ github_avatar }}" alt="{{ github_user }}" style="width:48px;height:48px;border-radius:50%;" onerror="this.style.display='none'" />
     {% endif %}
     <div>
       <div style="font-weight:600;">{{ github_name or github_user }}</div>

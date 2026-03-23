@@ -204,7 +204,7 @@ class TestHtmxSearch:
             headers={"HX-Request": "true"},
         )
         assert resp.status_code == 200
-        assert "No skills found" in resp.text
+        assert "No skills match your filters" in resp.text
 
     def test_non_htmx_skills_redirects(self, client: TestClient):
         resp = client.get("/skills", params={"q": "test"}, follow_redirects=False)
