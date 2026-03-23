@@ -420,7 +420,7 @@ def cmd_serve(args):
         host=args.host,
         port=args.port,
         storage_backend=args.storage,
-        github_repo=args.github_repo or os.environ.get("SKILLCTL_GITHUB_REPO"),
+        github_repo=args.github_repo or os.environ.get("SKILLCTL_GITHUB_REPO") or _load_config().get("github", {}).get("repo"),
         github_token=args.github_token or os.environ.get("SKILLCTL_GITHUB_TOKEN") or _load_github_token(),
         github_branch=args.github_branch,
         auth_disabled=args.auth_disabled,

@@ -145,6 +145,8 @@ All commands follow the pattern: `skillctl <command> [args] [flags]`
 | `skillctl publish [path]` | Publish skill to remote registry |
 | `skillctl search [query]` | Search remote registry |
 | `skillctl token create` | Create an API token for registry access |
+| `skillctl login` | Authenticate with GitHub via device flow |
+| `skillctl logout` | Remove stored GitHub credentials |
 | `skillctl config set <key> <value>` | Configure registry URL and credentials |
 
 ### Eval commands
@@ -247,7 +249,80 @@ Every mutating operation (publish, delete, eval attach, token create/revoke) is 
 
 ### Web UI
 
-The registry includes a lightweight HTMX-based web interface for browsing skills, accessible at the root URL.
+The registry includes a lightweight HTMX-based web interface for browsing skills, accessible at the root URL. Features include:
+
+- Browse and search skills with live filtering
+- Publish skills (single files or multi-file `.zip`/`.tar.gz` archives)
+- Skill detail pages with content preview, eval scores, and version history
+- Run evaluations and optimizations directly from the UI
+- Dark/light mode toggle
+
+### GitHub Storage Backend
+
+Instead of storing skills on the local filesystem, the registry can use a GitHub repository as its backing store. Each skill version becomes a directory in the repo:
+
+```
+skills/
+  my-org/
+    code-reviewer/
+      1.0.0/
+        skill.yaml       # manifest
+        content           # skill content (file or archive)
+        metadata.json     # eval scores, timestamps
+      1.1.0/
+        ...
+```
+
+Every publish, delete, and eval update commits and pushes to the repo. You get full version history, collaboration via PRs, and the registry server is stateless — it just needs a fresh clone to start.
+
+#### Setup
+
+1. Create a GitHub repository for skill storage (e.g. `my-org/skill-registry`)
+
+2. Register a GitHub OAuth App for device flow authentication:
+   - Go to [github.com/settings/applications/new](https://github.com/settings/applications/new)
+   - Set any name and homepage URL
+   - Enable "Device Flow" in the app settings
+   - Note the Client ID
+
+3. Configure skillctl:
+
+```bash
+# Save the OAuth App client ID
+skillctl config set github.client_id <your-client-id>
+
+# Save the repository URL
+skillctl config set github.repo https://github.com/my-org/skill-registry.git
+
+# Authenticate via device flow (opens browser)
+skillctl login
+```
+
+4. Start the registry with GitHub backend:
+
+```bash
+skillctl serve --storage github --auth-disabled
+```
+
+#### Configuration
+
+The GitHub repo URL is resolved in this order: `--github-repo` flag > `SKILLCTL_GITHUB_REPO` env var > `github.repo` in config file.
+
+The GitHub token is resolved in this order: `--github-token` flag > `SKILLCTL_GITHUB_TOKEN` env var > token from `skillctl login` in config file.
+
+| Config key | Env var | CLI flag | Description |
+|------------|---------|----------|-------------|
+| `github.repo` | `SKILLCTL_GITHUB_REPO` | `--github-repo` | Repository HTTPS URL |
+| `github.token` | `SKILLCTL_GITHUB_TOKEN` | `--github-token` | Access token (or use `skillctl login`) |
+| `github.client_id` | `SKILLCTL_GITHUB_CLIENT_ID` | `--client-id` | OAuth App client ID for device flow |
+
+#### How it works
+
+- On startup, the registry clones (or pulls) the repo and rebuilds a local SQLite index for fast FTS search
+- Publish writes files to the local clone, commits, and pushes
+- Delete removes the version directory, commits, and pushes
+- Eval updates write to `metadata.json`, commit, and push
+- Reads are fast — they hit the local clone, not the GitHub API
 
 ---
 
@@ -393,6 +468,7 @@ skillctl validate examples/minimal-skill      # auto-wraps with warning
 ```
 skillctl/                  # Governance CLI + registry server
 ├── cli.py                 # CLI entry point (argparse)
+├── github_auth.py         # GitHub Device Flow (OAuth 2.0)
 ├── manifest.py            # skill.yaml parser + SKILL.md auto-wrapper
 ├── validator.py           # Schema validation, semver, capability checks
 ├── store.py               # Content-addressed local storage (SHA-256)
@@ -402,9 +478,10 @@ skillctl/                  # Governance CLI + registry server
 │   ├── api.py             # REST API endpoints (/api/v1/*)
 │   ├── auth.py            # Token-based auth with scoped permissions
 │   ├── db.py              # SQLite metadata index + FTS5 search
-│   ├── storage.py         # Content-addressed blob storage
+│   ├── storage.py         # Content-addressed blob storage (filesystem)
+│   ├── github_backend.py  # GitHub repo-backed storage
 │   ├── audit.py           # HMAC-signed append-only audit log
-│   └── web.py             # HTMX web UI
+│   └── web.py             # HTMX web UI (browse, publish, eval, optimize)
 ├── optimize/              # Automated skill optimizer
 │   ├── loop.py            # Main optimization loop
 │   ├── failure_analyzer.py
