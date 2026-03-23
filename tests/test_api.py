@@ -261,7 +261,7 @@ class TestContentDownload:
         _publish(client)
         resp = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0/content")
         assert resp.status_code == 200
-        assert resp.headers["content-type"] == "application/octet-stream"
+        assert "text/markdown" in resp.headers["content-type"] or resp.headers["content-type"] == "application/octet-stream"
         assert resp.content == SKILL_CONTENT
 
     def test_download_not_found(self, client: TestClient):

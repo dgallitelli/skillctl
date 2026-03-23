@@ -201,7 +201,26 @@ async def publish_skill(
 
     # Store blob
     content_bytes = await content.read()
-    content_hash = await storage.store_blob(content_bytes)
+
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        from datetime import datetime, timezone as _tz
+        now = datetime.now(_tz.utc).isoformat()
+        metadata = {
+            "created_at": now,
+            "updated_at": now,
+            "eval_grade": None,
+            "eval_score": None,
+        }
+        content_hash = github_backend.store_skill(
+            name=parsed.metadata.name,
+            version=parsed.metadata.version,
+            manifest_json=json.dumps(manifest_dict, indent=2),
+            content=content_bytes,
+            metadata=metadata,
+        )
+    else:
+        content_hash = await storage.store_blob(content_bytes)
 
     # Insert metadata
     record = SkillRecord(
@@ -393,10 +412,17 @@ async def delete_skill(
                         "Check the namespace, name, and version")
 
     # Delete from storage and db
-    try:
-        await storage.delete_blob(record.content_hash)
-    except Exception:
-        pass  # Blob may already be gone
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        try:
+            github_backend.delete_skill(full_name, version)
+        except Exception:
+            pass
+    else:
+        try:
+            await storage.delete_blob(record.content_hash)
+        except Exception:
+            pass  # Blob may already be gone
     db.delete_skill(full_name, version)
 
     # Audit log
@@ -440,6 +466,19 @@ async def attach_eval(
                         "Check the namespace, name, and version")
 
     db.update_eval(full_name, version, body.grade, body.score)
+
+    # Update GitHub metadata if using git backend
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        from datetime import datetime, timezone as _tz
+        try:
+            github_backend.update_metadata(full_name, version, {
+                "eval_grade": body.grade,
+                "eval_score": body.score,
+                "updated_at": datetime.now(_tz.utc).isoformat(),
+            })
+        except Exception:
+            pass  # Non-fatal — SQLite is already updated
 
     # Audit log
     audit.log(

@@ -17,9 +17,12 @@ class RegistryConfig:
     host: str = "0.0.0.0"
     port: int = 8080
     data_dir: Path = field(default_factory=lambda: Path("~/.skillctl/registry").expanduser())
-    storage_backend: str = "filesystem"  # "filesystem" or "s3"
+    storage_backend: str = "filesystem"  # "filesystem", "github", or "s3"
     s3_bucket: str | None = None
     s3_prefix: str = "blobs/"
+    github_repo: str | None = None       # e.g. "https://github.com/org/skill-registry.git"
+    github_token: str | None = None      # PAT for push access
+    github_branch: str = "main"
     auth_disabled: bool = False
     hmac_key: str | None = None  # Auto-generated if not set
     log_level: str = "info"

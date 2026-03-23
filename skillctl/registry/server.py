@@ -61,7 +61,24 @@ async def _lifespan(app: FastAPI):
     db = MetadataDB(data_dir / "registry.db", check_same_thread=False)
     db.initialize()
 
-    storage = FilesystemBackend(data_dir)
+    if config.storage_backend == "github":
+        from skillctl.registry.github_backend import GitHubBackend
+        if not config.github_repo:
+            raise RuntimeError("github_repo is required when storage_backend='github'")
+        clone_dir = data_dir / "git-clone"
+        storage = GitHubBackend(
+            repo_url=config.github_repo,
+            clone_dir=clone_dir,
+            branch=config.github_branch,
+            github_token=config.github_token,
+        )
+        storage.setup()
+        indexed = storage.rebuild_index(db)
+        print(f"GitHub backend: cloned {config.github_repo}, indexed {indexed} skills", file=sys.stderr)
+        app.state.github_backend = storage
+    else:
+        storage = FilesystemBackend(data_dir)
+        app.state.github_backend = None
 
     auth_manager = AuthManager(db, disabled=config.auth_disabled)
 

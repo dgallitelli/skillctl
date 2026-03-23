@@ -189,7 +189,20 @@ async def publish_submit(
         }, status_code=409)
 
     # Store
-    content_hash = await storage.store_blob(content_bytes)
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        from datetime import datetime, timezone as _tz
+        now = _tz.utc
+        now_str = datetime.now(now).isoformat()
+        metadata = {"created_at": now_str, "updated_at": now_str, "eval_grade": None, "eval_score": None}
+        content_hash = github_backend.store_skill(
+            name=name.strip(), version=version.strip(),
+            manifest_json=json.dumps(manifest_dict, indent=2),
+            content=content_bytes, metadata=metadata,
+        )
+    else:
+        content_hash = await storage.store_blob(content_bytes)
+
     record = SkillRecord(
         id=None, name=name.strip(), namespace=namespace,
         version=version.strip(), description=description.strip(),

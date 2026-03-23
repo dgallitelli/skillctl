@@ -123,6 +123,11 @@ def main():
     serve_p.add_argument("--auth-disabled", action="store_true", help="Disable authentication (dev only)")
     serve_p.add_argument("--hmac-key", default=None, help="HMAC key for audit log signing")
     serve_p.add_argument("--log-level", default="info", help="Log level (default: info)")
+    serve_p.add_argument("--storage", default="filesystem", choices=["filesystem", "github"],
+                         help="Storage backend (default: filesystem)")
+    serve_p.add_argument("--github-repo", default=None, help="GitHub repo URL (for github backend)")
+    serve_p.add_argument("--github-token", default=None, help="GitHub PAT (for github backend)")
+    serve_p.add_argument("--github-branch", default="main", help="GitHub branch (default: main)")
 
     # skillctl publish
     publish_p = sub.add_parser("publish", help="Publish skill to remote registry")
@@ -396,6 +401,10 @@ def cmd_serve(args):
     config = RegistryConfig(
         host=args.host,
         port=args.port,
+        storage_backend=args.storage,
+        github_repo=args.github_repo or os.environ.get("SKILLCTL_GITHUB_REPO"),
+        github_token=args.github_token or os.environ.get("SKILLCTL_GITHUB_TOKEN"),
+        github_branch=args.github_branch,
         auth_disabled=args.auth_disabled,
         hmac_key=args.hmac_key,
         log_level=args.log_level,
