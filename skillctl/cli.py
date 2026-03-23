@@ -66,6 +66,12 @@ def _get_registry_token(args) -> str | None:
     return cfg.get("registry", {}).get("token")
 
 
+def _load_github_token() -> str | None:
+    """Load GitHub token from config file (set by 'skillctl login')."""
+    cfg = _load_config()
+    return cfg.get("github", {}).get("token")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="skillctl", description="Governance CLI for agent skills"
@@ -163,6 +169,14 @@ def main():
     config_get_p = config_sub.add_parser("get", help="Get a config value")
     config_get_p.add_argument("key", help="Config key (e.g. registry.url)")
 
+    # skillctl login
+    login_p = sub.add_parser("login", help="Authenticate with GitHub via device flow")
+    login_p.add_argument("--client-id", default=None, help="GitHub OAuth App client ID")
+    login_p.add_argument("--scopes", default="repo", help="OAuth scopes (default: repo)")
+
+    # skillctl logout
+    sub.add_parser("logout", help="Remove stored GitHub credentials")
+
     args, remaining = parser.parse_known_args()
 
     try:
@@ -192,6 +206,10 @@ def main():
             cmd_token(args)
         elif args.command == "config":
             cmd_config(args)
+        elif args.command == "login":
+            cmd_login(args)
+        elif args.command == "logout":
+            cmd_logout()
         else:
             parser.print_help()
             sys.exit(1)
@@ -403,7 +421,7 @@ def cmd_serve(args):
         port=args.port,
         storage_backend=args.storage,
         github_repo=args.github_repo or os.environ.get("SKILLCTL_GITHUB_REPO"),
-        github_token=args.github_token or os.environ.get("SKILLCTL_GITHUB_TOKEN"),
+        github_token=args.github_token or os.environ.get("SKILLCTL_GITHUB_TOKEN") or _load_github_token(),
         github_branch=args.github_branch,
         auth_disabled=args.auth_disabled,
         hmac_key=args.hmac_key,
@@ -647,7 +665,7 @@ def cmd_token_create(args):
 # 9.5 — skillctl config
 # ---------------------------------------------------------------------------
 
-_SUPPORTED_CONFIG_KEYS = {"registry.url", "registry.token"}
+_SUPPORTED_CONFIG_KEYS = {"registry.url", "registry.token", "github.client_id", "github.token", "github.repo"}
 
 
 def cmd_config(args):
@@ -705,3 +723,55 @@ def cmd_config_get(args):
             print(f"{key}: (not set)")
             return
     print(f"{key}: {d}")
+
+
+# ---------------------------------------------------------------------------
+# skillctl login / logout — GitHub Device Flow
+# ---------------------------------------------------------------------------
+
+def cmd_login(args):
+    """Authenticate with GitHub using the device flow."""
+    from skillctl.github_auth import (
+        get_client_id, device_flow_login, verify_token, save_github_token,
+    )
+
+    client_id = get_client_id(args.client_id)
+    if not client_id:
+        print("Error: No GitHub OAuth App client_id configured.", file=sys.stderr)
+        print("  Fix: Run 'skillctl config set github.client_id <your-app-client-id>'", file=sys.stderr)
+        print("       or set SKILLCTL_GITHUB_CLIENT_ID env var", file=sys.stderr)
+        print("       or pass --client-id <id>", file=sys.stderr)
+        print()
+        print("  To create an OAuth App: https://github.com/settings/applications/new", file=sys.stderr)
+        print("  Enable 'Device Flow' in the app settings.", file=sys.stderr)
+        sys.exit(1)
+
+    token = device_flow_login(client_id, scopes=args.scopes)
+
+    # Verify and show who we authenticated as
+    user = verify_token(token)
+    save_github_token(token)
+
+    print(f"\n✓ Authenticated as {user.get('login', 'unknown')} ({user.get('name', '')})")
+    print(f"  Token saved to ~/.skillctl/config.yaml")
+
+
+def cmd_logout():
+    """Remove stored GitHub credentials."""
+    config_path = Path.home() / ".skillctl" / "config.yaml"
+    if not config_path.exists():
+        print("Not logged in.")
+        return
+
+    import yaml
+    cfg = yaml.safe_load(config_path.read_text()) or {}
+    gh = cfg.get("github", {})
+    if "token" not in gh:
+        print("Not logged in.")
+        return
+
+    del gh["token"]
+    if not gh:
+        del cfg["github"]
+    config_path.write_text(yaml.dump(cfg, default_flow_style=False))
+    print("✓ GitHub credentials removed.")
