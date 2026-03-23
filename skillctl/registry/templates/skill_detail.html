@@ -41,8 +41,9 @@
     <button style="font-size:.85rem;background:var(--danger);border-color:var(--danger);color:#fff;"
             hx-delete="/web/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
             hx-confirm="Delete {{ skill.name }}@{{ skill.version }}? This cannot be undone."
-            hx-target="body">
-      Delete
+            hx-target="body"
+            aria-label="Delete skill {{ skill.name }} version {{ skill.version }}">
+      🗑 Delete
     </button>
   </div>
 </div>
@@ -52,7 +53,7 @@
     <!-- Details -->
     <div class="detail-section" style="margin-bottom:1.25rem;">
       <h3>Details</h3>
-      <table class="info-table" role="grid">
+      <table class="info-table">
         <tbody>
           <tr><th>Namespace</th><td>{{ skill.namespace }}</td></tr>
           <tr><th>Description</th><td>{{ skill.description or '—' }}</td></tr>
@@ -130,7 +131,7 @@
     {% if versions and versions|length > 1 %}
     <div class="detail-section">
       <h3>Versions</h3>
-      <table class="version-table" role="grid">
+      <table class="version-table">
         <thead><tr><th>Version</th><th>Created</th><th>Grade</th></tr></thead>
         <tbody>
           {% for v in versions %}

@@ -16,12 +16,14 @@
 {% endblock %}
 
 {% block content %}
-<div style="margin-bottom:.75rem;">
+<nav style="margin-bottom:.75rem;font-size:.85rem;color:var(--pico-muted-color);">
+  <a href="/" style="color:var(--pico-muted-color);text-decoration:none;">Browse</a>
+  <span> › </span>
   <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
-     style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">
-    ← Back to {{ skill.name }}
-  </a>
-</div>
+     style="color:var(--pico-muted-color);text-decoration:none;">{{ skill.name }}</a>
+  <span> › </span>
+  <span>Optimize</span>
+</nav>
 
 <div class="page-header">
   <div>
@@ -36,7 +38,7 @@
 </div>
 
 {% if error %}
-<div class="error-banner">{{ error }}</div>
+<div class="error-banner" onclick="this.remove()" style="cursor:pointer;">{{ error }}</div>
 {% endif %}
 
 {% if result %}
@@ -129,7 +131,8 @@
   </div>
 
   <div style="margin-top:1.25rem;">
-    <button type="submit" style="background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;width:100%;">
+    <button type="submit" style="background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;width:100%;"
+            onclick="this.disabled=true;this.textContent='Running…';this.form.submit()">
       Start Optimization
     </button>
   </div>

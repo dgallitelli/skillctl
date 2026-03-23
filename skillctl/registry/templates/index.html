@@ -18,6 +18,7 @@
     hx-target="#skill-list"
     hx-trigger="input changed delay:300ms, search"
     hx-include="[name='namespace'],[name='tag']"
+    hx-indicator="#search-indicator"
     aria-label="Search skills"
   />
   <input
@@ -29,6 +30,7 @@
     hx-target="#skill-list"
     hx-trigger="input changed delay:500ms"
     hx-include="[name='q'],[name='tag']"
+    hx-indicator="#search-indicator"
     aria-label="Filter by namespace"
   />
   <input
@@ -40,9 +42,11 @@
     hx-target="#skill-list"
     hx-trigger="input changed delay:500ms"
     hx-include="[name='q'],[name='namespace']"
+    hx-indicator="#search-indicator"
     aria-label="Filter by tag"
   />
 </div>
+<div id="search-indicator" class="htmx-indicator" style="text-align:center;padding:1rem;color:var(--pico-muted-color);">Searching…</div>
 
 <div id="skill-list">
   {% include "_skill_list.html" %}

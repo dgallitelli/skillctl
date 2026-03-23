@@ -20,6 +20,41 @@ from skillctl.validator import SchemaValidator
 web_router = APIRouter()
 
 
+def _get_github_user(request: Request) -> dict:
+    """Get GitHub user info if a token is configured. Returns dict with user info or empty."""
+    config = getattr(request.app.state, "registry_config", None)
+    if not config or not config.github_token:
+        return {}
+    # Cache on app.state to avoid hitting the API on every request
+    cached = getattr(request.app.state, "_github_user_cache", None)
+    if cached is not None:
+        return cached
+    try:
+        from skillctl.github_auth import verify_token
+        user = verify_token(config.github_token)
+        info = {
+            "github_user": user.get("login", ""),
+            "github_name": user.get("name", ""),
+            "github_avatar": user.get("avatar_url", ""),
+        }
+    except SystemExit:
+        info = {}
+    request.app.state._github_user_cache = info
+    return info
+
+
+def _base_context(request: Request) -> dict:
+    """Common template context for all pages."""
+    return _get_github_user(request)
+
+
+def _render(request: Request, template: str, context: dict, status_code: int = 200):
+    """Render a template with base context merged in."""
+    templates = request.app.state.templates
+    merged = {**_base_context(request), **context}
+    return templates.TemplateResponse(request, template, merged, status_code=status_code)
+
+
 # ---------------------------------------------------------------------------
 # Browse / Search
 # ---------------------------------------------------------------------------
@@ -30,6 +65,7 @@ async def index(request: Request, q: str | None = None, namespace: str | None = 
     templates = request.app.state.templates
     skills = db.search(query=q, namespace=namespace, tag=tag, limit=50, offset=0)
     return templates.TemplateResponse(request, "index.html", {
+        **_base_context(request),
         "skills": skills, "query": q, "namespace": namespace, "tag": tag,
     })
 
@@ -40,7 +76,7 @@ async def skills_search(request: Request, q: str | None = None, namespace: str |
         db: MetadataDB = request.app.state.db
         templates = request.app.state.templates
         skills = db.search(query=q, namespace=namespace, tag=tag, limit=50, offset=0)
-        return templates.TemplateResponse(request, "_skill_list.html", {"skills": skills})
+        return templates.TemplateResponse(request, "_skill_list.html", {**_base_context(request), "skills": skills})
 
     params = []
     if q:
@@ -72,6 +108,7 @@ async def skill_detail(request: Request, namespace: str, name: str):
     info = await _load_content_info(storage, skill.content_hash)
 
     return templates.TemplateResponse(request, "skill_detail.html", {
+        **_base_context(request),
         "skill": skill, "versions": versions, **info,
     })
 
@@ -91,6 +128,7 @@ async def skill_version_detail(request: Request, namespace: str, name: str, vers
     info = await _load_content_info(storage, skill.content_hash)
 
     return templates.TemplateResponse(request, "skill_detail.html", {
+        **_base_context(request),
         "skill": skill, "versions": versions, **info,
     })
 
@@ -102,7 +140,7 @@ async def skill_version_detail(request: Request, namespace: str, name: str, vers
 @web_router.get("/publish", response_class=HTMLResponse)
 async def publish_form(request: Request):
     templates = request.app.state.templates
-    return templates.TemplateResponse(request, "publish.html", {"form": {}, "error": None})
+    return templates.TemplateResponse(request, "publish.html", {**_base_context(request), "form": {}, "error": None})
 
 
 @web_router.post("/publish", response_class=HTMLResponse)
@@ -579,3 +617,21 @@ async def optimize_submit(request: Request, namespace: str, name: str, version: 
     return templates.TemplateResponse(request, "optimize.html", {
         "skill": skill, "error": None, "result": run,
     })
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+@web_router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    db: MetadataDB = request.app.state.db
+    config = getattr(request.app.state, "registry_config", None)
+    skills_count = db.count_search()
+
+    ctx = {
+        **_base_context(request),
+        "config": config,
+        "skills_count": skills_count,
+    }
+    return _render(request, "settings.html", ctx)

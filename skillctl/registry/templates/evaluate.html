@@ -25,12 +25,14 @@
 {% endblock %}
 
 {% block content %}
-<div style="margin-bottom:.75rem;">
+<nav style="margin-bottom:.75rem;font-size:.85rem;color:var(--pico-muted-color);">
+  <a href="/" style="color:var(--pico-muted-color);text-decoration:none;">Browse</a>
+  <span> › </span>
   <a href="/skills/{{ skill.namespace }}/{{ skill.name.split('/')[1] }}/{{ skill.version }}"
-     style="font-size:.85rem;color:var(--pico-muted-color);text-decoration:none;">
-    ← Back to {{ skill.name }}
-  </a>
-</div>
+     style="color:var(--pico-muted-color);text-decoration:none;">{{ skill.name }}</a>
+  <span> › </span>
+  <span>Evaluate</span>
+</nav>
 
 <div class="page-header">
   <div>
@@ -42,7 +44,7 @@
 </div>
 
 {% if error %}
-<div class="error-banner">{{ error }}</div>
+<div class="error-banner" onclick="this.remove()" style="cursor:pointer;">{{ error }}</div>
 {% endif %}
 
 {% if report %}
@@ -61,7 +63,8 @@
     <div style="flex:1;min-width:200px;">
       <div class="score-bar">
         <div class="score-bar-fill {% if report.overall_score >= 0.8 %}high{% elif report.overall_score >= 0.5 %}mid{% else %}low{% endif %}"
-             style="width:{{ "%.0f"|format(report.overall_score * 100) }}%"></div>
+             style="width:{{ "%.0f"|format(report.overall_score * 100) }}%"
+             role="progressbar" aria-valuenow="{{ "%.0f"|format(report.overall_score * 100) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Score"></div>
       </div>
       <div class="stat-row">
         <span>{{ report.timestamp[:19] if report.timestamp else '' }}</span>
@@ -81,7 +84,8 @@
     </div>
     <div class="score-bar">
       <div class="score-bar-fill {% if report.sections.audit.normalized >= 0.8 %}high{% elif report.sections.audit.normalized >= 0.5 %}mid{% else %}low{% endif %}"
-           style="width:{{ "%.0f"|format(report.sections.audit.normalized * 100) }}%"></div>
+           style="width:{{ "%.0f"|format(report.sections.audit.normalized * 100) }}%"
+           role="progressbar" aria-valuenow="{{ "%.0f"|format(report.sections.audit.normalized * 100) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Score"></div>
     </div>
     <div class="stat-row">
       <span>{{ report.sections.audit.critical or 0 }} critical</span>
@@ -105,7 +109,8 @@
     </div>
     <div class="score-bar">
       <div class="score-bar-fill {% if report.sections.functional.overall >= 0.8 %}high{% elif report.sections.functional.overall >= 0.5 %}mid{% else %}low{% endif %}"
-           style="width:{{ "%.0f"|format(report.sections.functional.overall * 100) }}%"></div>
+           style="width:{{ "%.0f"|format(report.sections.functional.overall * 100) }}%"
+           role="progressbar" aria-valuenow="{{ "%.0f"|format(report.sections.functional.overall * 100) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Score"></div>
     </div>
     {% if report.sections.functional.scores %}
     <div class="stat-row" style="margin-top:.5rem;">
@@ -131,7 +136,8 @@
     </div>
     <div class="score-bar">
       <div class="score-bar-fill {% if report.sections.trigger.pass_rate >= 0.8 %}high{% elif report.sections.trigger.pass_rate >= 0.5 %}mid{% else %}low{% endif %}"
-           style="width:{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}%"></div>
+           style="width:{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}%"
+           role="progressbar" aria-valuenow="{{ "%.0f"|format(report.sections.trigger.pass_rate * 100) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Score"></div>
     </div>
     <div class="stat-row">
       <span>{{ report.sections.trigger.total_queries or 0 }} queries</span>
@@ -196,7 +202,8 @@
   </div>
 
   <div style="margin-top:1.25rem;">
-    <button type="submit" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600;width:100%;">
+    <button type="submit" style="background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600;width:100%;"
+            onclick="this.disabled=true;this.textContent='Running…';this.form.submit()">
       Run Evaluation
     </button>
   </div>

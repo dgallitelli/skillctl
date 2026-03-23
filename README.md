@@ -143,11 +143,12 @@ All commands follow the pattern: `skillctl <command> [args] [flags]`
 |---------|-------------|
 | `skillctl serve` | Start the self-hosted registry server |
 | `skillctl publish [path]` | Publish skill to remote registry |
-| `skillctl search [query]` | Search remote registry |
+| `skillctl search [query]` | Search remote registry (`--namespace`, `--tag`, `--limit`) |
 | `skillctl token create` | Create an API token for registry access |
 | `skillctl login` | Authenticate with GitHub via device flow |
 | `skillctl logout` | Remove stored GitHub credentials |
 | `skillctl config set <key> <value>` | Configure registry URL and credentials |
+| `skillctl config get <key>` | Read a configuration value |
 
 ### Eval commands
 
@@ -180,7 +181,7 @@ All commands follow the pattern: `skillctl <command> [args] [flags]`
 
 ## Registry Server
 
-The registry server is a self-hostable FastAPI application backed by SQLite and filesystem blob storage. Zero external dependencies.
+The registry server is a self-hostable FastAPI application backed by SQLite and filesystem blob storage. Zero external infrastructure dependencies — just Python and SQLite.
 
 ### Start with Docker
 
@@ -226,6 +227,8 @@ Create tokens via the API or CLI:
 skillctl token create --name ci-publisher --scope write:my-org --scope read
 ```
 
+Use `--expires` to set a token expiration (e.g. `--expires 90d`).
+
 Use `--auth-disabled` for local development (not for production).
 
 ### API endpoints
@@ -255,6 +258,7 @@ The registry includes a lightweight HTMX-based web interface for browsing skills
 - Publish skills (single files or multi-file `.zip`/`.tar.gz` archives)
 - Skill detail pages with content preview, eval scores, and version history
 - Run evaluations and optimizations directly from the UI
+- Server settings and GitHub connection status at `/settings`
 - Dark/light mode toggle
 
 ### GitHub Storage Backend
@@ -298,6 +302,8 @@ skillctl config set github.repo https://github.com/my-org/skill-registry.git
 skillctl login
 ```
 
+Use `--scopes` to request additional GitHub OAuth scopes (e.g. `--scopes repo,read:org`).
+
 4. Start the registry with GitHub backend:
 
 ```bash
@@ -315,6 +321,7 @@ The GitHub token is resolved in this order: `--github-token` flag > `SKILLCTL_GI
 | `github.repo` | `SKILLCTL_GITHUB_REPO` | `--github-repo` | Repository HTTPS URL |
 | `github.token` | `SKILLCTL_GITHUB_TOKEN` | `--github-token` | Access token (or use `skillctl login`) |
 | `github.client_id` | `SKILLCTL_GITHUB_CLIENT_ID` | `--client-id` | OAuth App client ID for device flow |
+| `github.branch` | — | `--github-branch` | Git branch to use (default: main) |
 
 #### How it works
 
@@ -428,8 +435,12 @@ skillctl optimize ./my-skill --budget 5.0 --max-iterations 20
 | `--max-iterations` | 50 | Hard cap on optimization cycles |
 | `--plateau` | 3 | Stop after N cycles with no improvement |
 | `--budget` | 10.0 | Maximum spend in USD |
+| `--timeout` | 120 | Evaluation timeout in seconds |
+| `--agent` | claude | Agent to use for evaluation |
+| `--model` | auto | LLM model ID (provider-specific) |
+| `--region` | us-east-1 | AWS region for Bedrock provider |
 | `--provider` | bedrock | LLM provider (bedrock, anthropic) |
-| `--approve` | false | Require human confirmation before promoting |
+| `--approve` | false | Auto-approve promotions without confirmation |
 | `--dry-run` | false | Run the loop without writing changes |
 
 ### Provenance
@@ -481,7 +492,7 @@ skillctl/                  # Governance CLI + registry server
 │   ├── storage.py         # Content-addressed blob storage (filesystem)
 │   ├── github_backend.py  # GitHub repo-backed storage
 │   ├── audit.py           # HMAC-signed append-only audit log
-│   └── web.py             # HTMX web UI (browse, publish, eval, optimize)
+│   └── web.py             # HTMX web UI (browse, publish, eval, optimize, settings)
 ├── optimize/              # Automated skill optimizer
 │   ├── loop.py            # Main optimization loop
 │   ├── failure_analyzer.py
@@ -533,7 +544,7 @@ skillctl serve --auth-disabled --port 8080
 |-----------|-------|--------|
 | v0.1.0 | CLI + Local Governance → Registry Server → Eval Suite | In progress |
 | v0.2.0 | Skills Gateway → Pub/Sub + SDK + Governance | Planned |
-| v0.3.0 | Automated Skill Optimization | Planned |
+| v0.3.0 | Automated Skill Optimization | Complete |
 
 See [.planning/ROADMAP.md](.planning/ROADMAP.md) for detailed phase breakdowns.
 

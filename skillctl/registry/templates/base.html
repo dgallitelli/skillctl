@@ -74,6 +74,7 @@
         transition: background .15s;
       }
       .theme-toggle:hover { background: var(--accent-bg); }
+      .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       [data-theme="dark"] .icon-sun { display: inline; }
       [data-theme="dark"] .icon-moon { display: none; }
       [data-theme="light"] .icon-sun { display: none; }
@@ -127,7 +128,7 @@
       .skill-card h3 { margin: 0; font-size: 1rem; line-height: 1.3; }
       .skill-card h3 a { text-decoration: none; color: var(--pico-color); }
       .skill-card h3 a:hover { color: var(--accent); }
-      .skill-card .desc { font-size: .875rem; color: var(--pico-muted-color); margin-bottom: .75rem; flex: 1; line-height: 1.5; }
+      .skill-card .desc { font-size: .875rem; color: var(--pico-muted-color); margin-bottom: .75rem; flex: 1; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
       .skill-card .card-footer { display: flex; justify-content: space-between; align-items: center; }
       .skill-card .tags { display: flex; flex-wrap: wrap; gap: .3rem; }
 
@@ -267,6 +268,14 @@
         <ul class="nav-links">
           <li><a href="/">Browse</a></li>
           <li><a href="/publish" class="btn-publish">+ Publish</a></li>
+          <li><a href="/settings" title="Settings" aria-label="Settings" style="font-size:1.1rem;">⚙</a></li>
+          <li>
+            {% if github_user %}
+            <span style="font-size:.8rem;color:var(--pico-muted-color);" title="Logged in as {{ github_user }}">
+              {{ github_user }}
+            </span>
+            {% endif %}
+          </li>
           <li>
             <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode">
               <span class="icon-moon">🌙</span>

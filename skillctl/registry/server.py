@@ -93,6 +93,7 @@ async def _lifespan(app: FastAPI):
     app.state.auth_manager = auth_manager
     app.state.audit = audit
     app.state.templates = templates
+    app.state.registry_config = config
 
     yield
 
