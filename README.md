@@ -257,14 +257,7 @@ Every mutating operation (publish, delete, eval attach, token create/revoke) is 
 
 ### Web UI
 
-The registry includes a lightweight HTMX-based web interface for browsing skills, accessible at the root URL. Features include:
-
-- Browse and search skills with live filtering
-- Publish skills (single files or multi-file `.zip`/`.tar.gz` archives)
-- Skill detail pages with content preview, eval scores, and version history
-- Run evaluations and optimizations directly from the UI
-- Server settings and GitHub connection status at `/settings`
-- Dark/light mode toggle
+The web UI is available on the `web-ui-feature` branch and can be merged in for a full browser-based experience. The v0.1.0 release is CLI-first.
 
 ### GitHub Storage Backend
 
@@ -499,8 +492,7 @@ skillctl/                  # Governance CLI + registry server
 │   ├── storage.py         # Content-addressed blob storage (filesystem)
 │   ├── github_backend.py  # GitHub repo-backed storage
 │   ├── audit.py           # HMAC-signed append-only audit log
-│   ├── config.py          # RegistryConfig dataclass
-│   └── web.py             # HTMX web UI (browse, publish, eval, optimize, settings)
+│   └── config.py          # RegistryConfig dataclass
 ├── optimize/              # Automated skill optimizer
 │   ├── cli.py             # Optimize subcommands (run, history, diff)
 │   ├── loop.py            # Main optimization loop
