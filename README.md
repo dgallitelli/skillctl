@@ -64,7 +64,7 @@ Skills are stored in a content-addressed local registry at `~/.skillctl/store/` 
 ### Run a security audit
 
 ```bash
-skillctl audit ./my-skill
+skillctl eval audit ./my-skill
 ```
 
 Scans for secrets, prompt injection patterns, data exfiltration URLs, unsafe deserialization, base64 payloads, and more. Produces an A–F grade on a 100-point scale.
@@ -158,14 +158,14 @@ Registry commands (`publish`, `search`, `token create`) accept `--registry-url` 
 
 | Command | Description |
 |---------|-------------|
-| `skillctl audit <path>` | Security & structure audit with A–F grading |
-| `skillctl functional <path>` | Baseline comparison (with/without skill) |
-| `skillctl trigger <path>` | Activation reliability testing |
-| `skillctl report <path>` | Unified report (40% audit, 40% functional, 20% trigger) |
-| `skillctl snapshot <path>` | Save current results as regression baseline |
-| `skillctl regression <path>` | Detect score drops vs baseline |
-| `skillctl compare <a> <b>` | Side-by-side skill comparison |
-| `skillctl lifecycle <path>` | Version tracking and change detection |
+| `skillctl eval audit <path>` | Security & structure audit with A–F grading |
+| `skillctl eval functional <path>` | Baseline comparison (with/without skill) |
+| `skillctl eval trigger <path>` | Activation reliability testing |
+| `skillctl eval report <path>` | Unified report (40% audit, 40% functional, 20% trigger) |
+| `skillctl eval snapshot <path>` | Save current results as regression baseline |
+| `skillctl eval regression <path>` | Detect score drops vs baseline |
+| `skillctl eval compare <a> <b>` | Side-by-side skill comparison |
+| `skillctl eval lifecycle <path>` | Version tracking and change detection |
 
 ### Optimizer commands
 
@@ -338,7 +338,7 @@ The eval suite answers: "Does this skill actually make my agent better — and b
 ### Security audit
 
 ```bash
-skillctl audit ./my-skill
+skillctl eval audit ./my-skill
 ```
 
 Scans for:
@@ -358,7 +358,7 @@ Grading: 100-point scale → A (90+), B (80+), C (70+), D (60+), F (<60).
 ### Functional evaluation
 
 ```bash
-skillctl functional ./my-skill --evals evals/evals.json
+skillctl eval functional ./my-skill --evals evals/evals.json
 ```
 
 Runs an agent with and without the skill against defined test scenarios, comparing output quality via LLM-as-judge scoring.
@@ -366,7 +366,7 @@ Runs an agent with and without the skill against defined test scenarios, compari
 ### Trigger evaluation
 
 ```bash
-skillctl trigger ./my-skill --queries evals/eval_queries.json
+skillctl eval trigger ./my-skill --queries evals/eval_queries.json
 ```
 
 Tests whether the skill activates on relevant queries and stays silent on irrelevant ones.
@@ -374,7 +374,7 @@ Tests whether the skill activates on relevant queries and stays silent on irrele
 ### Unified report
 
 ```bash
-skillctl report ./my-skill
+skillctl eval report ./my-skill
 ```
 
 Produces a combined score: 40% audit + 40% functional + 20% trigger. Maps to certification tiers:
@@ -388,9 +388,9 @@ Produces a combined score: 40% audit + 40% functional + 20% trigger. Maps to cer
 ### Regression detection
 
 ```bash
-skillctl snapshot ./my-skill          # Save baseline
+skillctl eval snapshot ./my-skill          # Save baseline
 # ... make changes ...
-skillctl regression ./my-skill        # Compare against baseline
+skillctl eval regression ./my-skill        # Compare against baseline
 ```
 
 ### Configuration

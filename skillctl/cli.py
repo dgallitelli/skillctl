@@ -121,13 +121,12 @@ def main():
     # skillctl doctor
     sub.add_parser("doctor", help="Diagnose environment issues")
 
-    # Passthrough commands for eval suite
+    # skillctl eval <subcommand> — passthrough to eval engine
+    eval_p = sub.add_parser("eval", help="Evaluate skills (audit, functional, trigger, report, ...)")
     eval_commands = [
         "audit", "functional", "trigger", "report",
         "snapshot", "regression", "compare", "lifecycle",
     ]
-    for cmd in eval_commands:
-        sub.add_parser(cmd, help=f"Run eval {cmd}")
 
     # skillctl optimize (and subcommands: history, diff)
     register_optimize_commands(sub)
@@ -207,8 +206,8 @@ def main():
             cmd_diff(args)
         elif args.command == "doctor":
             cmd_doctor(args)
-        elif args.command in eval_commands:
-            cmd_eval_passthrough(args.command, remaining)
+        elif args.command == "eval":
+            cmd_eval_passthrough(remaining)
         elif args.command == "optimize":
             handle_optimize(args, remaining)
         elif args.command == "serve":
@@ -547,11 +546,11 @@ def cmd_doctor(args):
     sys.exit(1 if errors_count > 0 else 0)
 
 
-def cmd_eval_passthrough(command: str, remaining_args: list[str]):
+def cmd_eval_passthrough(remaining_args: list[str]):
     """Delegate eval commands to skillctl.eval.cli."""
     from skillctl.eval.cli import main as eval_main
 
-    sys.argv = ["skillctl", command] + remaining_args
+    sys.argv = ["skillctl eval"] + remaining_args
     try:
         exit_code = eval_main()
         sys.exit(exit_code or 0)
