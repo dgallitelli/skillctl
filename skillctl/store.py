@@ -199,6 +199,18 @@ class ContentStore:
                 "version": manifest.metadata.version,
                 "description": manifest.metadata.description,
             },
+            "spec": {
+                "parameters": [
+                    {
+                        "name": p.name,
+                        "type": p.type,
+                        **({"default": p.default} if p.default else {}),
+                        **({"values": p.values} if p.values else {}),
+                    }
+                    for p in manifest.spec.parameters
+                ],
+                "capabilities": list(manifest.spec.capabilities),
+            },
         }
         with open(path, "w") as f:
             yaml.safe_dump(data, f)

@@ -135,6 +135,8 @@ All commands follow the pattern: `skillctl <command> [args] [flags]`
 | `skillctl push [path]` | Push validated skill to local content-addressed store |
 | `skillctl pull <name@version>` | Pull skill from local store |
 | `skillctl list` | List skills in local store |
+| `skillctl diff <ref-a> <ref-b>` | Compare two skill versions with breaking change detection |
+| `skillctl doctor` | Diagnose environment issues |
 | `skillctl version` | Print version info |
 
 ### Registry commands
@@ -175,8 +177,9 @@ Registry commands (`publish`, `search`, `token create`) accept `--registry-url` 
 
 ### Common flags
 
-- `--json` — JSON output (available on validate, list, and eval commands)
+- `--json` — JSON output (available on validate, list, diff, and eval commands)
 - `--dry-run` — Preview without mutating state (push, optimize)
+- `--strict` — Treat warnings as errors (validate)
 - `--verbose` / `-v` — Show additional detail (eval audit)
 
 ---

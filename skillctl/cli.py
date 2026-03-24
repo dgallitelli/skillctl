@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 
+from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
 from skillctl.optimize.cli import register_optimize_commands, handle_optimize
@@ -88,6 +89,7 @@ def main():
         "path", nargs="?", default=".", help="Path to skill.yaml or directory"
     )
     val_p.add_argument("--json", action="store_true", help="Output as JSON")
+    val_p.add_argument("--strict", action="store_true", help="Treat warnings as errors")
 
     # skillctl push
     push_p = sub.add_parser("push", help="Push skill to local store")
@@ -109,6 +111,15 @@ def main():
 
     # skillctl version
     sub.add_parser("version", help="Print version info")
+
+    # skillctl diff
+    diff_p = sub.add_parser("diff", help="Compare two skill versions")
+    diff_p.add_argument("ref_a", help="First ref (namespace/name@version)")
+    diff_p.add_argument("ref_b", help="Second ref (namespace/name@version)")
+    diff_p.add_argument("--json", action="store_true", help="Output as JSON")
+
+    # skillctl doctor
+    sub.add_parser("doctor", help="Diagnose environment issues")
 
     # Passthrough commands for eval suite
     eval_commands = [
@@ -192,6 +203,10 @@ def main():
             cmd_list(args)
         elif args.command == "version":
             cmd_version()
+        elif args.command == "diff":
+            cmd_diff(args)
+        elif args.command == "doctor":
+            cmd_doctor(args)
         elif args.command in eval_commands:
             cmd_eval_passthrough(args.command, remaining)
         elif args.command == "optimize":
@@ -289,6 +304,7 @@ def cmd_validate(args):
                 for e in result.errors
             ],
             "warnings": all_warnings,
+            "strict": getattr(args, "strict", False),
         }
         print(json.dumps(output, indent=2))
     else:
@@ -309,6 +325,8 @@ def cmd_validate(args):
 
     # Determine exit code
     if result.errors:
+        sys.exit(1)
+    elif all_warnings and getattr(args, "strict", False):
         sys.exit(1)
     elif all_warnings:
         sys.exit(2)
@@ -391,6 +409,142 @@ def cmd_list(args):
 def cmd_version():
     """Print version info."""
     print(version_info())
+
+
+def cmd_diff(args):
+    """Compare two skill versions from the local store."""
+    store = ContentStore()
+    result = diff_skills(store, args.ref_a, args.ref_b)
+
+    if getattr(args, "json", False):
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(format_diff(result))
+
+
+def cmd_doctor(args):
+    """Check the health of the skillctl environment."""
+    import platform
+    import shutil
+    import subprocess
+
+    warnings_count = 0
+    errors_count = 0
+
+    print("skillctl doctor\n")
+
+    # 1. Python version >= 3.10
+    ver = sys.version_info
+    ver_str = f"{ver.major}.{ver.minor}.{ver.micro}"
+    if ver >= (3, 10):
+        print(f"  ✓ Python {ver_str} (>= 3.10 required)")
+    else:
+        print(f"  ✗ Python {ver_str} (>= 3.10 required)")
+        errors_count += 1
+
+    # 2. Local store exists and is readable
+    store_path = Path.home() / ".skillctl" / "store"
+    if store_path.is_dir():
+        try:
+            skill_count = sum(1 for _ in store_path.rglob("*.manifest.yaml"))
+            print(f"  ✓ Local store: {store_path} ({skill_count} skills)")
+        except PermissionError:
+            print(f"  ✗ Local store: {store_path} (not readable)")
+            errors_count += 1
+    else:
+        print(f"  ✗ Local store: {store_path} (not found)")
+        errors_count += 1
+
+    # 3. Store index is valid JSON
+    index_path = Path.home() / ".skillctl" / "index.json"
+    if index_path.exists():
+        try:
+            json.loads(index_path.read_text())
+            print(f"  ✓ Store index: valid")
+        except (json.JSONDecodeError, OSError):
+            print(f"  ✗ Store index: invalid JSON")
+            errors_count += 1
+    else:
+        print(f"  ⚠ Store index: not found (no skills pushed yet)")
+        warnings_count += 1
+
+    # 4. Config file exists and is valid YAML
+    config_path = Path.home() / ".skillctl" / "config.yaml"
+    if config_path.exists():
+        try:
+            yaml.safe_load(config_path.read_text())
+            print(f"  ✓ Config file: {config_path}")
+        except yaml.YAMLError:
+            print(f"  ✗ Config file: invalid YAML")
+            errors_count += 1
+    else:
+        print(f"  ⚠ Config file: not found")
+        warnings_count += 1
+
+    # 5. Registry URL
+    cfg = _load_config()
+    registry_url = cfg.get("registry", {}).get("url") or os.environ.get("SKILLCTL_REGISTRY_URL")
+    if registry_url:
+        try:
+            req = urllib.request.Request(f"{registry_url.rstrip('/')}/api/v1/health", method="GET")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                print(f"  ✓ Registry URL: {registry_url} (healthy)")
+        except Exception:
+            print(f"  ⚠ Registry URL: {registry_url} (unreachable)")
+            warnings_count += 1
+    else:
+        print(f"  ⚠ Registry URL: not configured")
+        warnings_count += 1
+
+    # 6. GitHub token
+    gh_token = cfg.get("github", {}).get("token")
+    if gh_token:
+        try:
+            req = urllib.request.Request("https://api.github.com/user", method="GET")
+            req.add_header("Authorization", f"Bearer {gh_token}")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                user = json.loads(resp.read().decode())
+                print(f"  ✓ GitHub token: valid ({user.get('login', 'unknown')})")
+        except Exception:
+            print(f"  ⚠ GitHub token: configured but invalid")
+            warnings_count += 1
+    else:
+        print(f"  ⚠ GitHub token: not configured")
+        warnings_count += 1
+
+    # 7. Git installed
+    git_path = shutil.which("git")
+    if git_path:
+        try:
+            git_ver = subprocess.check_output(
+                ["git", "--version"], stderr=subprocess.DEVNULL, text=True
+            ).strip()
+            # Extract version number from "git version X.Y.Z"
+            git_ver_num = git_ver.replace("git version ", "")
+            print(f"  ✓ Git: installed ({git_ver_num})")
+        except Exception:
+            print(f"  ⚠ Git: found but version check failed")
+            warnings_count += 1
+    else:
+        print(f"  ⚠ Git: not installed")
+        warnings_count += 1
+
+    # 8. Required packages
+    missing = []
+    for pkg in ["fastapi", "uvicorn", "yaml"]:
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print(f"  ✗ Dependencies: missing {', '.join(missing)}")
+        errors_count += 1
+    else:
+        print(f"  ✓ Dependencies: all importable")
+
+    # Summary
+    print(f"\n{warnings_count} warnings, {errors_count} errors")
+    sys.exit(1 if errors_count > 0 else 0)
 
 
 def cmd_eval_passthrough(command: str, remaining_args: list[str]):
