@@ -1,17 +1,45 @@
-# Build / install
-*.egg-info/
+# Python
 __pycache__/
-*.pyc
-.venv/
-.pytest_cache
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
 
-# IDE / tools
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE / editors
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Kiro / planning
 .kiro/
 .planning/
 
-# Project artifacts
-firebase-debug.log
-logs/
+# Project-specific
 CLAUDE.md
 registry-data/
+logs/
+firebase-debug.log
+
+# Runtime data
+*.db
+*.db-journal
+*.jsonl
+hmac.key
