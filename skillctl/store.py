@@ -155,6 +155,42 @@ class ContentStore:
 
         return sorted(results, key=lambda e: (e.name, e.version))
 
+    def delete_skill(self, name: str, version: str) -> None:
+        """Remove a skill version from the local store."""
+        index = self._load_index()
+        entry = self._find_entry(index, name, version)
+        if not entry:
+            raise SkillctlError(
+                code="E_NOT_FOUND",
+                what=f"{name}@{version} not found in local store",
+                why="Cannot delete a skill that doesn't exist",
+                fix="Check 'skillctl get skills' for available skills",
+            )
+
+        prefix = entry.hash[:2]
+        content_path = self.store_dir / prefix / entry.hash
+        manifest_path = self.store_dir / prefix / f"{entry.hash}.manifest.yaml"
+
+        # Remove content file
+        if content_path.exists():
+            content_path.unlink()
+        # Remove manifest file
+        if manifest_path.exists():
+            manifest_path.unlink()
+
+        # Remove entry from index
+        index = [e for e in index if not (e.name == name and e.version == version)]
+        self._save_index(index)
+
+    def list_versions(self, name: str) -> list[IndexEntry]:
+        """List all versions of a skill by name."""
+        index = self._load_index()
+        return sorted(
+            [e for e in index if e.name == name],
+            key=lambda e: e.version,
+            reverse=True,
+        )
+
     def _load_index(self) -> list[IndexEntry]:
         if not self.index_path.exists():
             return []

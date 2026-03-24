@@ -37,7 +37,7 @@ pip install .
 ### Create your first skill
 
 ```bash
-skillctl init my-org/my-skill
+skillctl create skill my-org/my-skill
 ```
 
 This scaffolds two files in the current directory:
@@ -53,13 +53,13 @@ skillctl validate
 
 Exit codes: `0` = valid, `1` = errors, `2` = warnings only. Add `--json` for CI-friendly output.
 
-### Push to local store
+### Apply (validate + push)
 
 ```bash
-skillctl push
+skillctl apply
 ```
 
-Skills are stored in a content-addressed local registry at `~/.skillctl/store/` (SHA-256 hashed, git-style). Validation runs automatically before storing — no unvalidated skills enter the store.
+This validates the skill, pushes it to the local content-addressed store at `~/.skillctl/store/`, and — if a registry URL is configured — also publishes to the remote registry. Use `--local` to skip remote publish, or `--dry-run` to preview.
 
 ### Run a security audit
 
@@ -124,35 +124,57 @@ Plain `SKILL.md` files (no `skill.yaml`) are auto-detected and wrapped in a mini
 
 ## CLI Reference
 
-All commands follow the pattern: `skillctl <command> [args] [flags]`
+All commands follow kubectl-style verb patterns: `skillctl <verb> [resource] [args] [flags]`
 
 ### Core commands
 
 | Command | Description |
 |---------|-------------|
-| `skillctl init <name>` | Scaffold a new skill (skill.yaml + SKILL.md) |
+| `skillctl apply [path]` | Validate + push to local store; publish to remote if configured |
+| `skillctl create skill <name>` | Scaffold a new skill (skill.yaml + SKILL.md) |
+| `skillctl get skills` | List skills from local store (or remote with `--remote`) |
+| `skillctl get skill <ref>` | Pull/show a specific skill by name@version |
+| `skillctl describe skill <ref>` | Rich detail: metadata, versions, parameters, capabilities |
+| `skillctl delete skill <ref>` | Remove a skill version from local store |
+| `skillctl logs <name>` | Show audit trail for a skill (from registry) |
 | `skillctl validate [path]` | Validate manifest structure, semver, capabilities |
-| `skillctl push [path]` | Push validated skill to local content-addressed store |
-| `skillctl pull <name@version>` | Pull skill from local store |
-| `skillctl list` | List skills in local store |
 | `skillctl diff <ref-a> <ref-b>` | Compare two skill versions with breaking change detection |
 | `skillctl doctor` | Diagnose environment issues |
 | `skillctl version` | Print version info |
+
+### `apply` flags
+
+| Flag | Description |
+|------|-------------|
+| `-f <path>` | Path to skill (alias for positional argument) |
+| `--dry-run` | Preview without mutating state |
+| `--local` | Skip remote publish, only push to local store |
 
 ### Registry commands
 
 | Command | Description |
 |---------|-------------|
 | `skillctl serve` | Start the self-hosted registry server |
-| `skillctl publish [path]` | Publish skill to remote registry |
-| `skillctl search [query]` | Search remote registry (`--namespace`, `--tag`, `--limit`) |
 | `skillctl token create` | Create an API token for registry access |
 | `skillctl login` | Authenticate with GitHub via device flow |
 | `skillctl logout` | Remove stored GitHub credentials |
 | `skillctl config set <key> <value>` | Configure registry URL and credentials |
 | `skillctl config get <key>` | Read a configuration value |
 
-Registry commands (`publish`, `search`, `token create`) accept `--registry-url` and `--token` flags to override the configured values.
+Registry commands accept `--registry-url` and `--token` flags to override the configured values.
+
+### Backward-compatible aliases
+
+All old commands still work and map to the new kubectl-style equivalents:
+
+| Old command | Maps to |
+|-------------|---------|
+| `skillctl init <name>` | `skillctl create skill <name>` |
+| `skillctl push [path]` | `skillctl apply --local [path]` |
+| `skillctl pull <ref>` | `skillctl get skill <ref>` |
+| `skillctl list` | `skillctl get skills` |
+| `skillctl publish [path]` | `skillctl apply [path]` |
+| `skillctl search [query]` | `skillctl get skills --remote --query <query>` |
 
 ### Eval commands
 

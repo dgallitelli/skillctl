@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### CLI — kubectl-style verb alignment
+
+- `skillctl apply [path]` — validate + push to local store; publish to remote if configured (replaces `push` and `publish`)
+- `skillctl create skill <name>` — scaffold a new skill (replaces `init`)
+- `skillctl get skills` — list skills from local store or remote with `--remote` (replaces `list` and `search`)
+- `skillctl get skill <ref>` — pull/show a specific skill (replaces `pull`)
+- `skillctl describe skill <ref>` — rich detail view (new)
+- `skillctl delete skill <ref>` — remove a skill version from local store (new)
+- `skillctl logs <name>` — audit trail stub (new, requires registry)
+- All old commands (`init`, `push`, `pull`, `list`, `publish`, `search`) kept as backward-compatible aliases
+
 ## v0.1.0 (2026-03-24)
 
 Initial release — CLI governance platform for agent skills.
