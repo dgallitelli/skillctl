@@ -496,53 +496,51 @@ skillctl validate examples/minimal-skill      # auto-wraps with warning
 
 ## Architecture
 
-```
-skillctl/                  # Governance CLI + registry server
-├── cli.py                 # CLI entry point (argparse)
-├── diff.py                # Skill version diffing with breaking change detection
-├── github_auth.py         # GitHub Device Flow (OAuth 2.0)
-├── manifest.py            # skill.yaml parser + SKILL.md auto-wrapper
-├── validator.py           # Schema validation, semver, capability checks
-├── store.py               # Content-addressed local storage (SHA-256)
-├── errors.py              # Structured errors (what/why/fix)
-├── version.py             # Version info
-├── registry/              # Self-hostable registry server
-│   ├── server.py          # FastAPI app factory
-│   ├── api.py             # REST API endpoints (/api/v1/*)
-│   ├── auth.py            # Token-based auth with scoped permissions
-│   ├── db.py              # SQLite metadata index + FTS5 search
-│   ├── storage.py         # Content-addressed blob storage (filesystem)
-│   ├── github_backend.py  # GitHub repo-backed storage
-│   ├── audit.py           # HMAC-signed append-only audit log
-│   └── config.py          # RegistryConfig dataclass
-├── optimize/              # Automated skill optimizer
-│   ├── cli.py             # Optimize subcommands (run, history, diff)
-│   ├── loop.py            # Main optimization loop
-│   ├── failure_analyzer.py
-│   ├── variant_generator.py
-│   ├── promotion_gate.py
-│   ├── budget.py          # Cost tracking and enforcement
-│   ├── llm_client.py      # LLM provider abstraction (Bedrock, Anthropic)
-│   ├── types.py           # OptimizeConfig and run types
-│   ├── eval_runner.py     # Eval integration for optimizer
-│   └── provenance.py      # Run history and artifact storage
-└── eval/                  # Integrated evaluation suite
-    ├── cli.py             # Eval CLI (skillctl audit/functional/trigger/...)
-    ├── config.py          # .skilleval.yaml loader
-    ├── audit/             # Security + structure scanning
-    │   ├── security_scan.py   # 9 security check categories
-    │   ├── structure_check.py # agentskills.io spec validation
-    │   └── permission_analyzer.py
-    ├── functional.py      # Functional quality evaluation
-    ├── trigger.py         # Trigger reliability testing
-    ├── grading.py         # Score calculation and A-F grading
-    ├── unified_report.py  # Combined scoring (audit + functional + trigger)
-    ├── html_report.py     # HTML report generation
-    ├── regression.py      # Baseline comparison
-    ├── compare.py         # Side-by-side skill comparison
-    ├── lifecycle.py       # Version tracking
-    ├── explanations.py    # Educational context for findings
-    └── agent_runner.py    # Agent execution abstraction
+```mermaid
+graph TD
+    CLI[skillctl CLI]
+
+    subgraph Core
+        CLI --> Manifest[manifest.py<br/>skill.yaml parser]
+        CLI --> Validator[validator.py<br/>schema + semver + capabilities]
+        CLI --> Store[store.py<br/>content-addressed storage]
+        CLI --> Diff[diff.py<br/>version comparison]
+        CLI --> GitHubAuth[github_auth.py<br/>device flow OAuth]
+    end
+
+    subgraph Registry Server
+        CLI -->|serve / publish / search| Server[server.py<br/>FastAPI app]
+        Server --> API[api.py<br/>REST endpoints]
+        API --> Auth[auth.py<br/>token-based auth]
+        API --> DB[db.py<br/>SQLite + FTS5]
+        API --> BlobStore[storage.py<br/>filesystem blobs]
+        API --> GitBackend[github_backend.py<br/>git repo storage]
+        API --> Audit[audit.py<br/>HMAC-signed JSONL]
+    end
+
+    subgraph Eval Suite
+        CLI -->|eval| EvalCLI[eval/cli.py]
+        EvalCLI --> AuditScan[audit/<br/>security scan]
+        EvalCLI --> Functional[functional.py<br/>with/without comparison]
+        EvalCLI --> Trigger[trigger.py<br/>activation reliability]
+        EvalCLI --> Report[unified_report.py<br/>A-F grading]
+        EvalCLI --> Regression[regression.py<br/>baseline comparison]
+    end
+
+    subgraph Optimizer
+        CLI -->|optimize| OptLoop[loop.py<br/>improvement cycle]
+        OptLoop --> FailureAnalyzer[failure_analyzer.py]
+        OptLoop --> VariantGen[variant_generator.py]
+        OptLoop --> PromotionGate[promotion_gate.py]
+        OptLoop --> LLM[llm_client.py<br/>Bedrock / Anthropic]
+        OptLoop --> Budget[budget.py<br/>cost tracking]
+        OptLoop --> Provenance[provenance.py<br/>run history]
+    end
+
+    Store -.->|local| FS[(~/.skillctl/store)]
+    DB -.-> SQLite[(SQLite)]
+    GitBackend -.->|push/pull| GitHub[(GitHub Repo)]
+    Audit -.-> AuditLog[(audit.jsonl)]
 ```
 
 ## Development
