@@ -97,10 +97,10 @@ def run_audit(
     return report
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Main CLI entry point."""
+def build_parser() -> argparse.ArgumentParser:
+    """Build the eval sub-command argument parser."""
     parser = argparse.ArgumentParser(
-        prog="skillctl",
+        prog="skillctl eval",
         description="Agent Skill Security & Quality Evaluation",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -244,6 +244,12 @@ def main(argv: list[str] | None = None) -> int:
     # version command
     subparsers.add_parser("version", help="Print version info")
 
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Main CLI entry point."""
+    parser = build_parser()
     args = parser.parse_args(argv)
 
     if not args.command:

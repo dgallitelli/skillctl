@@ -88,6 +88,17 @@ def _parse_report(data: dict, report_path: str) -> EvalResult:
     functional_score = _extract_normalized(sections.get("functional"))
     trigger_score = _extract_normalized(sections.get("trigger"))
 
+    audit_findings = []
+    audit_section = sections.get("audit", {})
+    for f in audit_section.get("findings", []):
+        audit_findings.append({
+            "code": f.get("code", ""),
+            "severity": f.get("severity", ""),
+            "title": f.get("title", ""),
+            "detail": f.get("detail", ""),
+            "file_path": f.get("file_path", ""),
+        })
+
     return EvalResult(
         overall_score=data.get("overall_score"),
         overall_grade=data.get("overall_grade", "F"),
@@ -95,6 +106,7 @@ def _parse_report(data: dict, report_path: str) -> EvalResult:
         audit_score=audit_score,
         functional_score=functional_score,
         trigger_score=trigger_score,
+        audit_findings=audit_findings,
         sections=sections,
         report_path=report_path,
     )

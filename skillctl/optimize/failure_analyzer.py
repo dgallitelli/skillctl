@@ -71,8 +71,14 @@ def _extract_evidence(eval_result: EvalResult) -> list[dict]:
     """Extract structured evidence from each eval section."""
     evidence: list[dict] = []
 
-    # Audit findings
-    if "audit" in eval_result.sections:
+    # Audit findings (prefer structured audit_findings when available)
+    if eval_result.audit_findings:
+        evidence.append({
+            "category": "audit",
+            "score": eval_result.sections.get("audit", {}).get("score", 0),
+            "issues": eval_result.audit_findings,
+        })
+    elif "audit" in eval_result.sections:
         audit = eval_result.sections["audit"]
         if audit.get("critical", 0) > 0 or audit.get("warning", 0) > 0:
             evidence.append({

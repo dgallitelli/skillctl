@@ -218,22 +218,7 @@ def run_unified_report(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _read_skill_name(skill_path: Path) -> Optional[str]:
-    """Try to read the skill name from SKILL.md frontmatter."""
-    skill_md = skill_path / "SKILL.md"
-    if not skill_md.is_file():
-        return None
-    try:
-        content = skill_md.read_text()
-        if content.startswith("---"):
-            end = content.index("---", 3)
-            fm_text = content[3:end]
-            for line in fm_text.splitlines():
-                if line.strip().startswith("name:"):
-                    return line.split(":", 1)[1].strip().strip('"').strip("'")
-    except (ValueError, IndexError):
-        pass
-    return None
+from skillctl.utils import read_skill_name_from_frontmatter as _read_skill_name
 
 
 def _run_functional(

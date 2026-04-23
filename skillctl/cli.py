@@ -85,17 +85,7 @@ def _load_github_token() -> str | None:
     return cfg.get("github", {}).get("token")
 
 
-def _parse_ref(ref: str) -> tuple[str, str]:
-    """Parse 'namespace/name@version' into (name, version)."""
-    if "@" not in ref:
-        raise SkillctlError(
-            code="E_BAD_REF",
-            what=f"Invalid reference: {ref}",
-            why="Requires a name@version reference",
-            fix="Use format: namespace/skill-name@1.0.0",
-        )
-    name, version = ref.rsplit("@", 1)
-    return name, version
+from skillctl.utils import parse_ref as _parse_ref
 
 
 # ---------------------------------------------------------------------------
@@ -411,15 +401,30 @@ def cmd_apply(args):
         else:
             raise
 
-    # 5. Optionally publish to remote
+    # 5. Optionally publish to remote (with security gate)
     remote_status = None
     registry_url = _get_registry_url(args)
     if registry_url and not getattr(args, "local", False):
-        try:
-            _publish_to_registry(args, manifest, content, registry_url)
-            remote_status = "published"
-        except Exception as e:
-            remote_status = f"failed ({e})"
+        from skillctl.eval.audit.security_scan import scan_security
+        from skillctl.eval.schemas import Severity
+
+        scan_path = str(Path(path).parent) if Path(path).is_file() else path
+        findings = scan_security(scan_path)
+        critical_findings = [f for f in findings if f.severity == Severity.CRITICAL]
+        if critical_findings:
+            print(f"Security gate: {len(critical_findings)} CRITICAL finding(s) — publish blocked:", file=sys.stderr)
+            for f in critical_findings:
+                print(f"  ✗ [{f.code}] {f.title}", file=sys.stderr)
+                if f.detail:
+                    print(f"    {f.detail}", file=sys.stderr)
+            print(f"\nFix the findings above, or use --local to push without publishing.", file=sys.stderr)
+            remote_status = "blocked (security)"
+        else:
+            try:
+                _publish_to_registry(args, manifest, content, registry_url)
+                remote_status = "published"
+            except Exception as e:
+                remote_status = f"failed ({e})"
 
     # 6. Print summary
     if local_status == "unchanged" and remote_status is None:
@@ -962,14 +967,20 @@ def cmd_doctor(args):
 
 def cmd_eval_passthrough(remaining_args: list[str]):
     """Delegate eval commands to skillctl.eval.cli."""
-    from skillctl.eval.cli import main as eval_main
+    from skillctl.eval.cli import build_parser, _dispatch
+    from skillctl.eval.errors import EvalError
 
-    sys.argv = ["skillctl eval"] + remaining_args
+    parser = build_parser()
+    args = parser.parse_args(remaining_args)
+    if not getattr(args, "command", None):
+        parser.print_help()
+        sys.exit(1)
     try:
-        exit_code = eval_main()
+        exit_code = _dispatch(args)
         sys.exit(exit_code or 0)
-    except SystemExit as e:
-        sys.exit(e.code)
+    except EvalError as e:
+        print(e.format_human(), file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_serve(args):
@@ -1172,25 +1183,11 @@ def cmd_logout():
 # ---------------------------------------------------------------------------
 
 def _publish_to_registry(args, manifest, content: str, registry_url: str):
-    """Publish a skill to the remote registry."""
+    """Publish a skill to the remote registry using httpx."""
+    import httpx
+
     token = _get_registry_token(args)
 
-    import secrets as _secrets
-    boundary = f"----skillctl-{_secrets.token_hex(16)}"
-    body = _build_multipart_body(boundary, manifest, content)
-
-    url = f"{registry_url}/api/v1/skills"
-    req = urllib.request.Request(url, data=body, method="POST")
-    req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
-    if token:
-        req.add_header("Authorization", f"Bearer {token}")
-
-    with urllib.request.urlopen(req) as resp:
-        json.loads(resp.read().decode())
-
-
-def _build_multipart_body(boundary: str, manifest, content: str) -> bytes:
-    """Build a multipart/form-data body with manifest JSON and content file."""
     manifest_dict = {
         "apiVersion": manifest.api_version,
         "kind": manifest.kind,
@@ -1203,34 +1200,27 @@ def _build_multipart_body(boundary: str, manifest, content: str) -> bytes:
                 {"name": a.name, **({"email": a.email} if a.email else {})}
                 for a in manifest.metadata.authors
             ],
+            **({"license": manifest.metadata.license} if manifest.metadata.license else {}),
         },
         "spec": {
-            "content": {},
+            "content": {
+                **({"path": manifest.spec.content.path} if manifest.spec.content.path else {}),
+                **({"inline": manifest.spec.content.inline} if manifest.spec.content.inline else {}),
+            },
             "capabilities": manifest.spec.capabilities,
         },
     }
-    if manifest.metadata.license:
-        manifest_dict["metadata"]["license"] = manifest.metadata.license
-    if manifest.spec.content.path:
-        manifest_dict["spec"]["content"]["path"] = manifest.spec.content.path
-    if manifest.spec.content.inline:
-        manifest_dict["spec"]["content"]["inline"] = manifest.spec.content.inline
 
-    parts = []
-    parts.append(
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="manifest"\r\n'
-        f"Content-Type: application/json\r\n"
-        f"\r\n"
-        f"{json.dumps(manifest_dict)}\r\n"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    url = f"{registry_url}/api/v1/skills"
+    resp = httpx.post(
+        url,
+        data={"manifest": json.dumps(manifest_dict)},
+        files={"content": ("SKILL.md", content.encode(), "application/octet-stream")},
+        headers=headers,
+        timeout=30.0,
     )
-    parts.append(
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="content"; filename="SKILL.md"\r\n'
-        f"Content-Type: application/octet-stream\r\n"
-        f"\r\n"
-    )
-    body = "".join(parts).encode()
-    body += content.encode()
-    body += f"\r\n--{boundary}--\r\n".encode()
-    return body
+    resp.raise_for_status()

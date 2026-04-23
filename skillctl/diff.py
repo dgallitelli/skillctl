@@ -9,8 +9,8 @@ from pathlib import Path
 
 import yaml
 
-from skillctl.errors import SkillctlError
 from skillctl.store import ContentStore
+from skillctl.utils import parse_ref as _parse_ref
 
 
 @dataclass
@@ -34,19 +34,6 @@ class DiffResult:
             "breaking_changes": self.breaking_changes,
             "content_diff": self.content_diff,
         }
-
-
-def _parse_ref(ref: str) -> tuple[str, str]:
-    """Parse 'namespace/name@version' into (name, version)."""
-    if "@" not in ref:
-        raise SkillctlError(
-            code="E_BAD_REF",
-            what=f"Invalid reference: {ref}",
-            why="Diff requires name@version references",
-            fix="Use format: namespace/skill-name@1.0.0",
-        )
-    name, version = ref.rsplit("@", 1)
-    return name, version
 
 
 def _load_manifest(store: ContentStore, content_hash: str) -> dict:

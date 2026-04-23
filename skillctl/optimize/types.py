@@ -114,6 +114,7 @@ class EvalResult:
     audit_score: Optional[float] = None
     functional_score: Optional[float] = None
     trigger_score: Optional[float] = None
+    audit_findings: list[dict] = field(default_factory=list)
     sections: dict = field(default_factory=dict)
     report_path: str = ""
 

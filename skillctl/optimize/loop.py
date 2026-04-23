@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from skillctl.manifest import ManifestLoader
 from skillctl.optimize.budget import BudgetTracker
 from skillctl.optimize.eval_runner import evaluate_skill
 from skillctl.optimize.failure_analyzer import analyze_failures
@@ -39,13 +38,6 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _read_skill_name(skill_path: str) -> str:
-    """Read the skill name from skill.yaml via ManifestLoader."""
-    loader = ManifestLoader()
-    manifest, _ = loader.load(skill_path)
-    return manifest.metadata.name or Path(skill_path).name
-
-
 def run_optimization(config: OptimizeConfig) -> OptimizationRun:
     """Execute the full optimization loop.
 
@@ -68,7 +60,8 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
     store.save_original(original_content)
 
     # Read skill name from skill.yaml
-    skill_name = _read_skill_name(config.skill_path)
+    from skillctl.utils import read_skill_name_from_manifest
+    skill_name = read_skill_name_from_manifest(config.skill_path)
 
     # Initial evaluation
     current_eval = evaluate_skill(
