@@ -10,6 +10,7 @@ import json
 import re
 from typing import Optional
 
+from skillctl.eval.agent_runner import AgentNotAvailableError, get_runner
 from skillctl.eval.eval_schemas import AssertionResult
 
 
@@ -214,10 +215,10 @@ def _llm_grade(
 
     Falls back to passed=False with explanatory evidence if claude is unavailable.
     """
+    runner = get_runner("claude")
     try:
-        from skillctl.eval._claude import check_claude_available, run_claude_prompt
-        check_claude_available()
-    except Exception:
+        runner.check_available()
+    except AgentNotAvailableError:
         return [
             AssertionResult(
                 text=a,
@@ -261,7 +262,7 @@ Example 3 (UNCERTAIN - low confidence):
   Assertion: "provides statistical analysis"
   Result: {{"index": 1, "passed": true, "confidence": 0.4, "evidence": "mentions trend but lacks formal statistical measures"}}"""
 
-    stdout, stderr, rc, elapsed = run_claude_prompt(
+    stdout, stderr, rc, elapsed = runner.run_prompt(
         prompt, timeout=timeout,
     )
 

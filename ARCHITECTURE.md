@@ -115,7 +115,6 @@ skillctl eval report ./my-skill       # Unified report combining all three
 | `grading.py` | Deterministic pattern matching + LLM-as-judge for assertion grading. |
 | `trigger.py` | Tests skill activation: should-trigger queries (recall) and should-not-trigger queries (specificity). |
 | `agent_runner.py` | Abstract runner protocol. Executes skills against any agent runtime. |
-| `_claude.py` | Thin wrappers around AgentRunner for grading.py backward compatibility. |
 | `compare.py` | A/B comparison of two skill versions on identical test cases. |
 | `regression.py` | Re-runs audits against baselines to detect score degradation. |
 | `unified_report.py` | Aggregates audit + functional + trigger into a weighted composite score. |
