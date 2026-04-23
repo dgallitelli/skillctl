@@ -25,8 +25,7 @@ def _build_run_parser():
     p.add_argument("--max-iterations", type=int, default=50)
     p.add_argument("--plateau", type=int, default=3)
     p.add_argument("--budget", type=float, default=10.0)
-    p.add_argument("--provider", default="bedrock")
-    p.add_argument("--model", default=None)
+    p.add_argument("--model", default=None, help="Bedrock model ID (default: us.anthropic.claude-opus-4-6-v1)")
     p.add_argument("--region", default="us-east-1")
     p.add_argument("--approve", action="store_true")
     p.add_argument("--dry-run", action="store_true")
@@ -52,17 +51,12 @@ def handle_optimize(args, remaining=None):
 def _handle_optimize_run(args):
     """Run the optimization loop."""
     from skillctl.optimize.loop import run_optimization
-    model = args.model
-    if model is None:
-        if args.provider == "anthropic":
-            model = "claude-sonnet-4-20250514"
-        else:
-            model = "us.anthropic.claude-sonnet-4p6-v1:0"
     config = OptimizeConfig(
         skill_path=args.path, num_variants=args.variants,
         threshold=args.threshold, max_iterations=args.max_iterations,
         plateau_limit=args.plateau, budget_usd=args.budget,
-        provider=args.provider, model=model, aws_region=args.region,
+        model=args.model or "us.anthropic.claude-opus-4-6-v1",
+        aws_region=args.region,
         approve=args.approve, dry_run=args.dry_run,
         timeout=args.timeout, agent=args.agent,
     )

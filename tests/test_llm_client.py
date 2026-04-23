@@ -1,4 +1,8 @@
-"""Unit tests for skillctl.optimize.llm_client."""
+"""Tests for skillctl.optimize.llm_client.
+
+Unit tests mock the AnthropicBedrock client for fast CI.
+Integration tests (marked @pytest.mark.integration) call real Bedrock.
+"""
 
 from __future__ import annotations
 
@@ -8,113 +12,91 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from skillctl.errors import SkillctlError
-from skillctl.optimize.llm_client import LLMClient, _MAX_RETRIES, _RETRY_DELAYS
+from skillctl.optimize.llm_client import LLMClient, DEFAULT_MODEL, _MAX_RETRIES, _RETRY_DELAYS
 from skillctl.optimize.types import LLMResponse
 
-# Create a fake anthropic module so @patch("anthropic.Anthropic") works
-# even when the real package isn't installed.
+# ---------------------------------------------------------------------------
+# Fake anthropic module for unit tests (no real SDK needed)
+# ---------------------------------------------------------------------------
+
 _fake_anthropic = types.ModuleType("anthropic")
-_fake_anthropic.Anthropic = MagicMock  # type: ignore[attr-defined]
 _fake_anthropic.AnthropicBedrock = MagicMock  # type: ignore[attr-defined]
 
 
 @pytest.fixture(autouse=True)
 def _ensure_anthropic_importable(monkeypatch):
-    """Ensure 'anthropic' is importable for tests that mock it."""
+    """Ensure 'anthropic' is importable for unit tests that mock it."""
     monkeypatch.setitem(sys.modules, "anthropic", _fake_anthropic)
     yield
 
 
+# ===================================================================
+# Unit tests — mock the Anthropic Bedrock client
+# ===================================================================
+
 class TestLLMClientInit:
     """Tests for LLMClient.__init__."""
 
-    @patch("boto3.client")
-    def test_bedrock_default_provider(self, mock_boto_client):
-        client = LLMClient()
-        assert client.provider == "bedrock"
-        assert client.model == "us.anthropic.claude-sonnet-4-6"
-        mock_boto_client.assert_called_once_with("bedrock-runtime", region_name="us-east-1")
-
-    @patch("boto3.client")
-    def test_bedrock_custom_model_and_region(self, mock_boto_client):
-        client = LLMClient(provider="bedrock", model="custom-model", region="us-west-2")
-        assert client.model == "custom-model"
-        mock_boto_client.assert_called_once_with("bedrock-runtime", region_name="us-west-2")
-
-    def test_anthropic_provider(self):
+    def test_default_model(self):
         mock_cls = MagicMock()
-        _fake_anthropic.AnthropicBedrock = mock_cls  # type: ignore[attr-defined]
-        client = LLMClient(provider="anthropic")
-        assert client.provider == "anthropic"
-        assert client.model == "claude-sonnet-4-6"
-        mock_cls.assert_called_once()
+        _fake_anthropic.AnthropicBedrock = mock_cls
+        client = LLMClient()
+        assert client.model == DEFAULT_MODEL
+        assert client.model == "us.anthropic.claude-opus-4-6-v1"
+        mock_cls.assert_called_once_with(aws_region="us-east-1")
 
-    def test_anthropic_custom_model(self):
-        _fake_anthropic.AnthropicBedrock = MagicMock()  # type: ignore[attr-defined]
-        client = LLMClient(provider="anthropic", model="custom-anthropic-model")
-        assert client.model == "custom-anthropic-model"
-
-    def test_unsupported_provider_raises_skillctl_error(self):
-        with pytest.raises(SkillctlError) as exc_info:
-            LLMClient(provider="openai")
-        err = exc_info.value
-        assert err.code == "E_BAD_PROVIDER"
-        assert "openai" in err.what
-        assert "bedrock" in err.fix.lower() or "anthropic" in err.fix.lower()
+    def test_custom_model_and_region(self):
+        mock_cls = MagicMock()
+        _fake_anthropic.AnthropicBedrock = mock_cls
+        client = LLMClient(model="us.anthropic.claude-sonnet-4-6-v1:0", region="us-west-2")
+        assert client.model == "us.anthropic.claude-sonnet-4-6-v1:0"
+        mock_cls.assert_called_once_with(aws_region="us-west-2")
 
 
-class TestLLMClientCallBedrock:
-    """Tests for LLMClient.call with Bedrock backend."""
+class TestLLMClientCall:
+    """Tests for LLMClient.call — verifies messages.create is called correctly."""
 
-    @patch("boto3.client")
-    def test_call_bedrock_returns_llm_response(self, mock_boto_client):
+    def test_call_returns_llm_response(self):
         mock_bedrock = MagicMock()
-        mock_boto_client.return_value = mock_bedrock
-        mock_bedrock.converse.return_value = {
-            "output": {"message": {"content": [{"text": "Hello from Bedrock"}]}},
-            "usage": {"inputTokens": 10, "outputTokens": 20},
-        }
+        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_bedrock)
 
-        client = LLMClient(provider="bedrock")
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text="Hello from Bedrock")]
+        mock_msg.usage.input_tokens = 10
+        mock_msg.usage.output_tokens = 20
+        mock_bedrock.messages.create.return_value = mock_msg
+
+        client = LLMClient()
         resp = client.call(system="You are helpful.", prompt="Say hello")
 
         assert isinstance(resp, LLMResponse)
         assert resp.content == "Hello from Bedrock"
         assert resp.input_tokens == 10
         assert resp.output_tokens == 20
-        mock_bedrock.converse.assert_called_once_with(
-            modelId="us.anthropic.claude-sonnet-4-6",
-            system=[{"text": "You are helpful."}],
-            messages=[{"role": "user", "content": [{"text": "Say hello"}]}],
-            inferenceConfig={"maxTokens": 4096},
-        )
-
-
-class TestLLMClientCallAnthropic:
-    """Tests for LLMClient.call with Anthropic backend."""
-
-    def test_call_anthropic_returns_llm_response(self):
-        mock_anthropic = MagicMock()
-        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_anthropic)  # type: ignore[attr-defined]
-
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text="Hello from Anthropic")]
-        mock_msg.usage.input_tokens = 15
-        mock_msg.usage.output_tokens = 25
-        mock_anthropic.messages.create.return_value = mock_msg
-
-        client = LLMClient(provider="anthropic")
-        resp = client.call(system="You are helpful.", prompt="Say hello", max_tokens=2048)
-
-        assert isinstance(resp, LLMResponse)
-        assert resp.content == "Hello from Anthropic"
-        assert resp.input_tokens == 15
-        assert resp.output_tokens == 25
-        mock_anthropic.messages.create.assert_called_once_with(
-            model="claude-sonnet-4-6",
+        mock_bedrock.messages.create.assert_called_once_with(
+            model=DEFAULT_MODEL,
             system="You are helpful.",
             messages=[{"role": "user", "content": "Say hello"}],
+            max_tokens=4096,
+        )
+
+    def test_call_custom_max_tokens(self):
+        mock_bedrock = MagicMock()
+        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_bedrock)
+
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text="ok")]
+        mock_msg.usage.input_tokens = 5
+        mock_msg.usage.output_tokens = 5
+        mock_bedrock.messages.create.return_value = mock_msg
+
+        client = LLMClient()
+        client.call(system="sys", prompt="p", max_tokens=2048)
+
+        mock_bedrock.messages.create.assert_called_once_with(
+            model=DEFAULT_MODEL,
+            system="sys",
+            messages=[{"role": "user", "content": "p"}],
             max_tokens=2048,
         )
 
@@ -123,57 +105,59 @@ class TestLLMClientRetry:
     """Tests for retry logic with exponential backoff."""
 
     @patch("skillctl.optimize.llm_client.time.sleep")
-    @patch("boto3.client")
-    def test_retries_on_failure_then_succeeds(self, mock_boto_client, mock_sleep):
+    def test_retries_on_failure_then_succeeds(self, mock_sleep):
         mock_bedrock = MagicMock()
-        mock_boto_client.return_value = mock_bedrock
-        mock_bedrock.converse.side_effect = [
+        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_bedrock)
+
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text="ok")]
+        mock_msg.usage.input_tokens = 5
+        mock_msg.usage.output_tokens = 5
+
+        mock_bedrock.messages.create.side_effect = [
             RuntimeError("transient error"),
-            {
-                "output": {"message": {"content": [{"text": "ok"}]}},
-                "usage": {"inputTokens": 5, "outputTokens": 5},
-            },
+            mock_msg,
         ]
 
-        client = LLMClient(provider="bedrock")
+        client = LLMClient()
         resp = client.call(system="sys", prompt="p")
 
         assert resp.content == "ok"
-        mock_sleep.assert_called_once_with(1)  # first retry delay
+        mock_sleep.assert_called_once_with(1)
 
     @patch("skillctl.optimize.llm_client.time.sleep")
-    @patch("boto3.client")
-    def test_raises_after_max_retries(self, mock_boto_client, mock_sleep):
+    def test_raises_after_max_retries(self, mock_sleep):
         mock_bedrock = MagicMock()
-        mock_boto_client.return_value = mock_bedrock
-        mock_bedrock.converse.side_effect = RuntimeError("persistent error")
+        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_bedrock)
+        mock_bedrock.messages.create.side_effect = RuntimeError("persistent error")
 
-        client = LLMClient(provider="bedrock")
+        client = LLMClient()
         with pytest.raises(RuntimeError, match="persistent error"):
             client.call(system="sys", prompt="p")
 
-        # Should have slept 3 times (delays: 1, 4, 16)
         assert mock_sleep.call_count == _MAX_RETRIES
         mock_sleep.assert_any_call(1)
         mock_sleep.assert_any_call(4)
         mock_sleep.assert_any_call(16)
 
     @patch("skillctl.optimize.llm_client.time.sleep")
-    @patch("boto3.client")
-    def test_retry_backoff_delays_are_correct(self, mock_boto_client, mock_sleep):
+    def test_retry_backoff_delays_are_correct(self, mock_sleep):
         mock_bedrock = MagicMock()
-        mock_boto_client.return_value = mock_bedrock
-        mock_bedrock.converse.side_effect = [
+        _fake_anthropic.AnthropicBedrock = MagicMock(return_value=mock_bedrock)
+
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text="finally")]
+        mock_msg.usage.input_tokens = 1
+        mock_msg.usage.output_tokens = 1
+
+        mock_bedrock.messages.create.side_effect = [
             RuntimeError("err1"),
             RuntimeError("err2"),
             RuntimeError("err3"),
-            {
-                "output": {"message": {"content": [{"text": "finally"}]}},
-                "usage": {"inputTokens": 1, "outputTokens": 1},
-            },
+            mock_msg,
         ]
 
-        client = LLMClient(provider="bedrock")
+        client = LLMClient()
         resp = client.call(system="sys", prompt="p")
 
         assert resp.content == "finally"
@@ -182,3 +166,50 @@ class TestLLMClientRetry:
             ((4,),),
             ((16,),),
         ]
+
+
+# ===================================================================
+# Integration tests — call real Amazon Bedrock
+# ===================================================================
+# Run with: pytest tests/test_llm_client.py -m integration
+# Requires valid AWS credentials with Bedrock access.
+
+@pytest.mark.integration
+class TestLLMClientBedrockIntegration:
+    """Integration tests that make real calls to Amazon Bedrock."""
+
+    def _make_real_client(self):
+        """Create a real LLMClient (bypass the fake anthropic module)."""
+        import importlib
+        import skillctl.optimize.llm_client as mod
+        if "anthropic" in sys.modules and sys.modules["anthropic"] is _fake_anthropic:
+            del sys.modules["anthropic"]
+        importlib.reload(mod)
+        return mod.LLMClient()
+
+    def test_bedrock_simple_call(self):
+        client = self._make_real_client()
+        resp = client.call(
+            system="You are a test assistant. Reply with exactly one word.",
+            prompt="Say 'hello'.",
+            max_tokens=16,
+        )
+        assert isinstance(resp, LLMResponse)
+        assert len(resp.content) > 0
+        assert resp.input_tokens > 0
+        assert resp.output_tokens > 0
+
+    def test_bedrock_json_response(self):
+        client = self._make_real_client()
+        resp = client.call(
+            system="You are a JSON generator. Return only valid JSON, no markdown.",
+            prompt='Return a JSON object with key "status" and value "ok".',
+            max_tokens=64,
+        )
+        import json
+        data = json.loads(resp.content)
+        assert data["status"] == "ok"
+
+    def test_bedrock_model_is_opus(self):
+        client = self._make_real_client()
+        assert "opus" in client.model.lower()

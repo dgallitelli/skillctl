@@ -24,6 +24,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     "us.anthropic.claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
     "anthropic.claude-opus-4-6-v1": {"input": 15.00, "output": 75.00},
     "us.anthropic.claude-opus-4-6-v1": {"input": 15.00, "output": 75.00},
+    "us.anthropic.claude-opus-4-6-v1:0": {"input": 15.00, "output": 75.00},
     "anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.00, "output": 15.00},
     "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.00, "output": 15.00},
     "anthropic.claude-sonnet-4-20250514-v1:0": {"input": 3.00, "output": 15.00},

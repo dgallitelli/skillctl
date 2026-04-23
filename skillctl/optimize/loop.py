@@ -56,7 +56,7 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
     run_id = uuid4().hex[:12]
     store = ProvenanceStore(run_id)
     store.create_run()
-    llm_client = LLMClient(config.provider, config.model, config.aws_region)
+    llm_client = LLMClient(model=config.model, region=config.aws_region)
     budget = BudgetTracker(config.budget_usd, config.model)
 
     skill_path = Path(config.skill_path)
