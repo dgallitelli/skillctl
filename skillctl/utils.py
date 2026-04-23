@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from skillctl.errors import SkillctlError
+from skillctl.manifest import ManifestLoader
 
 
 def parse_ref(ref: str) -> tuple[str, str]:
@@ -37,8 +38,6 @@ def parse_ref(ref: str) -> tuple[str, str]:
 
 def read_skill_name_from_manifest(skill_path: str) -> str:
     """Read the skill name from skill.yaml via ManifestLoader."""
-    from skillctl.manifest import ManifestLoader
-
     loader = ManifestLoader()
     manifest, _ = loader.load(skill_path)
     return manifest.metadata.name or Path(skill_path).name

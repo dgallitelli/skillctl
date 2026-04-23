@@ -43,12 +43,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# Try to import yaml, fall back gracefully
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
+import yaml
+
+from skillctl.eval.schemas import Severity
 
 
 @dataclass
@@ -116,14 +113,6 @@ def load_config(skill_path: str | Path) -> AuditConfig:
     if config_file is None:
         return AuditConfig.empty()
 
-    if not HAS_YAML:
-        import sys
-        print(
-            f"Warning: Found {config_file.name} but PyYAML is not installed. "
-            "Install with: pip install pyyaml",
-            file=sys.stderr,
-        )
-        return AuditConfig.empty()
 
     try:
         raw = yaml.safe_load(config_file.read_text(encoding="utf-8"))
@@ -197,8 +186,6 @@ def apply_config(
     Returns:
         Filtered and modified list of findings.
     """
-    from skillctl.eval.schemas import Severity
-
     result = []
     for f in findings:
         # Skip ignored codes

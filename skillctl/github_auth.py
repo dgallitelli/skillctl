@@ -21,6 +21,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+import yaml
+
 # Default client_id — teams should register their own OAuth App and override.
 # This is a placeholder; replace with a real registered app's client_id.
 DEFAULT_CLIENT_ID = ""
@@ -40,7 +42,6 @@ def get_client_id(cli_value: str | None = None) -> str:
     # Try config file
     config_path = Path.home() / ".skillctl" / "config.yaml"
     if config_path.exists():
-        import yaml
         cfg = yaml.safe_load(config_path.read_text()) or {}
         cid = cfg.get("github", {}).get("client_id")
         if cid:
@@ -165,7 +166,6 @@ def verify_token(token: str) -> dict:
 
 def save_github_token(token: str) -> None:
     """Save the GitHub token to ~/.skillctl/config.yaml."""
-    import yaml
     config_path = Path.home() / ".skillctl" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -185,7 +185,6 @@ def load_github_token() -> str | None:
         return token
     config_path = Path.home() / ".skillctl" / "config.yaml"
     if config_path.exists():
-        import yaml
         cfg = yaml.safe_load(config_path.read_text()) or {}
         return cfg.get("github", {}).get("token")
     return None

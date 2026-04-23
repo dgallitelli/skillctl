@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from skillctl.eval.audit.structure_check import _parse_frontmatter
 from skillctl.eval.schemas import Finding, Severity, Category
 
 
@@ -83,7 +84,6 @@ def analyze_permissions(
     
     # Parse frontmatter if not provided
     if frontmatter is None:
-        from skillctl.eval.audit.structure_check import _parse_frontmatter
         frontmatter, error, _ = _parse_frontmatter(skill_content)
         if error or frontmatter is None:
             return findings

@@ -26,6 +26,7 @@ from skillctl.optimize.types import (
     VariantRecord,
 )
 from skillctl.optimize.variant_generator import generate_variants
+from skillctl.utils import read_skill_name_from_manifest
 
 
 def _content_hash(content: str) -> str:
@@ -60,7 +61,6 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
     store.save_original(original_content)
 
     # Read skill name from skill.yaml
-    from skillctl.utils import read_skill_name_from_manifest
     skill_name = read_skill_name_from_manifest(config.skill_path)
 
     # Initial evaluation

@@ -18,6 +18,8 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
 
+from skillctl.eval.audit.structure_check import check_structure
+
 from skillctl.eval.errors import EvalError
 from skillctl.eval.schemas import Finding, Severity, AuditReport, calculate_score, calculate_grade
 from skillctl.eval.cli import run_audit
@@ -176,7 +178,6 @@ def save_snapshot(skill_path: str, version: str | None = None) -> int:
     # Determine version
     if not version:
         # Try to get from frontmatter metadata
-        from skillctl.eval.audit.structure_check import check_structure
         _, fm, _ = check_structure(path)
         if fm:
             meta = fm.get("metadata", {})

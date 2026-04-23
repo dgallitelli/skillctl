@@ -7,6 +7,7 @@ for a set of queries, measuring trigger precision and recall.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -255,7 +256,6 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
 
     # Execution patterns for Bash command matching
     # These indicate the script is being *run*, not just referenced in a path
-    import re as _re
     _EXEC_PREFIXES = (
         "python3 ", "python ", "bash ", "sh ", "./", "node ",
         "ruby ", "perl ", "php ",
@@ -296,9 +296,9 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
             # Check 2: Command uses the skill name as a CLI command
             # e.g. "skillctl audit ." — skill_name is the first token or after pipe
             # Use word boundary to avoid matching paths like examples/data-analysis/
-            skill_cmd_pattern = _re.compile(
-                r'(?:^|[|;&]\s*)' + _re.escape(skill_name) + r'(?:\s|$)',
-                _re.IGNORECASE,
+            skill_cmd_pattern = re.compile(
+                r'(?:^|[|;&]\s*)' + re.escape(skill_name) + r'(?:\s|$)',
+                re.IGNORECASE,
             )
             if skill_cmd_pattern.search(command):
                 return "tool"
@@ -306,9 +306,9 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
             # Check 3: Command uses underscore variant as a module
             # e.g. "python3 -m data_analysis --file test.csv"
             underscore_name = skill_name.replace("-", "_")
-            module_pattern = _re.compile(
-                r'-m\s+' + _re.escape(underscore_name) + r'(?:\s|$|\.|:)',
-                _re.IGNORECASE,
+            module_pattern = re.compile(
+                r'-m\s+' + re.escape(underscore_name) + r'(?:\s|$|\.|:)',
+                re.IGNORECASE,
             )
             if module_pattern.search(command):
                 return "tool"
@@ -331,11 +331,10 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
     # explicitly "activating" it through a tool call.  Detect broader
     # references to the skill name in the output text.
     # Use word-boundary matching to avoid false positives on partial names.
-    import re as _re
     # Match skill name as a standalone term (hyphenated names are common)
-    skill_word_pattern = _re.compile(
-        r'\b' + _re.escape(skill_name_lower) + r'\b',
-        _re.IGNORECASE,
+    skill_word_pattern = re.compile(
+        r'\b' + re.escape(skill_name_lower) + r'\b',
+        re.IGNORECASE,
     )
     if skill_word_pattern.search(text):
         return "text"
