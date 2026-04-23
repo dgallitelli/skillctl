@@ -31,7 +31,15 @@ No skill reaches production without passing through a governance gate. Every mut
 
 ### Install
 
-Requires Python 3.10+.
+Requires Python 3.10+. This is a beta release — install with `--pre`:
+
+```bash
+pip install --pre skillctl          # core CLI
+pip install --pre skillctl[server]  # + registry server (FastAPI)
+pip install --pre skillctl[optimize] # + optimizer (requires AWS creds)
+```
+
+Or from source:
 
 ```bash
 pip install .
@@ -62,7 +70,7 @@ Exit codes: `0` = valid, `1` = errors, `2` = warnings only. Add `--json` for CI-
 skillctl apply
 ```
 
-This validates the skill, pushes it to the local content-addressed store at `~/.skillctl/store/`, and — if a registry URL is configured — also publishes to the remote registry. Use `--local` to skip remote publish, or `--dry-run` to preview.
+This validates the skill, pushes it to the local content-addressed store at `~/.skillctl/store/`, and — if a registry URL is configured — runs a security scan and publishes to the remote registry. Skills with CRITICAL security findings are blocked from remote publish. Use `--local` to skip remote publish, or `--dry-run` to preview.
 
 ### Run a security audit
 
@@ -460,9 +468,8 @@ skillctl optimize ./my-skill --budget 5.0 --max-iterations 20
 | `--budget` | 10.0 | Maximum spend in USD |
 | `--timeout` | 120 | Evaluation timeout in seconds |
 | `--agent` | claude | Agent to use for evaluation |
-| `--model` | auto | LLM model ID (provider-specific) |
-| `--region` | us-east-1 | AWS region for Bedrock provider |
-| `--provider` | bedrock | LLM provider (bedrock, anthropic) |
+| `--model` | us.anthropic.claude-opus-4-6-v1 | Bedrock model ID |
+| `--region` | us-east-1 | AWS region for Bedrock |
 | `--approve` | false | Auto-approve promotions without confirmation |
 | `--dry-run` | false | Run the loop without writing changes |
 

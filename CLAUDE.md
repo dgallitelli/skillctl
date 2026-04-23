@@ -14,7 +14,8 @@ pip install -e ".[dev,optimize]" # + boto3 for optimizer
 pip install -e ".[dev,server]"   # + fastapi/uvicorn for registry
 
 # Run tests
-pytest                                    # all tests (229)
+pytest -m "not integration"              # unit tests (282)
+pytest -m integration                    # real Bedrock tests (10, needs AWS creds)
 pytest tests/ --ignore=tests/test_github_backend.py  # skip slow git tests
 pytest tests/test_api.py -x -v           # just API tests
 
@@ -31,21 +32,24 @@ skillctl serve --auth-disabled           # start registry server
 
 - `skillctl/cli.py` — CLI entry point, all command handlers
 - `skillctl/store.py` — local content-addressed storage
-- `skillctl/manifest.py` — skill.yaml parser
+- `skillctl/manifest.py` — skill.yaml parser + `SkillManifest.to_dict()`
 - `skillctl/validator.py` — schema validation
 - `skillctl/diff.py` — version comparison
+- `skillctl/utils.py` — shared utilities (`parse_ref`, `read_skill_name_*`)
+- `skillctl/errors.py` — `SkillctlError(code, what, why, fix)` base exception
 - `skillctl/registry/` — FastAPI registry server (API, auth, storage, audit)
 - `skillctl/eval/` — evaluation suite (audit, functional, trigger, unified report)
-- `skillctl/optimize/` — automated skill optimizer (LLM-driven)
+- `skillctl/optimize/` — automated skill optimizer (LLM-driven, Bedrock Opus)
 - `skillctl/github_auth.py` — GitHub device flow login
 
 ## Conventions
 
-- Errors use `SkillctlError(code, what, why, fix)` — always include all four fields
+- Errors use `SkillctlError(code, what, why, fix)` — always include all four fields. `EvalError` subclasses it.
 - CLI commands follow kubectl verbs: apply, create, get, describe, delete, diff, logs
 - Old commands (init, push, pull, list, publish, search) are kept as aliases
-- Tests go in `tests/test_<module>.py` — integration tests use real SQLite/filesystem, optimizer tests mock LLM calls
-- Dependencies: core needs only pyyaml + python-multipart. Server/optimizer deps are optional groups.
+- Tests go in `tests/test_<module>.py` — integration tests use real SQLite/filesystem, Bedrock tests use `@pytest.mark.integration`
+- Dependencies: core needs only pyyaml. Server/optimizer deps are optional groups.
+- LLM calls use Amazon Bedrock via `anthropic.AnthropicBedrock`. Default model: `us.anthropic.claude-opus-4-6-v1`.
 
 ## Branches
 

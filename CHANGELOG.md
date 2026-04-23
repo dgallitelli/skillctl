@@ -1,6 +1,54 @@
 # Changelog
 
-## Unreleased
+## v0.1.0b1 (2026-04-23)
+
+First public beta.
+
+### Security
+
+- Credential files (config.yaml, hmac.key) written with 0600 permissions
+- Path traversal protection in registry storage (content hash validation)
+- FTS5 query injection fix in search (embedded double quotes)
+- Upload size limit (50 MB) on publish endpoint
+- Security audit gates remote publish — CRITICAL findings block `skillctl apply`
+- Thread-safe security scan configuration (no more mutable global state)
+
+### Architecture
+
+- LLM provider consolidated to Amazon Bedrock only (via `anthropic.AnthropicBedrock`)
+- Default model: `us.anthropic.claude-opus-4-6-v1` (Claude Opus 4.6)
+- `--provider` flag removed from optimizer CLI
+- `EvalError` now subclasses `SkillctlError` (was a full duplicate)
+- `SkillManifest.to_dict()` eliminates serialization duplication
+- Shared utilities in `skillctl/utils.py` (parse_ref, read_skill_name)
+- Eval CLI integrated via direct function calls (was sys.argv mutation hack)
+- `python-multipart` moved from core deps to server optional group
+
+### CLI
+
+- `skillctl apply` now runs security scan before remote publish
+- `skillctl create skill` refuses to overwrite existing files
+- `skillctl validate --strict` correctly includes all warning types
+- `cmd_doctor` treats missing store as warning, not error (fresh install friendly)
+- `_require_registry_url` raises SkillctlError instead of sys.exit
+- parse_ref rejects empty name ("@1.0.0") and empty version ("ns/name@")
+
+### Eval
+
+- `trigger_precision`/`no_trigger_precision` renamed to `trigger_recall`/`no_trigger_recall`
+- `EvalResult.audit_findings` carries structured findings for optimizer analysis
+- Optimizer failure analyzer uses full audit findings for better LLM diagnosis
+
+### Dead code removed
+
+- `require_permission` (auth.py), `validate_semver` wrapper (validator.py)
+- `s3_bucket`/`s3_prefix` config fields, 5 dead exports from `_claude.py`
+- Duplicate `_read_skill_name` (5 copies), `_parse_ref` (2 copies)
+
+### Tests
+
+- 292 tests (282 unit + 10 integration against real Bedrock)
+- New: test_manifest.py, test_validator.py, test_content_store.py, test_utils.py, test_cli.py, test_integration_bedrock.py
 
 ### CLI — kubectl-style verb alignment
 
@@ -54,7 +102,7 @@ Initial release — CLI governance platform for agent skills.
 - `skillctl optimize` — automated improvement loop (eval → failure analysis → LLM variants → promotion)
 - `skillctl optimize history` / `diff` — run provenance and diffs
 - Budget enforcement, plateau detection, dry-run mode
-- Bedrock and Anthropic LLM provider support
+- Amazon Bedrock LLM provider via AnthropicBedrock SDK
 
 ### Skill Format
 

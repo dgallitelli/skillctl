@@ -73,7 +73,8 @@ skill.yaml + SKILL.md  --->  Schema validation    --->  Local store (SHA-256)
 | `validator.py` | Schema validation: apiVersion, semver, name format, parameter types, capability checking. |
 | `store.py` | Content-addressed local storage under `~/.skillctl/store/`. SHA-256 hashing, atomic writes, integrity verification on pull. |
 | `diff.py` | Structural diff between two stored skill versions. Detects breaking changes (removed params, capabilities). |
-| `errors.py` | `SkillctlError(code, what, why, fix)` — all user-facing errors must use this format. |
+| `errors.py` | `SkillctlError(code, what, why, fix)` — all user-facing errors must use this format. `EvalError` subclasses it. |
+| `utils.py` | Shared utilities: `parse_ref` (name@version parsing), `read_skill_name_from_manifest`, `read_skill_name_from_frontmatter`. |
 | `github_auth.py` | GitHub OAuth device flow for `skillctl login`. |
 | `version.py` | Single-source version constant. |
 
@@ -114,7 +115,7 @@ skillctl eval report ./my-skill       # Unified report combining all three
 | `grading.py` | Deterministic pattern matching + LLM-as-judge for assertion grading. |
 | `trigger.py` | Tests skill activation: should-trigger queries (recall) and should-not-trigger queries (specificity). |
 | `agent_runner.py` | Abstract runner protocol. Executes skills against any agent runtime. |
-| `_claude.py` | Claude Code CLI runner implementation. |
+| `_claude.py` | Thin wrappers around AgentRunner for grading.py backward compatibility. |
 | `compare.py` | A/B comparison of two skill versions on identical test cases. |
 | `regression.py` | Re-runs audits against baselines to detect score degradation. |
 | `unified_report.py` | Aggregates audit + functional + trigger into a weighted composite score. |
@@ -191,6 +192,9 @@ ManifestLoader.resolve_content()   Read SKILL.md content
 ContentStore.push()            SHA-256 hash -> ~/.skillctl/store/<prefix>/<hash>
     |                          Atomic write (tempfile + os.replace)
     |                          Index update (index.json)
+    v
+scan_security()                Security gate (only for remote publish)
+    |                          CRITICAL findings -> block publish
     v
 _publish_to_registry()         POST /api/v1/skills (multipart: manifest + content)
     |                          (optional, only if registry URL configured)
