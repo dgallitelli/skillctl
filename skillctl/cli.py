@@ -776,11 +776,15 @@ def cmd_validate(args):
 
     cap_warnings = validator.check_capabilities(manifest, content)
 
-    # Merge warnings
+    # Merge warnings from all sources
     all_warnings = []
     for w in load_warnings:
         all_warnings.append(
             {"code": w.code, "message": w.message, "hint": w.hint}
+        )
+    for w in result.warnings:
+        all_warnings.append(
+            {"code": w.code, "message": w.message, "path": w.path, "hint": w.hint}
         )
     for w in cap_warnings:
         all_warnings.append(
