@@ -31,18 +31,14 @@ No skill reaches production without passing through a governance gate. Every mut
 
 ### Install
 
-Requires Python 3.10+. This is a beta release — install with `--pre`:
+Requires Python 3.10+.
 
 ```bash
-pip install --pre skillctl          # core CLI
-pip install --pre skillctl[server]  # + registry server (FastAPI)
-pip install --pre skillctl[optimize] # + optimizer (requires AWS creds)
-```
-
-Or from source:
-
-```bash
-pip install .
+git clone https://github.com/dgallitelli/skillctl.git
+cd skillctl
+pip install .                # core CLI
+pip install ".[server]"      # + registry server (FastAPI)
+pip install ".[optimize]"    # + optimizer (requires AWS creds)
 ```
 
 ### Create your first skill
