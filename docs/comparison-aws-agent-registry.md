@@ -124,58 +124,73 @@ Agent Registry speaks MCP natively. A skillctl MCP server could expose its regis
 
 ## 5. What "support for Agent Registry" would look like in skillctl
 
-> **Caveat:** Agent Registry is in preview. The proposals below assume API capabilities that are plausible based on the blog post but not confirmed via public SDK documentation. Feasibility should be re-evaluated when Agent Registry reaches GA.
+> **API verification:** The `bedrock-agentcore-control` boto3 service was inspected directly. All API operations below are confirmed to exist in the SDK as of April 2026. Agent Registry is in preview — APIs may change before GA.
 
 ### 5.1 `skillctl apply --agent-registry` (push to Agent Registry)
 
-After a skill passes validation and eval, skillctl could register it in Agent Registry via the AWS SDK/API. The registration would include:
-- Skill metadata from `skill.yaml` (name, version, description, capabilities, parameters)
-- Eval results (grade, score, security findings summary)
-- Invocation instructions (how to use the skill in an agent runtime)
+After a skill passes validation and eval, skillctl registers it in Agent Registry via `CreateRegistryRecord`. The API has a dedicated `AGENT_SKILLS` descriptor type with fields for SKILL.md content:
 
-**Depends on:** Agent Registry having a writable registration API (plausible but unconfirmed in preview).
+```python
+client.create_registry_record(
+    registryId="<registry-id>",
+    name="my-org/code-reviewer",
+    description="Reviews PRs for security issues",
+    descriptorType="AGENT_SKILLS",
+    descriptors={
+        "agentSkills": {
+            "skillMd": {"inlineContent": skill_md_content},
+            "skillDefinition": {
+                "schemaVersion": "skillctl.io/v1",
+                "inlineContent": skill_yaml_content,
+            },
+        }
+    },
+    recordVersion="1.0.0",
+)
+```
+
+**API confirmed:** `CreateRegistryRecord`, `UpdateRegistryRecord`, `DeleteRegistryRecord` all exist in `bedrock-agentcore-control`.
 
 ### 5.2 `skillctl search --agent-registry` (discover from Agent Registry)
 
-skillctl could query Agent Registry's search API to discover existing skills before authoring new ones, leveraging its semantic search.
+skillctl queries Agent Registry via `ListRegistryRecords` with filters:
 
-**Depends on:** Agent Registry having a read/search API (confirmed by blog post).
-
-### 5.3 Eval metadata as custom fields
-
-When publishing to Agent Registry, skillctl could attach structured eval metadata:
-```json
-{
-  "skillctl_eval_grade": "A",
-  "skillctl_eval_score": 95,
-  "skillctl_security_findings": 0,
-  "skillctl_last_evaluated": "2026-04-24T..."
-}
+```python
+client.list_registry_records(
+    registryId="<registry-id>",
+    descriptorType="AGENT_SKILLS",
+    name="code-reviewer",  # optional filter
+    status="APPROVED",
+)
 ```
 
-**Depends on:** Agent Registry supporting custom metadata fields (confirmed by blog post).
+**API confirmed:** `ListRegistryRecords` supports filtering by `name`, `status`, and `descriptorType`.
 
-### 5.4 MCP server for skillctl registry
+### 5.3 Approval workflow integration
 
-skillctl could expose its registry as an MCP server, allowing Agent Registry to auto-index skills from it. This is the most protocol-native integration path — Agent Registry already consumes MCP servers.
+Agent Registry's lifecycle is confirmed: `DRAFT → PENDING_APPROVAL → APPROVED → REJECTED → DEPRECATED`. After `CreateRegistryRecord`, skillctl can:
 
-**Depends on:** Only skillctl engineering (Agent Registry's MCP support is confirmed).
+1. Run eval and attach results to the record description
+2. Call `SubmitRegistryRecordForApproval` to move it to pending
+3. If the registry has `autoApproval: true`, it moves directly to `APPROVED`
 
-### 5.5 Approval workflow integration
+```python
+client.submit_registry_record_for_approval(
+    registryId="<registry-id>",
+    recordId="<record-id>",
+)
+```
 
-Agent Registry's draft → pending → discoverable workflow could trigger skillctl eval as a gate. However, this requires Agent Registry to emit webhooks or events on state transitions, which is not described in the blog post.
+**API confirmed:** `SubmitRegistryRecordForApproval` and `UpdateRegistryRecordStatus` both exist.
 
-**Depends on:** Agent Registry having an event/webhook system (unconfirmed).
-
-### 5.6 Implementation priority
+### 5.4 Implementation priority
 
 | Priority | Feature | Effort | Value | Dependency risk |
 |----------|---------|--------|-------|-----------------|
-| **P0** | MCP server for skillctl registry | High | High | Low — uses confirmed Agent Registry capability |
-| **P1** | `skillctl apply --agent-registry` | Medium | High | Medium — needs writable API (unconfirmed) |
-| **P2** | `skillctl search --agent-registry` | Low | Medium | Low — read API is confirmed |
-| **P3** | Eval metadata as custom fields | Low | Medium | Low — custom fields confirmed |
-| **P4** | Webhook-triggered eval in approval workflow | Medium | Medium | High — webhook system unconfirmed |
+| **P0** | `skillctl apply --agent-registry` — push skill via `CreateRegistryRecord(AGENT_SKILLS)` | Medium | High | **None** — API confirmed in boto3 |
+| **P1** | `skillctl search --agent-registry` — discover via `ListRegistryRecords` | Low | Medium | **None** — API confirmed |
+| **P2** | Submit for approval after eval passes — `SubmitRegistryRecordForApproval` | Low | High | **None** — API confirmed |
+| **P3** | Eval metadata in record description (grade, score, findings summary) | Low | Medium | **None** — description field exists |
 
 ---
 
