@@ -25,6 +25,7 @@ def _sha256(data: bytes) -> str:
 
 # -- store and retrieve -----------------------------------------------------
 
+
 @pytest.mark.anyio
 async def test_store_and_retrieve(backend: FilesystemBackend):
     content = b"hello world"
@@ -36,6 +37,7 @@ async def test_store_and_retrieve(backend: FilesystemBackend):
 
 
 # -- delete blob ------------------------------------------------------------
+
 
 @pytest.mark.anyio
 async def test_delete_blob(backend: FilesystemBackend):
@@ -54,6 +56,7 @@ async def test_delete_missing_blob_raises(backend: FilesystemBackend):
 
 # -- idempotent store -------------------------------------------------------
 
+
 @pytest.mark.anyio
 async def test_idempotent_store(backend: FilesystemBackend):
     content = b"same content twice"
@@ -66,6 +69,7 @@ async def test_idempotent_store(backend: FilesystemBackend):
 
 
 # -- integrity check --------------------------------------------------------
+
 
 @pytest.mark.anyio
 async def test_integrity_check_on_corrupted_blob(backend: FilesystemBackend):
@@ -82,6 +86,7 @@ async def test_integrity_check_on_corrupted_blob(backend: FilesystemBackend):
 
 # -- missing blob error -----------------------------------------------------
 
+
 @pytest.mark.anyio
 async def test_get_missing_blob_raises(backend: FilesystemBackend):
     with pytest.raises(NotFoundError):
@@ -89,6 +94,7 @@ async def test_get_missing_blob_raises(backend: FilesystemBackend):
 
 
 # -- exists -----------------------------------------------------------------
+
 
 @pytest.mark.anyio
 async def test_exists_returns_true_after_store(backend: FilesystemBackend):

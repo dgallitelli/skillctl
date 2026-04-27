@@ -56,10 +56,12 @@ class SkillctlConfig:
 
     def to_dict(self) -> dict:
         """Serialize to a dict, omitting None values for cleaner YAML."""
+
         def _clean(d):
             if isinstance(d, dict):
                 return {k: _clean(v) for k, v in d.items() if v is not None}
             return d
+
         return _clean(asdict(self))
 
 
@@ -137,19 +139,25 @@ def run_configure_wizard(config: SkillctlConfig | None = None) -> SkillctlConfig
     config.registry.backend = backend
 
     if backend == "agent-registry":
-        config.registry.agent_registry.registry_id = _prompt(
-            "  Registry ID (ARN)",
-            config.registry.agent_registry.registry_id or "",
-        ) or None
+        config.registry.agent_registry.registry_id = (
+            _prompt(
+                "  Registry ID (ARN)",
+                config.registry.agent_registry.registry_id or "",
+            )
+            or None
+        )
         config.registry.agent_registry.region = _prompt(
             "  AWS region",
             config.registry.agent_registry.region,
         )
     else:
-        config.registry.local.url = _prompt(
-            "  Registry URL",
-            config.registry.local.url or "",
-        ) or None
+        config.registry.local.url = (
+            _prompt(
+                "  Registry URL",
+                config.registry.local.url or "",
+            )
+            or None
+        )
         token_val = _prompt(
             "  Auth token (leave blank if auth disabled)",
             "",

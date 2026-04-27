@@ -55,6 +55,7 @@ def loader():
 
 # -- load() with a valid skill.yaml -----------------------------------------
 
+
 def test_load_valid_skill_yaml(tmp_path, loader):
     """Loading a directory with a valid skill.yaml produces a SkillManifest."""
     data = _valid_manifest_dict()
@@ -79,6 +80,7 @@ def test_load_valid_skill_yaml(tmp_path, loader):
 
 # -- load() with SKILL.md only (auto-wrap) ----------------------------------
 
+
 def test_load_skill_md_auto_wrap(tmp_path, loader):
     """Loading a directory with only SKILL.md auto-wraps and warns."""
     md_content = "# My Skill\nDo something useful."
@@ -95,6 +97,7 @@ def test_load_skill_md_auto_wrap(tmp_path, loader):
 
 # -- load() with empty YAML raises E_INVALID_YAML ---------------------------
 
+
 def test_load_empty_yaml_raises(tmp_path, loader):
     """An empty skill.yaml raises SkillctlError with E_INVALID_YAML."""
     (tmp_path / "skill.yaml").write_text("")
@@ -107,12 +110,11 @@ def test_load_empty_yaml_raises(tmp_path, loader):
 
 # -- load() with unknown author fields raises E_MANIFEST_FIELDS -------------
 
+
 def test_load_unknown_author_fields_raises(tmp_path, loader):
     """Unknown fields in authors section raises E_MANIFEST_FIELDS."""
     data = _valid_manifest_dict()
-    data["metadata"]["authors"] = [
-        {"name": "Alice", "email": "a@b.com", "bogus_field": "oops"}
-    ]
+    data["metadata"]["authors"] = [{"name": "Alice", "email": "a@b.com", "bogus_field": "oops"}]
     _write_skill_yaml(tmp_path, data)
 
     with pytest.raises(SkillctlError) as exc_info:
@@ -122,6 +124,7 @@ def test_load_unknown_author_fields_raises(tmp_path, loader):
 
 
 # -- load() with non-existent directory raises E_NO_MANIFEST ----------------
+
 
 def test_load_nonexistent_directory_raises(tmp_path, loader):
     """A directory with no skill.yaml or SKILL.md raises E_NO_MANIFEST."""
@@ -136,6 +139,7 @@ def test_load_nonexistent_directory_raises(tmp_path, loader):
 
 # -- load() with .txt file raises E_UNKNOWN_FORMAT --------------------------
 
+
 def test_load_txt_file_raises(tmp_path, loader):
     """A .txt file raises E_UNKNOWN_FORMAT."""
     txt_file = tmp_path / "skill.txt"
@@ -148,6 +152,7 @@ def test_load_txt_file_raises(tmp_path, loader):
 
 
 # -- resolve_content() with path reference -----------------------------------
+
 
 def test_resolve_content_path_reference(tmp_path, loader):
     """resolve_content reads content from a file path reference."""
@@ -164,6 +169,7 @@ def test_resolve_content_path_reference(tmp_path, loader):
 
 # -- resolve_content() with inline content -----------------------------------
 
+
 def test_resolve_content_inline(loader):
     """resolve_content returns inline content directly."""
     inline_text = "# Inline skill content"
@@ -176,6 +182,7 @@ def test_resolve_content_inline(loader):
 
 
 # -- to_dict() round-trip ----------------------------------------------------
+
 
 def test_to_dict_round_trip():
     """to_dict serializes a manifest with all expected top-level keys."""
@@ -215,6 +222,7 @@ def test_to_dict_round_trip():
 
 
 # -- resolve_content() path traversal protection -----------------------------
+
 
 def test_resolve_content_rejects_path_traversal(tmp_path, loader):
     """resolve_content blocks paths that escape the skill directory."""

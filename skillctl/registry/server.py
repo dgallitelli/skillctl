@@ -50,6 +50,7 @@ async def _lifespan(app: FastAPI):
 
     if config.storage_backend == "github":
         from skillctl.registry.github_backend import GitHubBackend
+
         if not config.github_repo:
             raise RuntimeError("github_repo is required when storage_backend='github'")
         clone_dir = data_dir / "git-clone"

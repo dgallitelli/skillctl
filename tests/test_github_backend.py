@@ -49,23 +49,29 @@ def db(tmp_path):
 
 
 CONTENT = b"# Hello Skill\nDo the thing."
-MANIFEST = json.dumps({
-    "apiVersion": "skillctl.io/v1",
-    "kind": "Skill",
-    "metadata": {
-        "name": "my-org/hello",
-        "version": "1.0.0",
-        "description": "A test skill",
-        "tags": ["test"],
-        "authors": [{"name": "Alice"}],
+MANIFEST = json.dumps(
+    {
+        "apiVersion": "skillctl.io/v1",
+        "kind": "Skill",
+        "metadata": {
+            "name": "my-org/hello",
+            "version": "1.0.0",
+            "description": "A test skill",
+            "tags": ["test"],
+            "authors": [{"name": "Alice"}],
+        },
+        "spec": {"content": {"inline": "uploaded"}},
     },
-    "spec": {"content": {"inline": "uploaded"}},
-}, indent=2)
+    indent=2,
+)
 
 
 def test_store_and_read_skill(git_repo: GitHubBackend):
     content_hash = git_repo.store_skill(
-        "my-org/hello", "1.0.0", MANIFEST, CONTENT,
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
         {"created_at": "2025-01-01T00:00:00Z"},
     )
     assert content_hash == hashlib.sha256(CONTENT).hexdigest()
@@ -79,7 +85,9 @@ def test_store_creates_git_commit(git_repo: GitHubBackend):
 
     log = subprocess.run(
         ["git", "log", "--oneline"],
-        cwd=str(git_repo._clone_dir), capture_output=True, text=True,
+        cwd=str(git_repo._clone_dir),
+        capture_output=True,
+        text=True,
     )
     assert "publish: my-org/hello@1.0.0" in log.stdout
 
@@ -98,10 +106,10 @@ def test_delete_nonexistent_raises(git_repo: GitHubBackend):
 
 
 def test_rebuild_index(git_repo: GitHubBackend, db: MetadataDB):
-    git_repo.store_skill("my-org/hello", "1.0.0", MANIFEST, CONTENT,
-                         {"created_at": "2025-01-01", "eval_grade": "A", "eval_score": 95.0})
-    git_repo.store_skill("my-org/hello", "1.1.0", MANIFEST, CONTENT,
-                         {"created_at": "2025-02-01"})
+    git_repo.store_skill(
+        "my-org/hello", "1.0.0", MANIFEST, CONTENT, {"created_at": "2025-01-01", "eval_grade": "A", "eval_score": 95.0}
+    )
+    git_repo.store_skill("my-org/hello", "1.1.0", MANIFEST, CONTENT, {"created_at": "2025-02-01"})
 
     count = git_repo.rebuild_index(db)
     assert count == 2

@@ -60,7 +60,8 @@ def run_audit(
 
     # 2. Security scan (pass safe domains as parameter instead of mutating global)
     security_findings = scan_security(
-        path, include_all=include_all,
+        path,
+        include_all=include_all,
         extra_safe_domains=all_safe_domains if all_safe_domains else None,
     )
     all_findings.extend(security_findings)
@@ -107,139 +108,137 @@ def build_parser() -> argparse.ArgumentParser:
 
     # audit command
     audit_parser = subparsers.add_parser("audit", help="Run security audit on a skill")
-    audit_parser.add_argument("skill_path", nargs="+",
-                              help="Path(s) to skill directory(ies)")
-    audit_parser.add_argument("--format", choices=["text", "json", "html"], default="text",
-                              help="Output format (default: text)")
-    audit_parser.add_argument("--verbose", "-v", action="store_true",
-                              help="Show INFO-level findings")
-    audit_parser.add_argument("--fail-on-warning", action="store_true",
-                              help="Exit with code 1 if any warnings found (for CI)")
-    audit_parser.add_argument("--ignore", type=str, default="",
-                              help="Comma-separated finding codes to suppress (e.g., STR-017,SEC-002)")
-    audit_parser.add_argument("--allowlist", type=str, default="",
-                              help="Comma-separated domains to treat as safe (e.g., api.yahoo.com,wttr.in)")
-    audit_parser.add_argument("--quiet", "-q", action="store_true",
-                              help="One-line summary only")
-    audit_parser.add_argument("--explain", action="store_true",
-                              help="Show educational context for each finding")
-    audit_parser.add_argument("--include-all", action="store_true",
-                              help="Scan entire directory tree instead of just skill-standard directories")
-    audit_parser.add_argument("--min-score", type=int, default=None,
-                              help="Minimum passing score (exit 1 if below). Overrides .skilleval.yaml min_score.")
+    audit_parser.add_argument("skill_path", nargs="+", help="Path(s) to skill directory(ies)")
+    audit_parser.add_argument(
+        "--format", choices=["text", "json", "html"], default="text", help="Output format (default: text)"
+    )
+    audit_parser.add_argument("--verbose", "-v", action="store_true", help="Show INFO-level findings")
+    audit_parser.add_argument(
+        "--fail-on-warning", action="store_true", help="Exit with code 1 if any warnings found (for CI)"
+    )
+    audit_parser.add_argument(
+        "--ignore", type=str, default="", help="Comma-separated finding codes to suppress (e.g., STR-017,SEC-002)"
+    )
+    audit_parser.add_argument(
+        "--allowlist",
+        type=str,
+        default="",
+        help="Comma-separated domains to treat as safe (e.g., api.yahoo.com,wttr.in)",
+    )
+    audit_parser.add_argument("--quiet", "-q", action="store_true", help="One-line summary only")
+    audit_parser.add_argument("--explain", action="store_true", help="Show educational context for each finding")
+    audit_parser.add_argument(
+        "--include-all",
+        action="store_true",
+        help="Scan entire directory tree instead of just skill-standard directories",
+    )
+    audit_parser.add_argument(
+        "--min-score",
+        type=int,
+        default=None,
+        help="Minimum passing score (exit 1 if below). Overrides .skilleval.yaml min_score.",
+    )
 
     # init command
-    init_parser = subparsers.add_parser("init",
-                                         help="Generate evaluation scaffold for a skill")
+    init_parser = subparsers.add_parser("init", help="Generate evaluation scaffold for a skill")
     init_parser.add_argument("skill_path", help="Path to the skill directory")
 
     # snapshot command (Phase 2)
-    snapshot_parser = subparsers.add_parser("snapshot",
-                                            help="Save current audit results as a baseline")
+    snapshot_parser = subparsers.add_parser("snapshot", help="Save current audit results as a baseline")
     snapshot_parser.add_argument("skill_path", help="Path to the skill directory")
-    snapshot_parser.add_argument("--version", type=str, default=None,
-                                 help="Version label (default: auto from metadata)")
+    snapshot_parser.add_argument(
+        "--version", type=str, default=None, help="Version label (default: auto from metadata)"
+    )
 
     # regression command (Phase 2)
-    regression_parser = subparsers.add_parser("regression",
-                                               help="Check for regressions against baseline")
+    regression_parser = subparsers.add_parser("regression", help="Check for regressions against baseline")
     regression_parser.add_argument("skill_path", help="Path to the skill directory")
-    regression_parser.add_argument("--baseline", type=str, default=None,
-                                    help="Path to baseline results (default: evals/baselines/latest/)")
+    regression_parser.add_argument(
+        "--baseline", type=str, default=None, help="Path to baseline results (default: evals/baselines/latest/)"
+    )
     regression_parser.add_argument("--format", choices=["text", "json"], default="text")
 
     # functional command (Phase 3)
-    functional_parser = subparsers.add_parser("functional",
-                                               help="Run functional quality evaluation")
+    functional_parser = subparsers.add_parser("functional", help="Run functional quality evaluation")
     functional_parser.add_argument("skill_path", help="Path to the skill directory")
-    functional_parser.add_argument("--evals", type=str, default=None,
-                                    help="Path to evals.json (default: <skill>/evals/evals.json)")
-    functional_parser.add_argument("--runs", type=int, default=1,
-                                    help="Number of runs per eval case (default: 1)")
+    functional_parser.add_argument(
+        "--evals", type=str, default=None, help="Path to evals.json (default: <skill>/evals/evals.json)"
+    )
+    functional_parser.add_argument("--runs", type=int, default=1, help="Number of runs per eval case (default: 1)")
     functional_parser.add_argument("--format", choices=["text", "json"], default="text")
-    functional_parser.add_argument("--output", type=str, default=None,
-                                    help="Path to write benchmark.json")
-    functional_parser.add_argument("--dry-run", action="store_true",
-                                    help="Load and validate evals without executing")
-    functional_parser.add_argument("--timeout", type=int, default=120,
-                                    help="Timeout per claude invocation in seconds (default: 120)")
-    functional_parser.add_argument("--agent", type=str, default="claude",
-                                    help="Agent runner to use (default: claude)")
+    functional_parser.add_argument("--output", type=str, default=None, help="Path to write benchmark.json")
+    functional_parser.add_argument("--dry-run", action="store_true", help="Load and validate evals without executing")
+    functional_parser.add_argument(
+        "--timeout", type=int, default=120, help="Timeout per claude invocation in seconds (default: 120)"
+    )
+    functional_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
 
     # trigger command (Phase 3)
-    trigger_parser = subparsers.add_parser("trigger",
-                                            help="Run trigger reliability evaluation")
+    trigger_parser = subparsers.add_parser("trigger", help="Run trigger reliability evaluation")
     trigger_parser.add_argument("skill_path", help="Path to the skill directory")
-    trigger_parser.add_argument("--queries", type=str, default=None,
-                                 help="Path to eval_queries.json (default: <skill>/evals/eval_queries.json)")
-    trigger_parser.add_argument("--runs", type=int, default=3,
-                                 help="Number of runs per query (default: 3)")
+    trigger_parser.add_argument(
+        "--queries", type=str, default=None, help="Path to eval_queries.json (default: <skill>/evals/eval_queries.json)"
+    )
+    trigger_parser.add_argument("--runs", type=int, default=3, help="Number of runs per query (default: 3)")
     trigger_parser.add_argument("--format", choices=["text", "json"], default="text")
-    trigger_parser.add_argument("--output", type=str, default=None,
-                                 help="Path to write trigger report")
-    trigger_parser.add_argument("--timeout", type=int, default=60,
-                                 help="Timeout per claude invocation in seconds (default: 60)")
-    trigger_parser.add_argument("--dry-run", action="store_true",
-                                 help="Load and validate queries without executing")
-    trigger_parser.add_argument("--agent", type=str, default="claude",
-                                 help="Agent runner to use (default: claude)")
+    trigger_parser.add_argument("--output", type=str, default=None, help="Path to write trigger report")
+    trigger_parser.add_argument(
+        "--timeout", type=int, default=60, help="Timeout per claude invocation in seconds (default: 60)"
+    )
+    trigger_parser.add_argument("--dry-run", action="store_true", help="Load and validate queries without executing")
+    trigger_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
 
     # report command (unified report)
-    report_parser = subparsers.add_parser("report",
-                                           help="Run unified evaluation report (audit + functional + trigger)")
+    report_parser = subparsers.add_parser("report", help="Run unified evaluation report (audit + functional + trigger)")
     report_parser.add_argument("skill_path", help="Path to the skill directory")
-    report_parser.add_argument("--format", choices=["text", "json", "html"], default="text",
-                                help="Output format (default: text)")
-    report_parser.add_argument("--output", type=str, default=None,
-                                help="Path to write report file (default: <skill>/evals/report.json)")
-    report_parser.add_argument("--skip-audit", action="store_true",
-                                help="Skip audit phase")
-    report_parser.add_argument("--skip-functional", action="store_true",
-                                help="Skip functional evaluation phase")
-    report_parser.add_argument("--skip-trigger", action="store_true",
-                                help="Skip trigger evaluation phase")
-    report_parser.add_argument("--dry-run", action="store_true",
-                                help="Validate inputs without executing agent calls")
-    report_parser.add_argument("--timeout", type=int, default=120,
-                                help="Timeout per agent invocation in seconds (default: 120)")
-    report_parser.add_argument("--agent", type=str, default="claude",
-                                help="Agent runner to use (default: claude)")
-    report_parser.add_argument("--include-all", action="store_true",
-                                help="Audit scans entire directory tree instead of just skill-standard directories")
+    report_parser.add_argument(
+        "--format", choices=["text", "json", "html"], default="text", help="Output format (default: text)"
+    )
+    report_parser.add_argument(
+        "--output", type=str, default=None, help="Path to write report file (default: <skill>/evals/report.json)"
+    )
+    report_parser.add_argument("--skip-audit", action="store_true", help="Skip audit phase")
+    report_parser.add_argument("--skip-functional", action="store_true", help="Skip functional evaluation phase")
+    report_parser.add_argument("--skip-trigger", action="store_true", help="Skip trigger evaluation phase")
+    report_parser.add_argument("--dry-run", action="store_true", help="Validate inputs without executing agent calls")
+    report_parser.add_argument(
+        "--timeout", type=int, default=120, help="Timeout per agent invocation in seconds (default: 120)"
+    )
+    report_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
+    report_parser.add_argument(
+        "--include-all",
+        action="store_true",
+        help="Audit scans entire directory tree instead of just skill-standard directories",
+    )
 
     # compare command
-    compare_parser = subparsers.add_parser("compare",
-                                            help="Side-by-side skill comparison")
+    compare_parser = subparsers.add_parser("compare", help="Side-by-side skill comparison")
     compare_parser.add_argument("skill_a", help="Path to skill A directory")
     compare_parser.add_argument("skill_b", help="Path to skill B directory")
-    compare_parser.add_argument("--evals", type=str, default=None,
-                                 help="Path to evals.json (default: skill_a's evals/evals.json)")
-    compare_parser.add_argument("--runs", type=int, default=1,
-                                 help="Number of runs per eval case (default: 1)")
+    compare_parser.add_argument(
+        "--evals", type=str, default=None, help="Path to evals.json (default: skill_a's evals/evals.json)"
+    )
+    compare_parser.add_argument("--runs", type=int, default=1, help="Number of runs per eval case (default: 1)")
     compare_parser.add_argument("--format", choices=["text", "json"], default="text")
-    compare_parser.add_argument("--output", type=str, default=None,
-                                 help="Path to write comparison report")
-    compare_parser.add_argument("--dry-run", action="store_true",
-                                 help="Load and validate evals without executing")
-    compare_parser.add_argument("--timeout", type=int, default=120,
-                                 help="Timeout per claude invocation in seconds (default: 120)")
-    compare_parser.add_argument("--agent", type=str, default="claude",
-                                 help="Agent runner to use (default: claude)")
+    compare_parser.add_argument("--output", type=str, default=None, help="Path to write comparison report")
+    compare_parser.add_argument("--dry-run", action="store_true", help="Load and validate evals without executing")
+    compare_parser.add_argument(
+        "--timeout", type=int, default=120, help="Timeout per claude invocation in seconds (default: 120)"
+    )
+    compare_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
 
     # lifecycle command
-    lifecycle_parser = subparsers.add_parser("lifecycle",
-                                              help="Check skill version and detect changes")
+    lifecycle_parser = subparsers.add_parser("lifecycle", help="Check skill version and detect changes")
     lifecycle_parser.add_argument("skill_path", help="Path to the skill directory")
-    lifecycle_parser.add_argument("--save", action="store_true",
-                                  help="Save current version fingerprint")
-    lifecycle_parser.add_argument("--label", type=str, default=None,
-                                  help="Version label when saving (e.g., v1.2)")
-    lifecycle_parser.add_argument("--history", action="store_true",
-                                  help="Show version history")
-    lifecycle_parser.add_argument("--auto-regression", action="store_true",
-                                  help="Automatically run regression if changes detected")
-    lifecycle_parser.add_argument("--format", choices=["text", "json"], default="text",
-                                  help="Output format (default: text)")
+    lifecycle_parser.add_argument("--save", action="store_true", help="Save current version fingerprint")
+    lifecycle_parser.add_argument("--label", type=str, default=None, help="Version label when saving (e.g., v1.2)")
+    lifecycle_parser.add_argument("--history", action="store_true", help="Show version history")
+    lifecycle_parser.add_argument(
+        "--auto-regression", action="store_true", help="Automatically run regression if changes detected"
+    )
+    lifecycle_parser.add_argument(
+        "--format", choices=["text", "json"], default="text", help="Output format (default: text)"
+    )
 
     # version command
     subparsers.add_parser("version", help="Print version info")
@@ -277,9 +276,13 @@ def _dispatch(args) -> int:
         reports = []
 
         for skill_path in args.skill_path:
-            report = run_audit(skill_path, verbose=args.verbose,
-                               ignore_codes=ignore_codes, extra_safe_domains=extra_domains,
-                               include_all=args.include_all)
+            report = run_audit(
+                skill_path,
+                verbose=args.verbose,
+                ignore_codes=ignore_codes,
+                extra_safe_domains=extra_domains,
+                include_all=args.include_all,
+            )
             reports.append(report)
 
             if args.quiet:
@@ -289,6 +292,7 @@ def _dispatch(args) -> int:
                 format_json_report(report)
             elif args.format == "html":
                 from skillctl.eval.html_report import generate_html_report
+
                 # Build a minimal unified-style dict for the HTML renderer
                 report_data = {
                     "skill_name": report.skill_name,
@@ -341,19 +345,22 @@ def _dispatch(args) -> int:
 
     elif args.command == "init":
         from skillctl.eval.init import generate_eval_scaffold
+
         return generate_eval_scaffold(args.skill_path)
 
     elif args.command == "snapshot":
         from skillctl.eval.regression import save_snapshot
+
         return save_snapshot(args.skill_path, version=args.version)
 
     elif args.command == "regression":
         from skillctl.eval.regression import check_regression
-        return check_regression(args.skill_path, baseline_path=args.baseline,
-                                format=args.format)
+
+        return check_regression(args.skill_path, baseline_path=args.baseline, format=args.format)
 
     elif args.command == "functional":
         from skillctl.eval.functional import run_functional_eval
+
         return run_functional_eval(
             args.skill_path,
             evals_path=args.evals,
@@ -367,6 +374,7 @@ def _dispatch(args) -> int:
 
     elif args.command == "trigger":
         from skillctl.eval.trigger import run_trigger_eval
+
         return run_trigger_eval(
             args.skill_path,
             queries_path=args.queries,
@@ -380,6 +388,7 @@ def _dispatch(args) -> int:
 
     elif args.command == "report":
         from skillctl.eval.unified_report import run_unified_report
+
         return run_unified_report(
             args.skill_path,
             format=args.format,
@@ -395,6 +404,7 @@ def _dispatch(args) -> int:
 
     elif args.command == "compare":
         from skillctl.eval.compare import run_compare
+
         return run_compare(
             args.skill_a,
             args.skill_b,
@@ -409,6 +419,7 @@ def _dispatch(args) -> int:
 
     elif args.command == "lifecycle":
         from skillctl.eval.lifecycle import check_lifecycle, save_version, list_versions
+
         if args.history:
             list_versions(args.skill_path)
             return 0
@@ -420,6 +431,7 @@ def _dispatch(args) -> int:
             if rc == 1 and args.auto_regression:
                 print("\nAuto-regression: running regression check...")
                 from skillctl.eval.regression import check_regression
+
                 return check_regression(args.skill_path, format=args.format)
             return rc
 

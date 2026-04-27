@@ -21,6 +21,7 @@ from skillctl.eval.agent_runner import AgentRunner, get_runner
 # Public entry point
 # ---------------------------------------------------------------------------
 
+
 def run_trigger_eval(
     skill_path: str,
     queries_path: Optional[str] = None,
@@ -122,6 +123,7 @@ def run_trigger_eval(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_queries(queries_file: Path) -> list[TriggerQuery]:
     """Load and validate trigger queries from eval_queries.json."""
     if not queries_file.is_file():
@@ -136,9 +138,7 @@ def _load_queries(queries_file: Path) -> list[TriggerQuery]:
         if not isinstance(item, dict):
             raise ValueError(f"eval_queries.json[{i}] must be an object")
         if "query" not in item or "should_trigger" not in item:
-            raise ValueError(
-                f"eval_queries.json[{i}] missing required field 'query' or 'should_trigger'"
-            )
+            raise ValueError(f"eval_queries.json[{i}] missing required field 'query' or 'should_trigger'")
         queries.append(TriggerQuery.from_dict(item))
     return queries
 
@@ -245,8 +245,8 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
 
     # Build script file names from the skill's scripts/ directory
     scripts_dir = skill_path / "scripts"
-    script_files: set[str] = set()      # Full filenames: "weather.py"
-    script_stems: set[str] = set()      # Stems only: "weather"
+    script_files: set[str] = set()  # Full filenames: "weather.py"
+    script_stems: set[str] = set()  # Stems only: "weather"
     if scripts_dir.is_dir():
         for f in scripts_dir.iterdir():
             if f.is_file():
@@ -256,8 +256,15 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
     # Execution patterns for Bash command matching
     # These indicate the script is being *run*, not just referenced in a path
     _EXEC_PREFIXES = (
-        "python3 ", "python ", "bash ", "sh ", "./", "node ",
-        "ruby ", "perl ", "php ",
+        "python3 ",
+        "python ",
+        "bash ",
+        "sh ",
+        "./",
+        "node ",
+        "ruby ",
+        "perl ",
+        "php ",
     )
 
     for tool_call in parsed.get("tool_calls", []):
@@ -296,7 +303,7 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
             # e.g. "skillctl audit ." — skill_name is the first token or after pipe
             # Use word boundary to avoid matching paths like examples/data-analysis/
             skill_cmd_pattern = re.compile(
-                r'(?:^|[|;&]\s*)' + re.escape(skill_name) + r'(?:\s|$)',
+                r"(?:^|[|;&]\s*)" + re.escape(skill_name) + r"(?:\s|$)",
                 re.IGNORECASE,
             )
             if skill_cmd_pattern.search(command):
@@ -306,7 +313,7 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
             # e.g. "python3 -m data_analysis --file test.csv"
             underscore_name = skill_name.replace("-", "_")
             module_pattern = re.compile(
-                r'-m\s+' + re.escape(underscore_name) + r'(?:\s|$|\.|:)',
+                r"-m\s+" + re.escape(underscore_name) + r"(?:\s|$|\.|:)",
                 re.IGNORECASE,
             )
             if module_pattern.search(command):
@@ -332,7 +339,7 @@ def _classify_trigger_signal(parsed: dict, skill_path: Path) -> str:
     # Use word-boundary matching to avoid false positives on partial names.
     # Match skill name as a standalone term (hyphenated names are common)
     skill_word_pattern = re.compile(
-        r'\b' + re.escape(skill_name_lower) + r'\b',
+        r"\b" + re.escape(skill_name_lower) + r"\b",
         re.IGNORECASE,
     )
     if skill_word_pattern.search(text):
@@ -378,9 +385,7 @@ def _build_trigger_report(
 
     # Mean total tokens across all queries
     all_totals = [r.mean_total_tokens for r in query_results]
-    mean_total_tokens_per_run = (
-        round(sum(all_totals) / len(all_totals), 1) if all_totals else 0.0
-    )
+    mean_total_tokens_per_run = round(sum(all_totals) / len(all_totals), 1) if all_totals else 0.0
 
     summary = {
         "total_queries": total,

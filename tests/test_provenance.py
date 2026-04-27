@@ -203,9 +203,7 @@ class TestSaveCycle:
             promotion=None,
         )
 
-        baseline = json.loads(
-            (tmp_path / "run-abc" / "cycle-001" / "eval-baseline.json").read_text()
-        )
+        baseline = json.loads((tmp_path / "run-abc" / "cycle-001" / "eval-baseline.json").read_text())
         assert baseline["overall_score"] == 0.62
 
 

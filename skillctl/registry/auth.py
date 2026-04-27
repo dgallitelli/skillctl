@@ -23,6 +23,7 @@ from skillctl.registry.db import MetadataDB
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TokenInfo:
     """Verified token information returned by ``AuthManager.verify_token``."""
@@ -37,6 +38,7 @@ class TokenInfo:
 # ---------------------------------------------------------------------------
 # AuthManager
 # ---------------------------------------------------------------------------
+
 
 class AuthManager:
     """Token-based authentication with scoped permissions.
@@ -196,6 +198,7 @@ class AuthManager:
 # FastAPI dependency (Task 4.3)
 # ---------------------------------------------------------------------------
 
+
 def get_auth_manager(request: Request) -> AuthManager:
     """Retrieve the ``AuthManager`` stored on ``request.app.state``."""
     return request.app.state.auth_manager
@@ -219,10 +222,9 @@ async def get_current_token(
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
-    raw_token = auth_header[len("Bearer "):]
+    raw_token = auth_header[len("Bearer ") :]
     token_info = auth_manager.verify_token(raw_token)
     if token_info is None:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     return token_info
-

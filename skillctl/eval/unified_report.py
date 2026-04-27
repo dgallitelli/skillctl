@@ -19,6 +19,7 @@ from skillctl.eval.cli import run_audit
 # Grading helpers
 # ---------------------------------------------------------------------------
 
+
 def _letter_grade(score: float) -> str:
     """Map a 0-1 score to a letter grade."""
     if score >= 0.9:
@@ -69,6 +70,7 @@ def compute_weighted_score(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def run_unified_report(
     skill_path: str,
@@ -202,6 +204,7 @@ def run_unified_report(
         print(json.dumps(report_data, indent=2))
     elif format == "html":
         from skillctl.eval.html_report import generate_html_report
+
         html_content = generate_html_report(report_data)
         # Write HTML file alongside JSON
         html_file = out_file.with_suffix(".html")
@@ -333,10 +336,13 @@ def _print_text_report(data: dict) -> None:
             cd = ce["cost_delta_pct"]
             qd_sign = "+" if qd >= 0 else ""
             cd_sign = "+" if cd >= 0 else ""
-            print(f"  Cost:       {ce['emoji']} {ce['classification']} (quality {qd_sign}{qd:.2f}, cost {cd_sign}{cd:.1f}%)")
+            print(
+                f"  Cost:       {ce['emoji']} {ce['classification']} (quality {qd_sign}{qd:.2f}, cost {cd_sign}{cd:.1f}%)"
+            )
         ec = func.get("estimated_cost")
         if ec and ec.get("total_cost", 0) > 0:
             from skillctl.eval.cost import format_cost
+
             print(f"  Est. cost:  {format_cost(ec['total_cost'])} (functional, {ec.get('model', 'sonnet')} pricing)")
 
     # Trigger

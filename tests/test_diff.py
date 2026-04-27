@@ -46,6 +46,7 @@ def _make_manifest(
 
 # -- Diff two versions with content changes --------------------------------
 
+
 def test_diff_content_changes(store):
     """Diff detects content differences between two versions."""
     m1 = _make_manifest(version="1.0.0")
@@ -67,6 +68,7 @@ def test_diff_content_changes(store):
 
 
 # -- Diff detects removed parameters as breaking change --------------------
+
 
 def test_diff_removed_parameter_breaking(store):
     """Removing a parameter is flagged as a breaking change."""
@@ -98,6 +100,7 @@ def test_diff_removed_parameter_breaking(store):
 
 # -- Diff detects removed capabilities as breaking change ------------------
 
+
 def test_diff_removed_capability_breaking(store):
     """Removing a capability is flagged as a breaking change."""
     m1 = _make_manifest(
@@ -122,6 +125,7 @@ def test_diff_removed_capability_breaking(store):
 
 
 # -- Diff with --json output -----------------------------------------------
+
 
 def test_diff_json_output(store):
     """DiffResult.to_dict() produces valid JSON-serializable output."""
@@ -151,6 +155,7 @@ def test_diff_json_output(store):
 
 # -- format_diff produces readable output ----------------------------------
 
+
 def test_format_diff_output(store):
     """format_diff produces human-readable output with all sections."""
     m1 = _make_manifest(
@@ -178,6 +183,7 @@ def test_format_diff_output(store):
 
 
 # -- No content differences -------------------------------------------------
+
 
 def test_diff_no_content_differences(store):
     """Diff of same content but different versions shows metadata change only."""

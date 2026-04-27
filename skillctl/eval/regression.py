@@ -27,6 +27,7 @@ from skillctl.eval.cli import run_audit
 @dataclass
 class RegressionResult:
     """Result of a regression check."""
+
     passed: bool
     current_score: int
     baseline_score: int
@@ -47,6 +48,7 @@ class RegressionResult:
 @dataclass
 class Snapshot:
     """A baseline snapshot of audit results."""
+
     skill_name: str
     skill_path: str
     version: str
@@ -54,7 +56,7 @@ class Snapshot:
     score: int
     grade: str
     finding_codes: list[str]  # Just the codes for quick comparison
-    findings: list[dict]       # Full finding details
+    findings: list[dict]  # Full finding details
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -82,6 +84,7 @@ class Snapshot:
 @dataclass
 class HistoryEntry:
     """One entry in the version history."""
+
     version: str
     timestamp: str
     score: int
@@ -201,6 +204,7 @@ def save_snapshot(skill_path: str, version: str | None = None) -> int:
         latest_dir.unlink()
     elif latest_dir.is_dir():
         import shutil
+
         shutil.rmtree(latest_dir)
     latest_dir.mkdir(parents=True, exist_ok=True)
     (latest_dir / "results.json").write_text(json.dumps(snapshot.to_dict(), indent=2))
@@ -222,9 +226,11 @@ def save_snapshot(skill_path: str, version: str | None = None) -> int:
     _save_history(path, history)
 
     print(f"✅ Snapshot saved: {version_dir}")
-    print(f"   Score: {report.score}/{report.grade} | "
-          f"Findings: {len(report.findings)} "
-          f"(C:{report.critical_count} W:{report.warning_count} I:{report.info_count})")
+    print(
+        f"   Score: {report.score}/{report.grade} | "
+        f"Findings: {len(report.findings)} "
+        f"(C:{report.critical_count} W:{report.warning_count} I:{report.info_count})"
+    )
 
     return 0
 
@@ -328,9 +334,10 @@ def check_regression(
         improvements=improvements,
         unchanged=unchanged,
         message=(
-            "No regressions detected." if passed
+            "No regressions detected."
+            if passed
             else f"Regression detected: {len(new_criticals)} new critical findings, "
-                 f"score {baseline.score} → {report.score}"
+            f"score {baseline.score} → {report.score}"
         ),
     )
 
@@ -399,6 +406,6 @@ def _print_regression_report(result: RegressionResult, baseline: Snapshot) -> No
             print(f"    [{imp.get('severity', '?')}] {imp.get('code', '?')}: {imp.get('title', '?')}")
         print()
 
-    print(f"  Summary: {len(result.regressions)} new | "
-          f"{len(result.improvements)} resolved | "
-          f"{result.unchanged} unchanged")
+    print(
+        f"  Summary: {len(result.regressions)} new | {len(result.improvements)} resolved | {result.unchanged} unchanged"
+    )

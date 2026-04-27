@@ -20,12 +20,14 @@ pytestmark = pytest.mark.integration
 def _make_llm_client():
     """Create a real LLMClient pointing at Bedrock Opus."""
     from skillctl.optimize.llm_client import LLMClient
+
     return LLMClient()
 
 
 # ===================================================================
 # LLM Client — real Bedrock calls
 # ===================================================================
+
 
 class TestBedrockLLMClient:
     """Verify the LLM client actually works against real Bedrock."""
@@ -62,6 +64,7 @@ class TestBedrockLLMClient:
 # Failure Analyzer — real LLM analysis
 # ===================================================================
 
+
 class TestBedrockFailureAnalyzer:
     """Verify the failure analyzer actually identifies weaknesses via LLM."""
 
@@ -81,10 +84,16 @@ Review the code for bugs.
             overall_grade="D",
             passed=False,
             sections={
-                "audit": {"score": 40, "findings": [
-                    {"code": "SEC-003", "title": "Subprocess execution detected",
-                     "detail": "subprocess.run found in SKILL.md"},
-                ]},
+                "audit": {
+                    "score": 40,
+                    "findings": [
+                        {
+                            "code": "SEC-003",
+                            "title": "Subprocess execution detected",
+                            "detail": "subprocess.run found in SKILL.md",
+                        },
+                    ],
+                },
             },
             report_path="/tmp/fake-report.json",
         )
@@ -103,6 +112,7 @@ Review the code for bugs.
 # Variant Generator — real LLM generation
 # ===================================================================
 
+
 class TestBedrockVariantGenerator:
     """Verify the variant generator actually produces rewritten SKILL.md content."""
 
@@ -118,6 +128,7 @@ When the user says hello, respond with a greeting.
 """
 
         from skillctl.optimize.types import TokenUsage
+
         analysis = FailureAnalysis(
             weaknesses=[
                 Weakness(
@@ -133,7 +144,10 @@ When the user says hello, respond with a greeting.
         )
 
         variants = generate_variants(
-            skill_content, analysis, num_variants=1, llm_client=client,
+            skill_content,
+            analysis,
+            num_variants=1,
+            llm_client=client,
         )
 
         assert len(variants) == 1
@@ -147,6 +161,7 @@ When the user says hello, respond with a greeting.
 # ===================================================================
 # Cost Estimation — verify Opus model pricing exists
 # ===================================================================
+
 
 class TestCostEstimation:
     """Verify cost estimation works with the default Opus model."""

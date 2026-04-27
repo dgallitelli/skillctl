@@ -49,6 +49,7 @@ def validator():
 
 # -- Valid manifest passes ---------------------------------------------------
 
+
 def test_valid_manifest_passes(validator):
     """A well-formed manifest passes with no errors or warnings."""
     manifest = _make_manifest()
@@ -62,6 +63,7 @@ def test_valid_manifest_passes(validator):
 
 # -- Wrong apiVersion -------------------------------------------------------
 
+
 def test_wrong_api_version(validator):
     """Wrong apiVersion produces VAL-APIVERSION error."""
     manifest = _make_manifest(api_version="skillctl.io/v2")
@@ -73,6 +75,7 @@ def test_wrong_api_version(validator):
 
 
 # -- Invalid semver ----------------------------------------------------------
+
 
 @pytest.mark.parametrize("bad_version", ["1.0", "v1.0.0", "abc", "1.0.0.0"])
 def test_invalid_semver(validator, bad_version):
@@ -87,6 +90,7 @@ def test_invalid_semver(validator, bad_version):
 
 # -- Name format validation --------------------------------------------------
 
+
 def test_invalid_name_format(validator):
     """Name with uppercase/spaces fails with VAL-NAME-FORMAT."""
     manifest = _make_manifest(name="My Org/My Skill")
@@ -98,6 +102,7 @@ def test_invalid_name_format(validator):
 
 
 # -- Empty name --------------------------------------------------------------
+
 
 def test_empty_name(validator):
     """Empty name fails with VAL-NAME-REQUIRED."""
@@ -111,6 +116,7 @@ def test_empty_name(validator):
 
 # -- Empty description -------------------------------------------------------
 
+
 def test_empty_description(validator):
     """Empty description fails with VAL-DESC-REQUIRED."""
     manifest = _make_manifest(description="")
@@ -123,11 +129,10 @@ def test_empty_description(validator):
 
 # -- Enum parameter without values -------------------------------------------
 
+
 def test_enum_param_without_values(validator):
     """An enum parameter with no values fails with VAL-PARAM-ENUM."""
-    manifest = _make_manifest(
-        parameters=[Parameter(name="mode", type="enum", values=[])]
-    )
+    manifest = _make_manifest(parameters=[Parameter(name="mode", type="enum", values=[])])
     result = validator.validate(manifest)
 
     assert result.valid is False
@@ -137,11 +142,10 @@ def test_enum_param_without_values(validator):
 
 # -- Unknown parameter type --------------------------------------------------
 
+
 def test_unknown_param_type(validator):
     """A parameter with an unknown type fails with VAL-PARAM-TYPE."""
-    manifest = _make_manifest(
-        parameters=[Parameter(name="count", type="integer")]
-    )
+    manifest = _make_manifest(parameters=[Parameter(name="count", type="integer")])
     result = validator.validate(manifest)
 
     assert result.valid is False
@@ -150,6 +154,7 @@ def test_unknown_param_type(validator):
 
 
 # -- Both path and inline content --------------------------------------------
+
 
 def test_content_both_path_and_inline(validator):
     """Having both path and inline content fails with VAL-CONTENT-BOTH."""
@@ -163,6 +168,7 @@ def test_content_both_path_and_inline(validator):
 
 # -- Neither path nor inline content -----------------------------------------
 
+
 def test_content_empty(validator):
     """Having neither path nor inline content fails with VAL-CONTENT-EMPTY."""
     manifest = _make_manifest(content_path=None, content_inline=None)
@@ -174,6 +180,7 @@ def test_content_empty(validator):
 
 
 # -- Unknown capability produces warning -------------------------------------
+
 
 def test_unknown_capability_warning(validator):
     """An unknown capability produces a VAL-CAP-UNKNOWN warning (not error)."""
@@ -188,6 +195,7 @@ def test_unknown_capability_warning(validator):
 
 
 # -- check_capabilities detects undeclared write_file usage ------------------
+
 
 def test_check_capabilities_detects_write_file(validator):
     """check_capabilities warns when content uses write_file but it is not declared."""

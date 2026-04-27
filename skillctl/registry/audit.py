@@ -51,9 +51,7 @@ class AuditLogger:
             "details": details or {},
         }
         payload_bytes = json.dumps(payload, sort_keys=True).encode()
-        signature = hmac.new(
-            self.hmac_key, payload_bytes, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(self.hmac_key, payload_bytes, hashlib.sha256).hexdigest()
         event = {**payload, "hmac_signature": signature}
 
         with open(self.log_path, "a") as f:
@@ -128,9 +126,7 @@ class AuditLogger:
                     "details": entry.get("details", {}),
                 }
                 payload_bytes = json.dumps(payload, sort_keys=True).encode()
-                expected = hmac.new(
-                    self.hmac_key, payload_bytes, hashlib.sha256
-                ).hexdigest()
+                expected = hmac.new(self.hmac_key, payload_bytes, hashlib.sha256).hexdigest()
 
                 if hmac.compare_digest(expected, entry.get("hmac_signature", "")):
                     valid += 1

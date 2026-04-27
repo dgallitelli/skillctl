@@ -46,10 +46,7 @@ def _make_mock_client(variant_contents: list[str] | None = None) -> MagicMock:
     if variant_contents is None:
         variant_contents = ["# Rewritten Skill\nImproved content"]
 
-    responses = [
-        LLMResponse(content=c, input_tokens=100, output_tokens=200)
-        for c in variant_contents
-    ]
+    responses = [LLMResponse(content=c, input_tokens=100, output_tokens=200) for c in variant_contents]
     client.call.side_effect = responses
     return client
 

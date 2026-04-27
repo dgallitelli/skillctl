@@ -18,6 +18,7 @@ from skillctl.eval.eval_schemas import AssertionResult
 # Public entry point
 # ---------------------------------------------------------------------------
 
+
 def grade_output(
     output: str,
     assertions: list[str],
@@ -54,6 +55,7 @@ def grade_output(
 # Deterministic grading rules
 # ---------------------------------------------------------------------------
 
+
 def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResult]:
     """Try to evaluate an assertion deterministically.
 
@@ -65,15 +67,18 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
     # Split on " or " only when each part looks like a deterministic assertion
     # (starts with contains/does not contain/starts with/ends with/matches/etc.)
     _DETERMINISTIC_PREFIXES = (
-        "contains ", "does not contain ", "starts with ", "ends with ",
-        "matches regex ", "matches pattern ", "has at least ",
-        "is valid json", "output is valid json",
+        "contains ",
+        "does not contain ",
+        "starts with ",
+        "ends with ",
+        "matches regex ",
+        "matches pattern ",
+        "has at least ",
+        "is valid json",
+        "output is valid json",
     )
-    or_parts = re.split(r'\s+or\s+', lower)
-    if len(or_parts) >= 2 and all(
-        any(p.strip().startswith(pfx) for pfx in _DETERMINISTIC_PREFIXES)
-        for p in or_parts
-    ):
+    or_parts = re.split(r"\s+or\s+", lower)
+    if len(or_parts) >= 2 and all(any(p.strip().startswith(pfx) for pfx in _DETERMINISTIC_PREFIXES) for p in or_parts):
         # Each part is a deterministic assertion — pass if ANY passes
         sub_results = []
         for part in or_parts:
@@ -101,7 +106,7 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
     # "contains X" / 'contains "X"'
     m = re.match(r'^contains\s+["\'](.+?)["\']$', lower)
     if not m:
-        m = re.match(r'^contains\s+(.+)$', lower)
+        m = re.match(r"^contains\s+(.+)$", lower)
     if m:
         needle = m.group(1)
         found = needle.lower() in output.lower()
@@ -115,7 +120,7 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
     # "does not contain X" / 'does not contain "X"'
     m = re.match(r'^does not contain\s+["\'](.+?)["\']$', lower)
     if not m:
-        m = re.match(r'^does not contain\s+(.+)$', lower)
+        m = re.match(r"^does not contain\s+(.+)$", lower)
     if m:
         needle = m.group(1)
         found = needle.lower() in output.lower()
@@ -131,25 +136,28 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
         try:
             json.loads(output)
             return AssertionResult(
-                text=assertion, passed=True,
+                text=assertion,
+                passed=True,
                 evidence="Output parsed as valid JSON",
                 method="deterministic",
             )
         except (json.JSONDecodeError, ValueError) as e:
             return AssertionResult(
-                text=assertion, passed=False,
+                text=assertion,
+                passed=False,
                 evidence=f"JSON parse error: {e}",
                 method="deterministic",
             )
 
     # "has at least N lines"
-    m = re.match(r'^has at least (\d+) lines?$', lower)
+    m = re.match(r"^has at least (\d+) lines?$", lower)
     if m:
         threshold = int(m.group(1))
         count = len(output.splitlines())
         passed = count >= threshold
         return AssertionResult(
-            text=assertion, passed=passed,
+            text=assertion,
+            passed=passed,
             evidence=f"Line count: {count} (threshold: {threshold})",
             method="deterministic",
         )
@@ -157,12 +165,13 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
     # "starts with X"
     m = re.match(r'^starts with\s+["\'](.+?)["\']$', lower)
     if not m:
-        m = re.match(r'^starts with\s+(.+)$', lower)
+        m = re.match(r"^starts with\s+(.+)$", lower)
     if m:
         prefix = m.group(1)
         passed = output.lower().lstrip().startswith(prefix.lower())
         return AssertionResult(
-            text=assertion, passed=passed,
+            text=assertion,
+            passed=passed,
             evidence=f"Output {'starts' if passed else 'does not start'} with: {prefix!r}",
             method="deterministic",
         )
@@ -170,30 +179,33 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
     # "ends with X"
     m = re.match(r'^ends with\s+["\'](.+?)["\']$', lower)
     if not m:
-        m = re.match(r'^ends with\s+(.+)$', lower)
+        m = re.match(r"^ends with\s+(.+)$", lower)
     if m:
         suffix = m.group(1)
         passed = output.lower().rstrip().endswith(suffix.lower())
         return AssertionResult(
-            text=assertion, passed=passed,
+            text=assertion,
+            passed=passed,
             evidence=f"Output {'ends' if passed else 'does not end'} with: {suffix!r}",
             method="deterministic",
         )
 
     # "matches regex /X/" or "matches pattern /X/"
-    m = re.match(r'^matches\s+(?:regex|pattern)\s+/(.+)/$', assertion.strip())
+    m = re.match(r"^matches\s+(?:regex|pattern)\s+/(.+)/$", assertion.strip())
     if m:
         pattern = m.group(1)
         try:
             found = re.search(pattern, output) is not None
             return AssertionResult(
-                text=assertion, passed=found,
+                text=assertion,
+                passed=found,
                 evidence=f"Regex /{pattern}/ {'matched' if found else 'did not match'}",
                 method="deterministic",
             )
         except re.error as e:
             return AssertionResult(
-                text=assertion, passed=False,
+                text=assertion,
+                passed=False,
                 evidence=f"Invalid regex: {e}",
                 method="deterministic",
             )
@@ -205,6 +217,7 @@ def _deterministic_grade(output: str, assertion: str) -> Optional[AssertionResul
 # ---------------------------------------------------------------------------
 # LLM grading (via claude CLI)
 # ---------------------------------------------------------------------------
+
 
 def _llm_grade(
     output: str,
@@ -230,7 +243,7 @@ def _llm_grade(
         ]
 
     # Build a structured prompt for batch evaluation
-    assertions_block = "\n".join(f"  {i+1}. {a}" for i, a in enumerate(assertions))
+    assertions_block = "\n".join(f"  {i + 1}. {a}" for i, a in enumerate(assertions))
     # Truncate output to avoid exceeding context limits
     truncated = output[:16000] if len(output) > 16000 else output
 
@@ -263,7 +276,8 @@ Example 3 (UNCERTAIN - low confidence):
   Result: {{"index": 1, "passed": true, "confidence": 0.4, "evidence": "mentions trend but lacks formal statistical measures"}}"""
 
     stdout, stderr, rc, elapsed = runner.run_prompt(
-        prompt, timeout=timeout,
+        prompt,
+        timeout=timeout,
     )
 
     if rc != 0 or not stdout.strip():
@@ -295,21 +309,25 @@ Example 3 (UNCERTAIN - low confidence):
             entry = next((e for e in parsed if e.get("index") == i + 1), None)
             if entry:
                 confidence = float(entry.get("confidence", 1.0))
-                results.append(AssertionResult(
-                    text=assertion,
-                    passed=bool(entry.get("passed", False)),
-                    evidence=str(entry.get("evidence", "")),
-                    method="llm",
-                    confidence=confidence,
-                    uncertain=confidence < 0.5,
-                ))
+                results.append(
+                    AssertionResult(
+                        text=assertion,
+                        passed=bool(entry.get("passed", False)),
+                        evidence=str(entry.get("evidence", "")),
+                        method="llm",
+                        confidence=confidence,
+                        uncertain=confidence < 0.5,
+                    )
+                )
             else:
-                results.append(AssertionResult(
-                    text=assertion,
-                    passed=False,
-                    evidence="LLM judge did not return result for this assertion",
-                    method="llm",
-                ))
+                results.append(
+                    AssertionResult(
+                        text=assertion,
+                        passed=False,
+                        evidence="LLM judge did not return result for this assertion",
+                        method="llm",
+                    )
+                )
         return results
     except (json.JSONDecodeError, KeyError, TypeError):
         return [

@@ -65,7 +65,6 @@ class TokenUsage:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
-
 @dataclass
 class BudgetState:
     """Cumulative budget tracking state."""
@@ -217,7 +216,6 @@ class PromotionDecision:
     @classmethod
     def from_dict(cls, data: dict) -> PromotionDecision:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-
 
 
 @dataclass

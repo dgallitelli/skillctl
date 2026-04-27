@@ -63,13 +63,17 @@ def device_flow_login(
     Raises ``SystemExit`` on failure or timeout.
     """
     # Step 1: Request device + user codes
-    data = urllib.parse.urlencode({
-        "client_id": client_id,
-        "scope": scopes,
-    }).encode()
+    data = urllib.parse.urlencode(
+        {
+            "client_id": client_id,
+            "scope": scopes,
+        }
+    ).encode()
 
     req = urllib.request.Request(
-        DEVICE_CODE_URL, data=data, method="POST",
+        DEVICE_CODE_URL,
+        data=data,
+        method="POST",
         headers={"Accept": "application/json"},
     )
 
@@ -103,14 +107,18 @@ def device_flow_login(
         time.sleep(interval)
         print(".", end="", flush=True)
 
-        poll_data = urllib.parse.urlencode({
-            "client_id": client_id,
-            "device_code": device_code,
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-        }).encode()
+        poll_data = urllib.parse.urlencode(
+            {
+                "client_id": client_id,
+                "device_code": device_code,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            }
+        ).encode()
 
         poll_req = urllib.request.Request(
-            ACCESS_TOKEN_URL, data=poll_data, method="POST",
+            ACCESS_TOKEN_URL,
+            data=poll_data,
+            method="POST",
             headers={"Accept": "application/json"},
         )
 
@@ -150,7 +158,8 @@ def verify_token(token: str) -> dict:
     Returns the user info dict on success, exits on failure.
     """
     req = urllib.request.Request(
-        USER_API_URL, method="GET",
+        USER_API_URL,
+        method="GET",
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",

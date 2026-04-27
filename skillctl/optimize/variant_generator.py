@@ -57,18 +57,20 @@ def generate_variants(
 
         cost = estimate_cost(response.input_tokens, response.output_tokens, llm_client.model)
 
-        variants.append(Variant(
-            id=variant_hash[:12],
-            content=variant_content,
-            hypothesis=weakness.hypothesis,
-            target_weakness=weakness.description,
-            parent_id=parent_hash[:12],
-            tokens_used=TokenUsage(
-                input_tokens=response.input_tokens,
-                output_tokens=response.output_tokens,
-                cost_usd=cost["total_cost"],
-            ),
-        ))
+        variants.append(
+            Variant(
+                id=variant_hash[:12],
+                content=variant_content,
+                hypothesis=weakness.hypothesis,
+                target_weakness=weakness.description,
+                parent_id=parent_hash[:12],
+                tokens_used=TokenUsage(
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                    cost_usd=cost["total_cost"],
+                ),
+            )
+        )
 
     return variants
 

@@ -19,9 +19,7 @@ def check_promotion(
     """
 
     # Filter to variants with a valid (non-None) score
-    valid = [
-        (v, e) for v, e in variants_with_scores if e.overall_score is not None
-    ]
+    valid = [(v, e) for v, e in variants_with_scores if e.overall_score is not None]
 
     if not valid:
         return PromotionDecision(
@@ -51,9 +49,7 @@ def check_promotion(
     # In approve mode, ask the user before promoting
     if approve:
         answer = input(
-            f"Promote variant {best_variant.id}? "
-            f"Score {current_score:.2f} → {best_score:.2f} "
-            f"(+{delta:.2f}) [y/N] "
+            f"Promote variant {best_variant.id}? Score {current_score:.2f} → {best_score:.2f} (+{delta:.2f}) [y/N] "
         )
         if answer.strip().lower() != "y":
             return PromotionDecision(

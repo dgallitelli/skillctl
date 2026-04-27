@@ -23,6 +23,7 @@ from skillctl.eval.grading import grade_output
 # Public entry point
 # ---------------------------------------------------------------------------
 
+
 def run_compare(
     skill_a_path: str,
     skill_b_path: str,
@@ -105,14 +106,18 @@ def run_compare(
 
     for eval_case in eval_cases:
         eval_row = _run_eval_comparison(
-            eval_case, path_a, path_b, evals_dir, runs_per_eval, timeout,
+            eval_case,
+            path_a,
+            path_b,
+            evals_dir,
+            runs_per_eval,
+            timeout,
             runner=runner,
         )
         per_eval.append(eval_row)
 
     # Aggregate
-    report = _aggregate_compare(name_a, str(path_a), name_b, str(path_b),
-                                eval_cases, per_eval, runs_per_eval)
+    report = _aggregate_compare(name_a, str(path_a), name_b, str(path_b), eval_cases, per_eval, runs_per_eval)
 
     # Write output
     if output_path:
@@ -131,6 +136,7 @@ def run_compare(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_evals(evals_file: Path) -> list[EvalCase]:
     """Load and validate eval cases from evals.json."""
@@ -286,10 +292,7 @@ def _aggregate_compare(
     overall_b_assertions = sum(b_assertions)
 
     # Token efficiency ratio: b_total / a_total (>1 means A is cheaper)
-    token_efficiency_ratio = (
-        overall_b_tokens / overall_a_tokens
-        if overall_a_tokens > 0 else 0.0
-    )
+    token_efficiency_ratio = overall_b_tokens / overall_a_tokens if overall_a_tokens > 0 else 0.0
 
     # Tokens per passing assertion
     a_tppa = overall_a_tokens / overall_a_assertions if overall_a_assertions > 0 else float("inf")
@@ -378,8 +381,10 @@ def _print_compare_report(report: CompareReport) -> None:
             eid = row["eval_id"]
             ra = row["skill_a"]
             rb = row["skill_b"]
-            print(f"    {eid}: A={ra['mean_pass_rate']:.0%}/{ra['mean_total_tokens']:.0f}tok "
-                  f"B={rb['mean_pass_rate']:.0%}/{rb['mean_total_tokens']:.0f}tok")
+            print(
+                f"    {eid}: A={ra['mean_pass_rate']:.0%}/{ra['mean_total_tokens']:.0f}tok "
+                f"B={rb['mean_pass_rate']:.0%}/{rb['mean_total_tokens']:.0f}tok"
+            )
         print(f"{'─' * w}")
 
     print(f"  Winner: {report.winner}")

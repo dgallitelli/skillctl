@@ -39,32 +39,40 @@ class TestExtractEvidence:
         assert _extract_evidence(result) == []
 
     def test_audit_with_critical(self):
-        result = _make_eval_result(sections={
-            "audit": {"critical": 2, "warning": 0, "score": 0.4, "findings": ["f1"]},
-        })
+        result = _make_eval_result(
+            sections={
+                "audit": {"critical": 2, "warning": 0, "score": 0.4, "findings": ["f1"]},
+            }
+        )
         evidence = _extract_evidence(result)
         assert len(evidence) == 1
         assert evidence[0]["category"] == "audit"
         assert evidence[0]["issues"] == ["f1"]
 
     def test_audit_with_warning(self):
-        result = _make_eval_result(sections={
-            "audit": {"critical": 0, "warning": 3, "score": 0.6},
-        })
+        result = _make_eval_result(
+            sections={
+                "audit": {"critical": 0, "warning": 3, "score": 0.6},
+            }
+        )
         evidence = _extract_evidence(result)
         assert len(evidence) == 1
         assert evidence[0]["category"] == "audit"
 
     def test_audit_no_issues_skipped(self):
-        result = _make_eval_result(sections={
-            "audit": {"critical": 0, "warning": 0, "score": 1.0},
-        })
+        result = _make_eval_result(
+            sections={
+                "audit": {"critical": 0, "warning": 0, "score": 1.0},
+            }
+        )
         assert _extract_evidence(result) == []
 
     def test_functional_failing_dimensions(self):
-        result = _make_eval_result(sections={
-            "functional": {"scores": {"accuracy": 0.5, "completeness": 0.9}, "overall": 0.7},
-        })
+        result = _make_eval_result(
+            sections={
+                "functional": {"scores": {"accuracy": 0.5, "completeness": 0.9}, "overall": 0.7},
+            }
+        )
         evidence = _extract_evidence(result)
         assert len(evidence) == 1
         assert evidence[0]["category"] == "functional"
@@ -72,32 +80,40 @@ class TestExtractEvidence:
         assert "completeness" not in evidence[0]["failing_dimensions"]
 
     def test_functional_all_passing(self):
-        result = _make_eval_result(sections={
-            "functional": {"scores": {"accuracy": 0.8, "completeness": 0.9}},
-        })
+        result = _make_eval_result(
+            sections={
+                "functional": {"scores": {"accuracy": 0.8, "completeness": 0.9}},
+            }
+        )
         assert _extract_evidence(result) == []
 
     def test_trigger_low_pass_rate(self):
-        result = _make_eval_result(sections={
-            "trigger": {"pass_rate": 0.6},
-        })
+        result = _make_eval_result(
+            sections={
+                "trigger": {"pass_rate": 0.6},
+            }
+        )
         evidence = _extract_evidence(result)
         assert len(evidence) == 1
         assert evidence[0]["category"] == "trigger"
         assert evidence[0]["pass_rate"] == 0.6
 
     def test_trigger_passing(self):
-        result = _make_eval_result(sections={
-            "trigger": {"pass_rate": 0.9},
-        })
+        result = _make_eval_result(
+            sections={
+                "trigger": {"pass_rate": 0.9},
+            }
+        )
         assert _extract_evidence(result) == []
 
     def test_multiple_sections(self):
-        result = _make_eval_result(sections={
-            "audit": {"critical": 1, "warning": 0, "score": 0.3},
-            "functional": {"scores": {"accuracy": 0.4}, "overall": 0.4},
-            "trigger": {"pass_rate": 0.5},
-        })
+        result = _make_eval_result(
+            sections={
+                "audit": {"critical": 1, "warning": 0, "score": 0.3},
+                "functional": {"scores": {"accuracy": 0.4}, "overall": 0.4},
+                "trigger": {"pass_rate": 0.5},
+            }
+        )
         evidence = _extract_evidence(result)
         assert len(evidence) == 3
         categories = {e["category"] for e in evidence}
@@ -123,15 +139,19 @@ class TestBuildAnalysisPrompt:
 
 class TestParseWeaknesses:
     def test_valid_json(self):
-        content = json.dumps({"weaknesses": [
+        content = json.dumps(
             {
-                "category": "audit",
-                "description": "Missing permissions",
-                "severity": "high",
-                "evidence": ["no perms declared"],
-                "hypothesis": "Add permission block",
-            },
-        ]})
+                "weaknesses": [
+                    {
+                        "category": "audit",
+                        "description": "Missing permissions",
+                        "severity": "high",
+                        "evidence": ["no perms declared"],
+                        "hypothesis": "Add permission block",
+                    },
+                ]
+            }
+        )
         weaknesses = _parse_weaknesses(content)
         assert len(weaknesses) == 1
         assert weaknesses[0].category == "audit"
@@ -139,10 +159,20 @@ class TestParseWeaknesses:
         assert weaknesses[0].hypothesis == "Add permission block"
 
     def test_multiple_weaknesses(self):
-        content = json.dumps({"weaknesses": [
-            {"category": "audit", "description": "a", "severity": "low", "evidence": [], "hypothesis": "h1"},
-            {"category": "functional", "description": "b", "severity": "high", "evidence": [], "hypothesis": "h2"},
-        ]})
+        content = json.dumps(
+            {
+                "weaknesses": [
+                    {"category": "audit", "description": "a", "severity": "low", "evidence": [], "hypothesis": "h1"},
+                    {
+                        "category": "functional",
+                        "description": "b",
+                        "severity": "high",
+                        "evidence": [],
+                        "hypothesis": "h2",
+                    },
+                ]
+            }
+        )
         weaknesses = _parse_weaknesses(content)
         assert len(weaknesses) == 2
 
@@ -175,19 +205,23 @@ class TestParseWeaknesses:
 
 class TestAnalyzeFailures:
     def test_returns_sorted_weaknesses(self):
-        llm_response = _make_llm_response([
-            {"category": "functional", "description": "low", "severity": "low", "evidence": [], "hypothesis": "h1"},
-            {"category": "audit", "description": "high", "severity": "high", "evidence": [], "hypothesis": "h2"},
-            {"category": "trigger", "description": "med", "severity": "medium", "evidence": [], "hypothesis": "h3"},
-        ])
+        llm_response = _make_llm_response(
+            [
+                {"category": "functional", "description": "low", "severity": "low", "evidence": [], "hypothesis": "h1"},
+                {"category": "audit", "description": "high", "severity": "high", "evidence": [], "hypothesis": "h2"},
+                {"category": "trigger", "description": "med", "severity": "medium", "evidence": [], "hypothesis": "h3"},
+            ]
+        )
 
         mock_client = MagicMock()
         mock_client.call.return_value = llm_response
         mock_client.model = "sonnet"
 
-        eval_result = _make_eval_result(sections={
-            "audit": {"critical": 1, "warning": 0, "score": 0.3},
-        })
+        eval_result = _make_eval_result(
+            sections={
+                "audit": {"critical": 1, "warning": 0, "score": 0.3},
+            }
+        )
 
         analysis = analyze_failures(eval_result, "skill content", mock_client)
 
@@ -197,9 +231,11 @@ class TestAnalyzeFailures:
         assert analysis.weaknesses[2].severity == "low"
 
     def test_returns_token_usage(self):
-        llm_response = _make_llm_response([
-            {"category": "audit", "description": "d", "severity": "high", "evidence": [], "hypothesis": "h"},
-        ])
+        llm_response = _make_llm_response(
+            [
+                {"category": "audit", "description": "d", "severity": "high", "evidence": [], "hypothesis": "h"},
+            ]
+        )
 
         mock_client = MagicMock()
         mock_client.call.return_value = llm_response
@@ -213,9 +249,11 @@ class TestAnalyzeFailures:
         assert analysis.tokens_used.cost_usd > 0
 
     def test_calls_llm_with_system_prompt(self):
-        llm_response = _make_llm_response([
-            {"category": "audit", "description": "d", "severity": "high", "evidence": [], "hypothesis": "h"},
-        ])
+        llm_response = _make_llm_response(
+            [
+                {"category": "audit", "description": "d", "severity": "high", "evidence": [], "hypothesis": "h"},
+            ]
+        )
 
         mock_client = MagicMock()
         mock_client.call.return_value = llm_response

@@ -10,7 +10,12 @@ from pathlib import Path
 
 import yaml
 
-from skillctl.config import load_config as _load_skillctl_config, save_config as _save_skillctl_config, run_configure_wizard, CONFIG_PATH
+from skillctl.config import (
+    load_config as _load_skillctl_config,
+    save_config as _save_skillctl_config,
+    run_configure_wizard,
+    CONFIG_PATH,
+)
 from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
@@ -23,6 +28,7 @@ from skillctl.version import version_info
 # ---------------------------------------------------------------------------
 # Config helpers — thin wrappers over skillctl.config
 # ---------------------------------------------------------------------------
+
 
 def _load_config() -> dict:
     """Load raw CLI config as a dict (backward compat for config set/get)."""
@@ -81,6 +87,7 @@ def _get_registry_token(args) -> str | None:
 def _load_github_token() -> str | None:
     """Load GitHub token from env > config."""
     from skillctl.github_auth import load_github_token
+
     return load_github_token()
 
 
@@ -90,6 +97,7 @@ from skillctl.utils import parse_ref as _parse_ref
 # ---------------------------------------------------------------------------
 # CLI entry point — kubectl-style verbs with backward-compatible aliases
 # ---------------------------------------------------------------------------
+
 
 def _emit_plugin_hint():
     """Emit a Claude Code plugin hint on stderr when running inside Claude Code."""
@@ -103,9 +111,7 @@ def _emit_plugin_hint():
 def main():
     _emit_plugin_hint()
 
-    parser = argparse.ArgumentParser(
-        prog="skillctl", description="Governance CLI for agent skills"
-    )
+    parser = argparse.ArgumentParser(prog="skillctl", description="Governance CLI for agent skills")
     sub = parser.add_subparsers(dest="command")
 
     # -----------------------------------------------------------------------
@@ -204,8 +210,12 @@ def main():
     serve_p.add_argument("--auth-disabled", action="store_true", help="Disable authentication (dev only)")
     serve_p.add_argument("--hmac-key", default=None, help="HMAC key for audit log signing")
     serve_p.add_argument("--log-level", default="info", help="Log level (default: info)")
-    serve_p.add_argument("--storage", default="filesystem", choices=["filesystem", "github"],
-                         help="Storage backend (default: filesystem)")
+    serve_p.add_argument(
+        "--storage",
+        default="filesystem",
+        choices=["filesystem", "github"],
+        help="Storage backend (default: filesystem)",
+    )
     serve_p.add_argument("--github-repo", default=None, help="GitHub repo URL (for github backend)")
     serve_p.add_argument("--github-token", default=None, help="GitHub PAT (for github backend)")
     serve_p.add_argument("--github-branch", default="main", help="GitHub branch (default: main)")
@@ -215,7 +225,9 @@ def main():
     token_sub = token_p.add_subparsers(dest="token_command")
     token_create_p = token_sub.add_parser("create", help="Create a new API token")
     token_create_p.add_argument("--name", required=True, help="Token name")
-    token_create_p.add_argument("--scope", action="append", dest="scopes", default=[], help="Permission scope (repeatable)")
+    token_create_p.add_argument(
+        "--scope", action="append", dest="scopes", default=[], help="Permission scope (repeatable)"
+    )
     token_create_p.add_argument("--expires", default=None, help="Expiry duration (e.g. 90d)")
     token_create_p.add_argument("--registry-url", default=None, help="Registry URL (overrides config)")
     token_create_p.add_argument("--token", default=None, help="Auth token (overrides config)")
@@ -374,6 +386,7 @@ def main():
 # PRIMARY COMMAND HANDLERS
 # ---------------------------------------------------------------------------
 
+
 def cmd_apply(args):
     """Validate + push to local store. If registry configured, also publish remotely."""
     path = args.file or args.path
@@ -468,30 +481,30 @@ def cmd_create_skill(args):
     """Scaffold a new skill project."""
     name = args.name
     skill_yaml = (
-        f'apiVersion: skillctl.io/v1\n'
-        f'kind: Skill\n'
-        f'\n'
-        f'metadata:\n'
-        f'  name: {name}\n'
-        f'  version: 0.1.0\n'
+        f"apiVersion: skillctl.io/v1\n"
+        f"kind: Skill\n"
+        f"\n"
+        f"metadata:\n"
+        f"  name: {name}\n"
+        f"  version: 0.1.0\n"
         f'  description: ""\n'
-        f'\n'
-        f'spec:\n'
-        f'  content:\n'
-        f'    path: ./SKILL.md\n'
-        f'  capabilities:\n'
-        f'    - read_file\n'
+        f"\n"
+        f"spec:\n"
+        f"  content:\n"
+        f"    path: ./SKILL.md\n"
+        f"  capabilities:\n"
+        f"    - read_file\n"
     )
     skill_md = (
-        f'# {name.split("/")[-1] if "/" in name else name}\n'
-        f'\n'
-        f'## Description\n'
-        f'\n'
-        f'Describe what this skill does.\n'
-        f'\n'
-        f'## Instructions\n'
-        f'\n'
-        f'Add skill instructions here.\n'
+        f"# {name.split('/')[-1] if '/' in name else name}\n"
+        f"\n"
+        f"## Description\n"
+        f"\n"
+        f"Describe what this skill does.\n"
+        f"\n"
+        f"## Instructions\n"
+        f"\n"
+        f"Add skill instructions here.\n"
     )
 
     for fname in ("skill.yaml", "SKILL.md"):
@@ -774,6 +787,7 @@ def cmd_logs(args):
 # EXISTING COMMAND HANDLERS (unchanged logic)
 # ---------------------------------------------------------------------------
 
+
 def cmd_validate(args):
     """Validate a skill manifest."""
     loader = ManifestLoader()
@@ -794,25 +808,16 @@ def cmd_validate(args):
     # Merge warnings from all sources
     all_warnings = []
     for w in load_warnings:
-        all_warnings.append(
-            {"code": w.code, "message": w.message, "hint": w.hint}
-        )
+        all_warnings.append({"code": w.code, "message": w.message, "hint": w.hint})
     for w in result.warnings:
-        all_warnings.append(
-            {"code": w.code, "message": w.message, "path": w.path, "hint": w.hint}
-        )
+        all_warnings.append({"code": w.code, "message": w.message, "path": w.path, "hint": w.hint})
     for w in cap_warnings:
-        all_warnings.append(
-            {"code": w.code, "message": w.message, "hint": w.hint}
-        )
+        all_warnings.append({"code": w.code, "message": w.message, "hint": w.hint})
 
     if getattr(args, "json", False):
         output = {
             "valid": result.valid,
-            "errors": [
-                {"code": e.code, "message": e.message, "path": e.path, "hint": e.hint}
-                for e in result.errors
-            ],
+            "errors": [{"code": e.code, "message": e.message, "path": e.path, "hint": e.hint} for e in result.errors],
             "warnings": all_warnings,
             "strict": getattr(args, "strict", False),
         }
@@ -961,9 +966,7 @@ def cmd_doctor(args):
     git_path = shutil.which("git")
     if git_path:
         try:
-            git_ver = subprocess.check_output(
-                ["git", "--version"], stderr=subprocess.DEVNULL, text=True
-            ).strip()
+            git_ver = subprocess.check_output(["git", "--version"], stderr=subprocess.DEVNULL, text=True).strip()
             git_ver_num = git_ver.replace("git version ", "")
             print(f"  ✓ Git: installed ({git_ver_num})")
         except Exception:
@@ -1029,7 +1032,9 @@ def cmd_serve(args):
         host=args.host,
         port=args.port,
         storage_backend=args.storage,
-        github_repo=args.github_repo or os.environ.get("SKILLCTL_GITHUB_REPO") or _load_config().get("github", {}).get("repo"),
+        github_repo=args.github_repo
+        or os.environ.get("SKILLCTL_GITHUB_REPO")
+        or _load_config().get("github", {}).get("repo"),
         github_token=args.github_token or os.environ.get("SKILLCTL_GITHUB_TOKEN") or _load_github_token(),
         github_branch=args.github_branch,
         auth_disabled=args.auth_disabled,
@@ -1105,35 +1110,35 @@ def cmd_token_create(args):
 
 _CONFIG_KEY_MAP = {
     # New typed config keys
-    "registry.backend":                    lambda c: c.registry.backend,
-    "registry.local.url":                  lambda c: c.registry.local.url,
-    "registry.local.token":                lambda c: c.registry.local.token,
+    "registry.backend": lambda c: c.registry.backend,
+    "registry.local.url": lambda c: c.registry.local.url,
+    "registry.local.token": lambda c: c.registry.local.token,
     "registry.agent_registry.registry_id": lambda c: c.registry.agent_registry.registry_id,
-    "registry.agent_registry.region":      lambda c: c.registry.agent_registry.region,
-    "optimize.model":                      lambda c: c.optimize.model,
-    "optimize.budget_usd":                 lambda c: c.optimize.budget_usd,
-    "optimize.max_tokens":                 lambda c: c.optimize.max_tokens,
-    "github.token":                        lambda c: c.github.token,
-    "github.client_id":                    lambda c: c.github.client_id,
+    "registry.agent_registry.region": lambda c: c.registry.agent_registry.region,
+    "optimize.model": lambda c: c.optimize.model,
+    "optimize.budget_usd": lambda c: c.optimize.budget_usd,
+    "optimize.max_tokens": lambda c: c.optimize.max_tokens,
+    "github.token": lambda c: c.github.token,
+    "github.client_id": lambda c: c.github.client_id,
     # Backward-compat aliases
-    "registry.url":                        lambda c: c.registry.local.url,
-    "registry.token":                      lambda c: c.registry.local.token,
+    "registry.url": lambda c: c.registry.local.url,
+    "registry.token": lambda c: c.registry.local.token,
 }
 
 _CONFIG_SETTER_MAP = {
-    "registry.backend":                    lambda c, v: setattr(c.registry, "backend", v),
-    "registry.local.url":                  lambda c, v: setattr(c.registry.local, "url", v),
-    "registry.local.token":                lambda c, v: setattr(c.registry.local, "token", v),
+    "registry.backend": lambda c, v: setattr(c.registry, "backend", v),
+    "registry.local.url": lambda c, v: setattr(c.registry.local, "url", v),
+    "registry.local.token": lambda c, v: setattr(c.registry.local, "token", v),
     "registry.agent_registry.registry_id": lambda c, v: setattr(c.registry.agent_registry, "registry_id", v),
-    "registry.agent_registry.region":      lambda c, v: setattr(c.registry.agent_registry, "region", v),
-    "optimize.model":                      lambda c, v: setattr(c.optimize, "model", v),
-    "optimize.budget_usd":                 lambda c, v: setattr(c.optimize, "budget_usd", float(v)),
-    "optimize.max_tokens":                 lambda c, v: setattr(c.optimize, "max_tokens", int(v)),
-    "github.token":                        lambda c, v: setattr(c.github, "token", v),
-    "github.client_id":                    lambda c, v: setattr(c.github, "client_id", v),
+    "registry.agent_registry.region": lambda c, v: setattr(c.registry.agent_registry, "region", v),
+    "optimize.model": lambda c, v: setattr(c.optimize, "model", v),
+    "optimize.budget_usd": lambda c, v: setattr(c.optimize, "budget_usd", float(v)),
+    "optimize.max_tokens": lambda c, v: setattr(c.optimize, "max_tokens", int(v)),
+    "github.token": lambda c, v: setattr(c.github, "token", v),
+    "github.client_id": lambda c, v: setattr(c.github, "client_id", v),
     # Backward-compat aliases
-    "registry.url":                        lambda c, v: setattr(c.registry.local, "url", v),
-    "registry.token":                      lambda c, v: setattr(c.registry.local, "token", v),
+    "registry.url": lambda c, v: setattr(c.registry.local, "url", v),
+    "registry.token": lambda c, v: setattr(c.registry.local, "token", v),
 }
 
 
@@ -1164,7 +1169,10 @@ def cmd_config_set(args):
     setter = _CONFIG_SETTER_MAP.get(key)
     if not setter:
         print(f"Error: Unknown config key '{key}'.", file=sys.stderr)
-        print(f"  Supported keys: {', '.join(sorted(k for k in _CONFIG_KEY_MAP if '.' in k and not k.startswith('registry.url') and not k.startswith('registry.token')))}", file=sys.stderr)
+        print(
+            f"  Supported keys: {', '.join(sorted(k for k in _CONFIG_KEY_MAP if '.' in k and not k.startswith('registry.url') and not k.startswith('registry.token')))}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     config = _load_skillctl_config()
@@ -1185,7 +1193,10 @@ def cmd_config_get(args):
     getter = _CONFIG_KEY_MAP.get(key)
     if not getter:
         print(f"Error: Unknown config key '{key}'.", file=sys.stderr)
-        print(f"  Supported keys: {', '.join(sorted(k for k in _CONFIG_KEY_MAP if '.' in k and not k.startswith('registry.url') and not k.startswith('registry.token')))}", file=sys.stderr)
+        print(
+            f"  Supported keys: {', '.join(sorted(k for k in _CONFIG_KEY_MAP if '.' in k and not k.startswith('registry.url') and not k.startswith('registry.token')))}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     config = _load_skillctl_config()
@@ -1200,10 +1211,14 @@ def cmd_config_get(args):
 # Login / Logout
 # ---------------------------------------------------------------------------
 
+
 def cmd_login(args):
     """Authenticate with GitHub using the device flow."""
     from skillctl.github_auth import (
-        get_client_id, device_flow_login, verify_token, save_github_token,
+        get_client_id,
+        device_flow_login,
+        verify_token,
+        save_github_token,
     )
 
     client_id = get_client_id(args.client_id)
@@ -1234,6 +1249,7 @@ def cmd_logout():
         return
 
     import yaml
+
     cfg = yaml.safe_load(config_path.read_text()) or {}
     gh = cfg.get("github", {})
     if "token" not in gh:
@@ -1250,6 +1266,7 @@ def cmd_logout():
 # ---------------------------------------------------------------------------
 # Remote publish helper (used by cmd_apply)
 # ---------------------------------------------------------------------------
+
 
 def _publish_to_registry(args, manifest, content: str, registry_url: str):
     """Publish a skill to the remote registry."""

@@ -97,9 +97,7 @@ class TestCheckPromotion:
     def test_approve_mode_accepted(self):
         pairs = [(_variant("v1"), _eval(0.80))]
         with patch("builtins.input", return_value="y"):
-            decision = check_promotion(
-                pairs, current_score=0.60, threshold=0.05, approve=True
-            )
+            decision = check_promotion(pairs, current_score=0.60, threshold=0.05, approve=True)
 
         assert decision.promoted is True
         assert decision.variant_id == "v1"
@@ -107,9 +105,7 @@ class TestCheckPromotion:
     def test_approve_mode_rejected(self):
         pairs = [(_variant("v1"), _eval(0.80))]
         with patch("builtins.input", return_value="n"):
-            decision = check_promotion(
-                pairs, current_score=0.60, threshold=0.05, approve=True
-            )
+            decision = check_promotion(pairs, current_score=0.60, threshold=0.05, approve=True)
 
         assert decision.promoted is False
         assert decision.reason == "rejected by user"
@@ -118,9 +114,7 @@ class TestCheckPromotion:
     def test_approve_mode_empty_input_rejects(self):
         pairs = [(_variant("v1"), _eval(0.80))]
         with patch("builtins.input", return_value=""):
-            decision = check_promotion(
-                pairs, current_score=0.60, threshold=0.05, approve=True
-            )
+            decision = check_promotion(pairs, current_score=0.60, threshold=0.05, approve=True)
 
         assert decision.promoted is False
         assert decision.reason == "rejected by user"
@@ -129,9 +123,7 @@ class TestCheckPromotion:
         """Approve prompt should not appear if delta < threshold."""
         pairs = [(_variant("v1"), _eval(0.62))]
         with patch("builtins.input") as mock_input:
-            decision = check_promotion(
-                pairs, current_score=0.60, threshold=0.05, approve=True
-            )
+            decision = check_promotion(pairs, current_score=0.60, threshold=0.05, approve=True)
 
         mock_input.assert_not_called()
         assert decision.promoted is False

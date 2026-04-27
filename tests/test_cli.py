@@ -62,8 +62,7 @@ Use this API key: AKIA1234567890ABCDEF
 """
 
 
-def _make_skill_dir(tmp_path: Path, yaml_content: str = VALID_SKILL_YAML,
-                    md_content: str = VALID_SKILL_MD) -> Path:
+def _make_skill_dir(tmp_path: Path, yaml_content: str = VALID_SKILL_YAML, md_content: str = VALID_SKILL_MD) -> Path:
     """Create a skill directory with skill.yaml + SKILL.md."""
     (tmp_path / "skill.yaml").write_text(yaml_content)
     (tmp_path / "SKILL.md").write_text(md_content)
@@ -90,11 +89,12 @@ def _make_args(**kwargs) -> types.SimpleNamespace:
 # cmd_create_skill
 # ---------------------------------------------------------------------------
 
-class TestCmdCreateSkill:
 
+class TestCmdCreateSkill:
     def test_scaffolds_files(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         from skillctl.cli import cmd_create_skill
+
         args = _make_args(name="my-org/my-skill")
         cmd_create_skill(args)
 
@@ -108,6 +108,7 @@ class TestCmdCreateSkill:
         monkeypatch.chdir(tmp_path)
         (tmp_path / "skill.yaml").write_text("existing")
         from skillctl.cli import cmd_create_skill
+
         args = _make_args(name="my-org/my-skill")
         with pytest.raises(SkillctlError) as exc_info:
             cmd_create_skill(args)
@@ -118,11 +119,12 @@ class TestCmdCreateSkill:
 # cmd_validate
 # ---------------------------------------------------------------------------
 
-class TestCmdValidate:
 
+class TestCmdValidate:
     def test_valid_manifest_exits_0(self, tmp_path):
         _make_skill_dir(tmp_path)
         from skillctl.cli import cmd_validate
+
         args = _make_args(path=str(tmp_path))
         with pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -131,6 +133,7 @@ class TestCmdValidate:
     def test_invalid_manifest_exits_1(self, tmp_path):
         _make_skill_dir(tmp_path, yaml_content=INVALID_SKILL_YAML)
         from skillctl.cli import cmd_validate
+
         args = _make_args(path=str(tmp_path))
         with pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -139,6 +142,7 @@ class TestCmdValidate:
     def test_json_output(self, tmp_path, capsys):
         _make_skill_dir(tmp_path)
         from skillctl.cli import cmd_validate
+
         args = _make_args(path=str(tmp_path), json=True)
         with pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -148,11 +152,10 @@ class TestCmdValidate:
         assert output["errors"] == []
 
     def test_strict_mode_exits_1_on_warnings(self, tmp_path):
-        yaml_with_unknown_cap = VALID_SKILL_YAML.replace(
-            "    - read_file", "    - read_file\n    - bogus_cap"
-        )
+        yaml_with_unknown_cap = VALID_SKILL_YAML.replace("    - read_file", "    - read_file\n    - bogus_cap")
         _make_skill_dir(tmp_path, yaml_content=yaml_with_unknown_cap)
         from skillctl.cli import cmd_validate
+
         args = _make_args(path=str(tmp_path), strict=True)
         with pytest.raises(SystemExit) as exc_info:
             cmd_validate(args)
@@ -163,15 +166,18 @@ class TestCmdValidate:
 # cmd_apply
 # ---------------------------------------------------------------------------
 
-class TestCmdApply:
 
+class TestCmdApply:
     def test_apply_local_push(self, tmp_path, monkeypatch):
         _make_skill_dir(tmp_path)
         store_root = tmp_path / "store-root"
-        monkeypatch.setattr("skillctl.cli.ContentStore",
-                            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root))
+        monkeypatch.setattr(
+            "skillctl.cli.ContentStore",
+            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root),
+        )
 
         from skillctl.cli import cmd_apply
+
         args = _make_args(path=str(tmp_path), local=True)
         cmd_apply(args)
 
@@ -183,10 +189,13 @@ class TestCmdApply:
     def test_apply_dry_run(self, tmp_path, monkeypatch, capsys):
         _make_skill_dir(tmp_path)
         store_root = tmp_path / "store-root"
-        monkeypatch.setattr("skillctl.cli.ContentStore",
-                            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root))
+        monkeypatch.setattr(
+            "skillctl.cli.ContentStore",
+            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root),
+        )
 
         from skillctl.cli import cmd_apply
+
         args = _make_args(path=str(tmp_path), local=True, dry_run=True)
         cmd_apply(args)
 
@@ -197,6 +206,7 @@ class TestCmdApply:
     def test_apply_invalid_manifest_exits_1(self, tmp_path):
         _make_skill_dir(tmp_path, yaml_content=INVALID_SKILL_YAML)
         from skillctl.cli import cmd_apply
+
         args = _make_args(path=str(tmp_path), local=True)
         with pytest.raises(SystemExit) as exc_info:
             cmd_apply(args)
@@ -205,10 +215,13 @@ class TestCmdApply:
     def test_apply_duplicate_push_shows_unchanged(self, tmp_path, monkeypatch, capsys):
         _make_skill_dir(tmp_path)
         store_root = tmp_path / "store-root"
-        monkeypatch.setattr("skillctl.cli.ContentStore",
-                            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root))
+        monkeypatch.setattr(
+            "skillctl.cli.ContentStore",
+            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root),
+        )
 
         from skillctl.cli import cmd_apply
+
         args = _make_args(path=str(tmp_path), local=True)
         cmd_apply(args)
         capsys.readouterr()
@@ -221,12 +234,14 @@ class TestCmdApply:
         """When publishing remotely, CRITICAL findings block the publish."""
         _make_skill_dir(tmp_path, md_content=SECRET_SKILL_MD)
         store_root = tmp_path / "store-root"
-        monkeypatch.setattr("skillctl.cli.ContentStore",
-                            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root))
-        monkeypatch.setattr("skillctl.cli._get_registry_url",
-                            lambda args: "http://fake-registry:8080")
+        monkeypatch.setattr(
+            "skillctl.cli.ContentStore",
+            lambda: __import__("skillctl.store", fromlist=["ContentStore"]).ContentStore(store_root),
+        )
+        monkeypatch.setattr("skillctl.cli._get_registry_url", lambda args: "http://fake-registry:8080")
 
         from skillctl.cli import cmd_apply
+
         args = _make_args(path=str(tmp_path), local=False, registry_url="http://fake-registry:8080")
         cmd_apply(args)
 

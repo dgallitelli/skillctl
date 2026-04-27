@@ -23,6 +23,7 @@ from skillctl.optimize.types import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_skill_dir(tmp_path: Path, content: str = "# Original Skill") -> Path:
     """Create a minimal skill directory with SKILL.md and skill.yaml."""
     skill_dir = tmp_path / "test-skill"
@@ -67,6 +68,7 @@ def _failure_analysis() -> FailureAnalysis:
 
 def _variant(content: str = "# Improved Skill", vid: str | None = None) -> Variant:
     import hashlib
+
     h = hashlib.sha256(content.encode()).hexdigest()[:12]
     return Variant(
         id=vid or h,
@@ -82,6 +84,7 @@ def _variant(content: str = "# Improved Skill", vid: str | None = None) -> Varia
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestRunOptimization:
     """Unit tests for run_optimization()."""
 
@@ -90,9 +93,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_basic_promotion_cycle(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_basic_promotion_cycle(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """A single cycle that promotes a variant writes SKILL.md and returns correctly."""
         skill_dir = _make_skill_dir(tmp_path)
         improved = "# Improved Skill v1"
@@ -113,19 +114,25 @@ class TestRunOptimization:
         # but plateau_limit=1 means we stop after one non-promotion
         # With promotion on first cycle, plateau resets; second cycle won't promote
         mock_eval.side_effect = [
-            _eval_result(0.6),   # initial eval
-            _eval_result(0.8),   # variant eval
-            _eval_result(0.8),   # cycle 2 variant eval
+            _eval_result(0.6),  # initial eval
+            _eval_result(0.8),  # variant eval
+            _eval_result(0.8),  # cycle 2 variant eval
         ]
         mock_promote.side_effect = [
             PromotionDecision(
-                promoted=True, variant_id=variant.id,
-                current_score=0.6, best_score=0.8, delta=0.2,
+                promoted=True,
+                variant_id=variant.id,
+                current_score=0.6,
+                best_score=0.8,
+                delta=0.2,
                 reason="exceeded threshold",
             ),
             PromotionDecision(
-                promoted=False, variant_id=None,
-                current_score=0.8, best_score=0.8, delta=0.0,
+                promoted=False,
+                variant_id=None,
+                current_score=0.8,
+                best_score=0.8,
+                delta=0.0,
                 reason="below threshold",
             ),
         ]
@@ -156,9 +163,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_dry_run_does_not_write_skill(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_dry_run_does_not_write_skill(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """In dry-run mode, SKILL.md on disk is never modified."""
         original = "# Original Skill"
         skill_dir = _make_skill_dir(tmp_path, content=original)
@@ -169,8 +174,11 @@ class TestRunOptimization:
         mock_analyze.return_value = _failure_analysis()
         mock_gen.return_value = [variant]
         mock_promote.return_value = PromotionDecision(
-            promoted=True, variant_id=variant.id,
-            current_score=0.6, best_score=0.8, delta=0.2,
+            promoted=True,
+            variant_id=variant.id,
+            current_score=0.6,
+            best_score=0.8,
+            delta=0.2,
             reason="exceeded threshold",
         )
 
@@ -197,9 +205,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_plateau_termination(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_plateau_termination(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'plateau' after plateau_limit non-promotions."""
         skill_dir = _make_skill_dir(tmp_path)
         variant = _variant()
@@ -208,8 +214,11 @@ class TestRunOptimization:
         mock_analyze.return_value = _failure_analysis()
         mock_gen.return_value = [variant]
         mock_promote.return_value = PromotionDecision(
-            promoted=False, variant_id=None,
-            current_score=0.6, best_score=0.62, delta=0.02,
+            promoted=False,
+            variant_id=None,
+            current_score=0.6,
+            best_score=0.62,
+            delta=0.02,
             reason="below threshold",
         )
 
@@ -234,9 +243,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_max_iterations_cap(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_max_iterations_cap(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'completed' when max_iterations is reached."""
         skill_dir = _make_skill_dir(tmp_path)
         variant = _variant()
@@ -246,8 +253,11 @@ class TestRunOptimization:
         mock_gen.return_value = [variant]
         # Always promote so plateau never triggers
         mock_promote.return_value = PromotionDecision(
-            promoted=True, variant_id=variant.id,
-            current_score=0.6, best_score=0.8, delta=0.2,
+            promoted=True,
+            variant_id=variant.id,
+            current_score=0.6,
+            best_score=0.8,
+            delta=0.2,
             reason="exceeded threshold",
         )
 
@@ -270,9 +280,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.LLMClient")
     @patch("skillctl.optimize.loop.evaluate_skill")
     @patch("skillctl.optimize.loop.analyze_failures")
-    def test_failure_analysis_error_skips_cycle(
-        self, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_failure_analysis_error_skips_cycle(self, mock_analyze, mock_eval, mock_llm, tmp_path):
         """When failure analysis raises, the cycle is skipped."""
         skill_dir = _make_skill_dir(tmp_path)
 
@@ -301,9 +309,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_budget_exhaustion_terminates(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_budget_exhaustion_terminates(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'budget_exhausted' when budget runs out."""
         skill_dir = _make_skill_dir(tmp_path)
         variant = _variant()
@@ -311,14 +317,15 @@ class TestRunOptimization:
         mock_eval.return_value = _eval_result(0.6)
         # Analysis uses expensive tokens that exhaust budget
         expensive_analysis = _failure_analysis()
-        expensive_analysis.tokens_used = TokenUsage(
-            input_tokens=1000000, output_tokens=1000000, cost_usd=50.0
-        )
+        expensive_analysis.tokens_used = TokenUsage(input_tokens=1000000, output_tokens=1000000, cost_usd=50.0)
         mock_analyze.return_value = expensive_analysis
         mock_gen.return_value = [variant]
         mock_promote.return_value = PromotionDecision(
-            promoted=False, variant_id=None,
-            current_score=0.6, best_score=0.62, delta=0.02,
+            promoted=False,
+            variant_id=None,
+            current_score=0.6,
+            best_score=0.62,
+            delta=0.02,
             reason="below threshold",
         )
 
@@ -390,10 +397,38 @@ class TestRunOptimization:
         # Cycle 3: no promotion (plateau=1)
         # Cycle 4: no promotion (plateau=2 → stop with plateau_limit=2)
         mock_promote.side_effect = [
-            PromotionDecision(promoted=False, variant_id=None, current_score=0.6, best_score=0.62, delta=0.02, reason="below threshold"),
-            PromotionDecision(promoted=True, variant_id=variant.id, current_score=0.6, best_score=0.8, delta=0.2, reason="exceeded threshold"),
-            PromotionDecision(promoted=False, variant_id=None, current_score=0.8, best_score=0.82, delta=0.02, reason="below threshold"),
-            PromotionDecision(promoted=False, variant_id=None, current_score=0.8, best_score=0.82, delta=0.02, reason="below threshold"),
+            PromotionDecision(
+                promoted=False,
+                variant_id=None,
+                current_score=0.6,
+                best_score=0.62,
+                delta=0.02,
+                reason="below threshold",
+            ),
+            PromotionDecision(
+                promoted=True,
+                variant_id=variant.id,
+                current_score=0.6,
+                best_score=0.8,
+                delta=0.2,
+                reason="exceeded threshold",
+            ),
+            PromotionDecision(
+                promoted=False,
+                variant_id=None,
+                current_score=0.8,
+                best_score=0.82,
+                delta=0.02,
+                reason="below threshold",
+            ),
+            PromotionDecision(
+                promoted=False,
+                variant_id=None,
+                current_score=0.8,
+                best_score=0.82,
+                delta=0.02,
+                reason="below threshold",
+            ),
         ]
 
         config = OptimizeConfig(
@@ -417,9 +452,7 @@ class TestRunOptimization:
     @patch("skillctl.optimize.loop.analyze_failures")
     @patch("skillctl.optimize.loop.generate_variants")
     @patch("skillctl.optimize.loop.check_promotion")
-    def test_monotonic_score_improvement(
-        self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
-    ):
+    def test_monotonic_score_improvement(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Final score is always >= initial score."""
         skill_dir = _make_skill_dir(tmp_path)
         variant = _variant()
@@ -428,8 +461,11 @@ class TestRunOptimization:
         mock_analyze.return_value = _failure_analysis()
         mock_gen.return_value = [variant]
         mock_promote.return_value = PromotionDecision(
-            promoted=False, variant_id=None,
-            current_score=0.6, best_score=0.62, delta=0.02,
+            promoted=False,
+            variant_id=None,
+            current_score=0.6,
+            best_score=0.62,
+            delta=0.02,
             reason="below threshold",
         )
 

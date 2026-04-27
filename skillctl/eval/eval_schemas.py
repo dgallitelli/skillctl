@@ -14,6 +14,7 @@ from typing import Optional
 @dataclass
 class EvalCase:
     """A single evaluation case loaded from evals/evals.json."""
+
     id: str
     prompt: str
     expected_output: str = ""
@@ -31,6 +32,7 @@ class EvalCase:
 @dataclass
 class AssertionResult:
     """Result of grading a single assertion."""
+
     text: str
     passed: bool
     evidence: str = ""
@@ -49,6 +51,7 @@ class AssertionResult:
 @dataclass
 class GradingResult:
     """Per-run grading output matching grading.json format."""
+
     eval_id: str
     run_index: int
     assertion_results: list[dict] = field(default_factory=list)
@@ -69,6 +72,7 @@ class GradingResult:
 @dataclass
 class RunPairResult:
     """Paired with-skill / without-skill results for one eval case run."""
+
     eval_id: str
     run_index: int
     with_skill: Optional[dict] = None
@@ -86,6 +90,7 @@ class RunPairResult:
 @dataclass
 class BenchmarkReport:
     """Aggregated benchmark report matching benchmark.json format."""
+
     skill_name: str
     skill_path: str
     eval_count: int = 0
@@ -110,6 +115,7 @@ class BenchmarkReport:
 @dataclass
 class TriggerQuery:
     """A single trigger query loaded from evals/eval_queries.json."""
+
     query: str
     should_trigger: bool
 
@@ -124,6 +130,7 @@ class TriggerQuery:
 @dataclass
 class TriggerQueryResult:
     """Result of evaluating a single trigger query."""
+
     query: str
     should_trigger: bool
     trigger_count: int = 0
@@ -145,6 +152,7 @@ class TriggerQueryResult:
 @dataclass
 class TriggerReport:
     """Full trigger evaluation report."""
+
     skill_name: str
     skill_path: str
     query_results: list[dict] = field(default_factory=list)
@@ -165,6 +173,7 @@ class TriggerReport:
 @dataclass
 class CompareReport:
     """Side-by-side comparison report for two skills."""
+
     skill_a_name: str
     skill_a_path: str
     skill_b_name: str

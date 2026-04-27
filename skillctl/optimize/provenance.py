@@ -86,9 +86,7 @@ class ProvenanceStore:
         # Variants and their evals
         for variant, variant_eval in variants_with_evals:
             vid = _content_hash(variant.content)
-            (cycle_dir / f"variant-{vid}.md").write_text(
-                variant.content, encoding="utf-8"
-            )
+            (cycle_dir / f"variant-{vid}.md").write_text(variant.content, encoding="utf-8")
             _write_json(
                 cycle_dir / f"variant-{vid}-eval.json",
                 variant_eval.to_dict(),
@@ -117,9 +115,7 @@ class ProvenanceStore:
     # ------------------------------------------------------------------
 
     @classmethod
-    def list_runs(
-        cls, skill_name: Optional[str] = None, base_dir: Optional[str] = None
-    ) -> list[OptimizationRun]:
+    def list_runs(cls, skill_name: Optional[str] = None, base_dir: Optional[str] = None) -> list[OptimizationRun]:
         """List all runs, optionally filtered by skill name."""
         if base_dir is None:
             root = Path.home() / ".skillctl" / "optimize"
@@ -139,9 +135,7 @@ class ProvenanceStore:
         return runs
 
     @classmethod
-    def load_run(
-        cls, run_id: str, base_dir: Optional[str] = None
-    ) -> OptimizationRun:
+    def load_run(cls, run_id: str, base_dir: Optional[str] = None) -> OptimizationRun:
         """Load a run manifest by run-id."""
         if base_dir is None:
             root = Path.home() / ".skillctl" / "optimize"
@@ -150,10 +144,7 @@ class ProvenanceStore:
 
         manifest = root / run_id / "run.json"
         if not manifest.is_file():
-            raise FileNotFoundError(
-                f"No optimization run found for id '{run_id}' "
-                f"(looked in {manifest})"
-            )
+            raise FileNotFoundError(f"No optimization run found for id '{run_id}' (looked in {manifest})")
         return _load_run_manifest(manifest)
 
 

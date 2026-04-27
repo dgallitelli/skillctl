@@ -21,6 +21,7 @@ def logger(tmp_path):
 
 # -- write / read round-trip ------------------------------------------------
 
+
 def test_log_and_read_round_trip(logger: AuditLogger):
     logger.log(
         action="skill.published",
@@ -48,6 +49,7 @@ def test_log_with_no_details_defaults_to_empty_dict(logger: AuditLogger):
 
 
 # -- HMAC verification ------------------------------------------------------
+
 
 def test_verify_integrity_all_valid(logger: AuditLogger):
     logger.log("skill.published", "ci", "org/skill@1.0.0")
@@ -88,6 +90,7 @@ def test_tamper_signature_field(logger: AuditLogger):
 
 
 # -- time-range filtering ---------------------------------------------------
+
 
 def test_filter_by_since_and_until(logger: AuditLogger):
     # Log three events with slightly different timestamps
@@ -133,6 +136,7 @@ def test_filter_by_until_only(logger: AuditLogger):
 
 # -- action filtering -------------------------------------------------------
 
+
 def test_filter_by_action(logger: AuditLogger):
     logger.log("skill.published", "ci", "org/a@1.0.0")
     logger.log("token.created", "admin", "token-1")
@@ -150,6 +154,7 @@ def test_filter_by_action_no_match(logger: AuditLogger):
 
 
 # -- multiple events --------------------------------------------------------
+
 
 def test_multiple_events_preserved_in_order(logger: AuditLogger):
     for i in range(5):
@@ -171,6 +176,7 @@ def test_limit_parameter(logger: AuditLogger):
 
 
 # -- empty log file ----------------------------------------------------------
+
 
 def test_read_empty_log(logger: AuditLogger):
     # File doesn't exist yet
@@ -199,6 +205,7 @@ def test_verify_integrity_empty_existing_file(logger: AuditLogger):
 
 # -- helpers -----------------------------------------------------------------
 
+
 def _write_event(
     logger: AuditLogger,
     timestamp: str,
@@ -219,9 +226,7 @@ def _write_event(
         "details": details or {},
     }
     payload_bytes = json.dumps(payload, sort_keys=True).encode()
-    signature = _hmac.new(
-        logger.hmac_key, payload_bytes, hashlib.sha256
-    ).hexdigest()
+    signature = _hmac.new(logger.hmac_key, payload_bytes, hashlib.sha256).hexdigest()
     event = {**payload, "hmac_signature": signature}
 
     with open(logger.log_path, "a") as f:

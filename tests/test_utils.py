@@ -11,6 +11,7 @@ from skillctl.utils import parse_ref, read_skill_name_from_frontmatter
 
 # -- parse_ref with valid input ----------------------------------------------
 
+
 def test_parse_ref_valid():
     """parse_ref splits 'ns/name@1.0.0' into (name, version)."""
     name, version = parse_ref("ns/name@1.0.0")
@@ -27,6 +28,7 @@ def test_parse_ref_valid_with_prerelease():
 
 # -- parse_ref without "@" raises E_BAD_REF ---------------------------------
 
+
 def test_parse_ref_no_at_sign():
     """Missing '@' raises E_BAD_REF."""
     with pytest.raises(SkillctlError) as exc_info:
@@ -36,6 +38,7 @@ def test_parse_ref_no_at_sign():
 
 
 # -- parse_ref with empty version raises E_BAD_REF --------------------------
+
 
 def test_parse_ref_empty_version():
     """Trailing '@' with no version raises E_BAD_REF."""
@@ -47,6 +50,7 @@ def test_parse_ref_empty_version():
 
 # -- parse_ref with empty name raises E_BAD_REF -----------------------------
 
+
 def test_parse_ref_empty_name():
     """Leading '@' with no name raises E_BAD_REF."""
     with pytest.raises(SkillctlError) as exc_info:
@@ -57,6 +61,7 @@ def test_parse_ref_empty_name():
 
 # -- parse_ref with multiple "@" uses rsplit correctly -----------------------
 
+
 def test_parse_ref_multiple_at_signs():
     """Multiple '@' in ref: rsplit takes only the last one as the version."""
     name, version = parse_ref("ns/n@me@1.0.0")
@@ -66,12 +71,11 @@ def test_parse_ref_multiple_at_signs():
 
 # -- read_skill_name_from_frontmatter with valid SKILL.md -------------------
 
+
 def test_read_frontmatter_valid(tmp_path):
     """Extracts skill name from SKILL.md YAML frontmatter."""
     skill_md = tmp_path / "SKILL.md"
-    skill_md.write_text(
-        '---\nname: "my-org/my-skill"\ndescription: A skill\n---\n# Skill Content\n'
-    )
+    skill_md.write_text('---\nname: "my-org/my-skill"\ndescription: A skill\n---\n# Skill Content\n')
 
     result = read_skill_name_from_frontmatter(tmp_path)
     assert result == "my-org/my-skill"
@@ -80,15 +84,14 @@ def test_read_frontmatter_valid(tmp_path):
 def test_read_frontmatter_unquoted_name(tmp_path):
     """Extracts skill name without quotes from frontmatter."""
     skill_md = tmp_path / "SKILL.md"
-    skill_md.write_text(
-        "---\nname: cool-org/cool-skill\nversion: 1.0.0\n---\n# Body\n"
-    )
+    skill_md.write_text("---\nname: cool-org/cool-skill\nversion: 1.0.0\n---\n# Body\n")
 
     result = read_skill_name_from_frontmatter(tmp_path)
     assert result == "cool-org/cool-skill"
 
 
 # -- read_skill_name_from_frontmatter with no SKILL.md ----------------------
+
 
 def test_read_frontmatter_no_file(tmp_path):
     """Returns None when SKILL.md does not exist."""
@@ -97,6 +100,7 @@ def test_read_frontmatter_no_file(tmp_path):
 
 
 # -- read_skill_name_from_frontmatter with no frontmatter -------------------
+
 
 def test_read_frontmatter_no_frontmatter(tmp_path):
     """Returns None when SKILL.md exists but has no YAML frontmatter."""

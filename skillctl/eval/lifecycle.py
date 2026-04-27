@@ -20,6 +20,7 @@ from typing import Optional
 @dataclass
 class VersionEntry:
     """One entry in the lifecycle version history."""
+
     timestamp: str
     label: str
     fingerprint: str
@@ -246,14 +247,18 @@ def check_lifecycle(
     changes = detect_changes(str(path), str(hp))
 
     if format == "json":
-        print(json.dumps({
-            "status": "changed",
-            "added": changes["added"],
-            "modified": changes["modified"],
-            "deleted": changes["deleted"],
-            "current_fingerprint": changes["current_fingerprint"],
-            "baseline_fingerprint": changes["baseline_fingerprint"],
-        }))
+        print(
+            json.dumps(
+                {
+                    "status": "changed",
+                    "added": changes["added"],
+                    "modified": changes["modified"],
+                    "deleted": changes["deleted"],
+                    "current_fingerprint": changes["current_fingerprint"],
+                    "baseline_fingerprint": changes["baseline_fingerprint"],
+                }
+            )
+        )
     else:
         print("Changes detected since last recorded version:")
         if changes["added"]:

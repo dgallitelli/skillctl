@@ -136,6 +136,7 @@ class TestFailureResult:
 class TestEvaluateSkill:
     def test_basic_evaluation(self, skill_dir: Path):
         """Successful eval returns parsed EvalResult."""
+
         def mock_run(skill_path, **kwargs):
             _write_report(Path(skill_path), SAMPLE_REPORT)
             return 0
@@ -187,6 +188,7 @@ class TestEvaluateSkill:
 
     def test_returns_failure_on_corrupt_report(self, skill_dir: Path):
         """If report.json is invalid JSON, returns failure result."""
+
         def mock_run(skill_path, **kwargs):
             report_file = Path(skill_path) / "evals" / "report.json"
             report_file.write_text("not valid json {{{")

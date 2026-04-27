@@ -10,6 +10,7 @@ from typing import Optional
 
 class Severity(str, Enum):
     """Finding severity levels."""
+
     CRITICAL = "CRITICAL"
     WARNING = "WARNING"
     INFO = "INFO"
@@ -17,23 +18,25 @@ class Severity(str, Enum):
 
 class Category(str, Enum):
     """Finding categories."""
-    STRUCTURE = "STRUCTURE"       # agentskills.io spec compliance
-    SECURITY = "SECURITY"         # Secrets, injection, exfil
-    PERMISSION = "PERMISSION"     # allowed-tools analysis
-    QUALITY = "QUALITY"           # Best practices, style
+
+    STRUCTURE = "STRUCTURE"  # agentskills.io spec compliance
+    SECURITY = "SECURITY"  # Secrets, injection, exfil
+    PERMISSION = "PERMISSION"  # allowed-tools analysis
+    QUALITY = "QUALITY"  # Best practices, style
 
 
 @dataclass
 class Finding:
     """A single evaluation finding."""
-    code: str                     # e.g., "SEC-001", "STR-003"
+
+    code: str  # e.g., "SEC-001", "STR-003"
     severity: Severity
     category: Category
-    title: str                    # Short description
-    detail: str                   # Full explanation
-    file_path: Optional[str] = None   # File where the issue was found
-    line_number: Optional[int] = None # Line number (1-indexed)
-    fix: Optional[str] = None    # Suggested remediation
+    title: str  # Short description
+    detail: str  # Full explanation
+    file_path: Optional[str] = None  # File where the issue was found
+    line_number: Optional[int] = None  # Line number (1-indexed)
+    fix: Optional[str] = None  # Suggested remediation
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -45,10 +48,11 @@ class Finding:
 @dataclass
 class AuditReport:
     """Complete audit report for a skill."""
+
     skill_name: str
     skill_path: str
-    score: int                    # 0-100
-    grade: str                    # A/B/C/D/F
+    score: int  # 0-100
+    grade: str  # A/B/C/D/F
     findings: list[Finding] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)  # Extra info (file count, line count, etc.)
 

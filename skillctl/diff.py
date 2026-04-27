@@ -26,10 +26,7 @@ class DiffResult:
         return {
             "ref_a": self.ref_a,
             "ref_b": self.ref_b,
-            "metadata_changes": {
-                k: {"old": v[0], "new": v[1]}
-                for k, v in self.metadata_changes.items()
-            },
+            "metadata_changes": {k: {"old": v[0], "new": v[1]} for k, v in self.metadata_changes.items()},
             "breaking_changes": self.breaking_changes,
             "content_diff": self.content_diff,
         }
@@ -84,9 +81,7 @@ def diff_skills(store: ContentStore, ref_a: str, ref_b: str) -> DiffResult:
             old_type = params_a[pname].get("type")
             new_type = params_b[pname].get("type")
             if old_type != new_type:
-                result.breaking_changes.append(
-                    f"Parameter '{pname}' type changed: {old_type} → {new_type}"
-                )
+                result.breaking_changes.append(f"Parameter '{pname}' type changed: {old_type} → {new_type}")
 
     # Check capabilities
     caps_a = set(spec_a.get("capabilities", []))
@@ -97,11 +92,14 @@ def diff_skills(store: ContentStore, ref_a: str, ref_b: str) -> DiffResult:
     # Content diff
     text_a = content_a.decode("utf-8", errors="replace").splitlines(keepends=True)
     text_b = content_b.decode("utf-8", errors="replace").splitlines(keepends=True)
-    diff_lines = list(difflib.unified_diff(
-        text_a, text_b,
-        fromfile=ref_a,
-        tofile=ref_b,
-    ))
+    diff_lines = list(
+        difflib.unified_diff(
+            text_a,
+            text_b,
+            fromfile=ref_a,
+            tofile=ref_b,
+        )
+    )
     result.content_diff = "".join(diff_lines)
 
     return result
@@ -116,8 +114,12 @@ def format_diff(result: DiffResult) -> str:
     if result.metadata_changes:
         lines.append("Metadata changes:")
         for key, (old, new) in result.metadata_changes.items():
-            old_str = json.dumps(old) if isinstance(old, (list, dict)) else repr(old) if isinstance(old, str) else str(old)
-            new_str = json.dumps(new) if isinstance(new, (list, dict)) else repr(new) if isinstance(new, str) else str(new)
+            old_str = (
+                json.dumps(old) if isinstance(old, (list, dict)) else repr(old) if isinstance(old, str) else str(old)
+            )
+            new_str = (
+                json.dumps(new) if isinstance(new, (list, dict)) else repr(new) if isinstance(new, str) else str(new)
+            )
             lines.append(f"  {key}: {old_str} → {new_str}")
         lines.append("")
 

@@ -94,6 +94,7 @@ class ErrorResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _record_to_summary(r: SkillRecord) -> SkillSummary:
     return SkillSummary(
         name=r.name,
@@ -140,6 +141,7 @@ api_router = APIRouter(prefix="/api/v1")
 
 # -- 6.7 Health check -------------------------------------------------------
 
+
 @api_router.get("/health", response_model=HealthResponse)
 async def health(request: Request):
     db: MetadataDB = request.app.state.db
@@ -148,6 +150,7 @@ async def health(request: Request):
 
 
 # -- 6.1 Publish skill ------------------------------------------------------
+
 
 @api_router.post("/skills", status_code=201, response_model=SkillDetail)
 async def publish_skill(
@@ -165,53 +168,73 @@ async def publish_skill(
     try:
         manifest_dict = json.loads(manifest)
     except json.JSONDecodeError as exc:
-        _error_response(400, "E_INVALID_JSON", "Manifest is not valid JSON",
-                        str(exc), "Provide a valid JSON string in the manifest field")
+        _error_response(
+            400,
+            "E_INVALID_JSON",
+            "Manifest is not valid JSON",
+            str(exc),
+            "Provide a valid JSON string in the manifest field",
+        )
 
     # Validate manifest using ManifestLoader + SchemaValidator
     loader = ManifestLoader()
     try:
         parsed = loader._dict_to_manifest(manifest_dict)
     except Exception as exc:
-        _error_response(400, "E_INVALID_MANIFEST", "Failed to parse manifest",
-                        str(exc), "Check manifest structure matches skill.yaml schema")
+        _error_response(
+            400,
+            "E_INVALID_MANIFEST",
+            "Failed to parse manifest",
+            str(exc),
+            "Check manifest structure matches skill.yaml schema",
+        )
 
     validator = SchemaValidator()
     result = validator.validate(parsed)
     if not result.valid:
-        errors = [{"code": e.code, "message": e.message, "path": e.path, "hint": e.hint}
-                  for e in result.errors]
-        _error_response(400, "E_VALIDATION", "Manifest validation failed",
-                        json.dumps(errors), "Fix the validation errors and retry")
+        errors = [{"code": e.code, "message": e.message, "path": e.path, "hint": e.hint} for e in result.errors]
+        _error_response(
+            400, "E_VALIDATION", "Manifest validation failed", json.dumps(errors), "Fix the validation errors and retry"
+        )
 
     # Check auth: token needs write:<namespace> or admin
     namespace = parsed.metadata.name.split("/")[0]
     if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(403, "E_FORBIDDEN",
-                        f"Insufficient permissions for namespace '{namespace}'",
-                        "Token lacks write scope for this namespace",
-                        f"Use a token with 'write:{namespace}' or 'admin' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            f"Insufficient permissions for namespace '{namespace}'",
+            "Token lacks write scope for this namespace",
+            f"Use a token with 'write:{namespace}' or 'admin' permission",
+        )
 
     # Check duplicate
     existing = db.get_skill(parsed.metadata.name, parsed.metadata.version)
     if existing is not None:
-        _error_response(409, "E_ALREADY_EXISTS",
-                        f"Skill {parsed.metadata.name}@{parsed.metadata.version} already exists",
-                        "A skill with this name and version is already published",
-                        "Bump the version in your manifest and retry")
+        _error_response(
+            409,
+            "E_ALREADY_EXISTS",
+            f"Skill {parsed.metadata.name}@{parsed.metadata.version} already exists",
+            "A skill with this name and version is already published",
+            "Bump the version in your manifest and retry",
+        )
 
     # Store blob (enforce 50 MB upload limit)
     max_size = 50 * 1024 * 1024
     content_bytes = await content.read(max_size + 1)
     if len(content_bytes) > max_size:
-        _error_response(413, "E_TOO_LARGE",
-                        f"Upload exceeds maximum size of {max_size // (1024*1024)} MB",
-                        "Skill content files should be small text files",
-                        "Reduce the size of your SKILL.md and related content")
+        _error_response(
+            413,
+            "E_TOO_LARGE",
+            f"Upload exceeds maximum size of {max_size // (1024 * 1024)} MB",
+            "Skill content files should be small text files",
+            "Reduce the size of your SKILL.md and related content",
+        )
 
     github_backend = getattr(request.app.state, "github_backend", None)
     if github_backend is not None:
         from datetime import datetime, timezone as _tz
+
         now = datetime.now(_tz.utc).isoformat()
         metadata = {
             "created_at": now,
@@ -253,10 +276,13 @@ async def publish_skill(
                     await storage.delete_blob(content_hash)
                 except Exception:
                     pass
-        _error_response(409, "E_ALREADY_EXISTS",
-                        f"Skill {parsed.metadata.name}@{parsed.metadata.version} already exists",
-                        "A concurrent publish created this version first",
-                        "Bump the version in your manifest and retry")
+        _error_response(
+            409,
+            "E_ALREADY_EXISTS",
+            f"Skill {parsed.metadata.name}@{parsed.metadata.version} already exists",
+            "A concurrent publish created this version first",
+            "Bump the version in your manifest and retry",
+        )
 
     # Audit log
     audit.log(
@@ -274,6 +300,7 @@ async def publish_skill(
 
 # -- 6.2 List/search skills -------------------------------------------------
 
+
 @api_router.get("/skills", response_model=SearchResponse)
 async def list_skills(
     request: Request,
@@ -288,8 +315,13 @@ async def list_skills(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "read"):
-        _error_response(403, "E_FORBIDDEN", "Insufficient permissions",
-                        "Token lacks read scope", "Use a token with 'read' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Insufficient permissions",
+            "Token lacks read scope",
+            "Use a token with 'read' permission",
+        )
 
     results = db.search(query=q, namespace=namespace, tag=tag, limit=limit, offset=offset)
     total = db.count_search(query=q, namespace=namespace, tag=tag)
@@ -304,6 +336,7 @@ async def list_skills(
 
 # -- 6.3 Skill detail -------------------------------------------------------
 
+
 @api_router.get("/skills/{namespace}/{name}", response_model=SkillDetail)
 async def get_skill(
     request: Request,
@@ -315,14 +348,24 @@ async def get_skill(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "read"):
-        _error_response(403, "E_FORBIDDEN", "Insufficient permissions",
-                        "Token lacks read scope", "Use a token with 'read' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Insufficient permissions",
+            "Token lacks read scope",
+            "Use a token with 'read' permission",
+        )
 
     full_name = f"{namespace}/{name}"
     versions_list = db.get_versions(full_name)
     if not versions_list:
-        _error_response(404, "E_NOT_FOUND", f"Skill '{full_name}' not found",
-                        "No skill with this name exists", "Check the namespace and name")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}' not found",
+            "No skill with this name exists",
+            "Check the namespace and name",
+        )
 
     # Return latest version
     record = versions_list[0]
@@ -342,22 +385,31 @@ async def get_skill_version(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "read"):
-        _error_response(403, "E_FORBIDDEN", "Insufficient permissions",
-                        "Token lacks read scope", "Use a token with 'read' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Insufficient permissions",
+            "Token lacks read scope",
+            "Use a token with 'read' permission",
+        )
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        _error_response(404, "E_NOT_FOUND",
-                        f"Skill '{full_name}@{version}' not found",
-                        "No skill with this name and version exists",
-                        "Check the namespace, name, and version")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}@{version}' not found",
+            "No skill with this name and version exists",
+            "Check the namespace, name, and version",
+        )
 
     version_strings = [v.version for v in db.get_versions(full_name)]
     return _record_to_detail(record, version_strings)
 
 
 # -- 6.4 Content download ---------------------------------------------------
+
 
 @api_router.get("/skills/{namespace}/{name}/{version}/content")
 async def download_content(
@@ -372,33 +424,45 @@ async def download_content(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "read"):
-        _error_response(403, "E_FORBIDDEN", "Insufficient permissions",
-                        "Token lacks read scope", "Use a token with 'read' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Insufficient permissions",
+            "Token lacks read scope",
+            "Use a token with 'read' permission",
+        )
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        _error_response(404, "E_NOT_FOUND",
-                        f"Skill '{full_name}@{version}' not found",
-                        "No skill with this name and version exists",
-                        "Check the namespace, name, and version")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}@{version}' not found",
+            "No skill with this name and version exists",
+            "Check the namespace, name, and version",
+        )
 
     from skillctl.registry.storage import NotFoundError as BlobNotFound
+
     try:
         blob = await storage.get_blob(record.content_hash)
     except BlobNotFound:
-        _error_response(404, "E_BLOB_MISSING",
-                        f"Content blob for '{full_name}@{version}' is missing from storage",
-                        "The blob may have been deleted or the storage is corrupted",
-                        "Re-publish the skill to restore its content")
+        _error_response(
+            404,
+            "E_BLOB_MISSING",
+            f"Content blob for '{full_name}@{version}' is missing from storage",
+            "The blob may have been deleted or the storage is corrupted",
+            "Re-publish the skill to restore its content",
+        )
 
     # Detect content type from magic bytes for proper download
     media_type = "application/octet-stream"
     filename = f"{name}-{version}"
-    if blob[:2] == b'PK':  # ZIP magic bytes
+    if blob[:2] == b"PK":  # ZIP magic bytes
         media_type = "application/zip"
         filename += ".zip"
-    elif blob[:2] == b'\x1f\x8b':  # gzip magic bytes
+    elif blob[:2] == b"\x1f\x8b":  # gzip magic bytes
         media_type = "application/gzip"
         filename += ".tar.gz"
     else:
@@ -411,6 +475,7 @@ async def download_content(
 
 
 # -- 6.5 Delete skill -------------------------------------------------------
+
 
 @api_router.delete("/skills/{namespace}/{name}/{version}", status_code=204)
 async def delete_skill(
@@ -426,18 +491,24 @@ async def delete_skill(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(403, "E_FORBIDDEN",
-                        f"Insufficient permissions for namespace '{namespace}'",
-                        "Token lacks write scope for this namespace",
-                        f"Use a token with 'write:{namespace}' or 'admin' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            f"Insufficient permissions for namespace '{namespace}'",
+            "Token lacks write scope for this namespace",
+            f"Use a token with 'write:{namespace}' or 'admin' permission",
+        )
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        _error_response(404, "E_NOT_FOUND",
-                        f"Skill '{full_name}@{version}' not found",
-                        "No skill with this name and version exists",
-                        "Check the namespace, name, and version")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}@{version}' not found",
+            "No skill with this name and version exists",
+            "Check the namespace, name, and version",
+        )
 
     # Delete from DB first (so index is consistent even if blob delete fails)
     db.delete_skill(full_name, version)
@@ -474,6 +545,7 @@ async def delete_skill(
 
 # -- 6.6 Attach eval --------------------------------------------------------
 
+
 @api_router.put("/skills/{namespace}/{name}/{version}/eval", response_model=SkillDetail)
 async def attach_eval(
     request: Request,
@@ -488,18 +560,24 @@ async def attach_eval(
     auth_manager: AuthManager = request.app.state.auth_manager
 
     if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(403, "E_FORBIDDEN",
-                        f"Insufficient permissions for namespace '{namespace}'",
-                        "Token lacks write scope for this namespace",
-                        f"Use a token with 'write:{namespace}' or 'admin' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            f"Insufficient permissions for namespace '{namespace}'",
+            "Token lacks write scope for this namespace",
+            f"Use a token with 'write:{namespace}' or 'admin' permission",
+        )
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
-        _error_response(404, "E_NOT_FOUND",
-                        f"Skill '{full_name}@{version}' not found",
-                        "No skill with this name and version exists",
-                        "Check the namespace, name, and version")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}@{version}' not found",
+            "No skill with this name and version exists",
+            "Check the namespace, name, and version",
+        )
 
     db.update_eval(full_name, version, body.grade, body.score)
 
@@ -507,12 +585,17 @@ async def attach_eval(
     github_backend = getattr(request.app.state, "github_backend", None)
     if github_backend is not None:
         from datetime import datetime, timezone as _tz
+
         try:
-            github_backend.update_metadata(full_name, version, {
-                "eval_grade": body.grade,
-                "eval_score": body.score,
-                "updated_at": datetime.now(_tz.utc).isoformat(),
-            })
+            github_backend.update_metadata(
+                full_name,
+                version,
+                {
+                    "eval_grade": body.grade,
+                    "eval_score": body.score,
+                    "updated_at": datetime.now(_tz.utc).isoformat(),
+                },
+            )
         except Exception:
             pass  # Non-fatal — SQLite is already updated
 
@@ -531,6 +614,7 @@ async def attach_eval(
 
 # -- 6.8 Token management ---------------------------------------------------
 
+
 @api_router.post("/tokens", status_code=201, response_model=TokenCreateResponse)
 async def create_token(
     request: Request,
@@ -541,9 +625,13 @@ async def create_token(
     audit = request.app.state.audit
 
     if not auth_manager.check_permission(token, "admin"):
-        _error_response(403, "E_FORBIDDEN", "Admin permission required",
-                        "Token lacks admin scope",
-                        "Use a token with 'admin' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Admin permission required",
+            "Token lacks admin scope",
+            "Use a token with 'admin' permission",
+        )
 
     raw_token = auth_manager.create_token(
         name=body.name,
@@ -586,15 +674,23 @@ async def revoke_token(
     audit = request.app.state.audit
 
     if not auth_manager.check_permission(token, "admin"):
-        _error_response(403, "E_FORBIDDEN", "Admin permission required",
-                        "Token lacks admin scope",
-                        "Use a token with 'admin' permission")
+        _error_response(
+            403,
+            "E_FORBIDDEN",
+            "Admin permission required",
+            "Token lacks admin scope",
+            "Use a token with 'admin' permission",
+        )
 
     revoked = auth_manager.revoke_token(token_id)
     if not revoked:
-        _error_response(404, "E_NOT_FOUND", f"Token '{token_id}' not found",
-                        "No active token with this ID exists",
-                        "Check the token ID")
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Token '{token_id}' not found",
+            "No active token with this ID exists",
+            "Check the token ID",
+        )
 
     # Audit log
     audit.log(

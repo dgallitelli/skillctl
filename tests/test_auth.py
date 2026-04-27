@@ -34,6 +34,7 @@ def auth_disabled(db):
 
 # -- create_token -----------------------------------------------------------
 
+
 def test_create_token_returns_64_hex_chars(auth: AuthManager):
     raw = auth.create_token("ci-bot", ["read"])
     assert len(raw) == 64
@@ -56,6 +57,7 @@ def test_create_token_stores_hash_not_raw(auth: AuthManager, db: MetadataDB):
 
 
 # -- verify_token -----------------------------------------------------------
+
 
 def test_verify_valid_token(auth: AuthManager):
     raw = auth.create_token("test-token", ["read", "write:my-org"])
@@ -94,6 +96,7 @@ def test_verify_revoked_token_returns_none(auth: AuthManager):
 
 # -- revoke_token -----------------------------------------------------------
 
+
 def test_revoke_token_returns_true(auth: AuthManager):
     raw = auth.create_token("to-revoke", ["read"])
     info = auth.verify_token(raw)
@@ -115,10 +118,14 @@ def test_revoke_already_revoked_returns_false(auth: AuthManager):
 
 # -- check_permission -------------------------------------------------------
 
+
 def test_admin_grants_all(auth: AuthManager):
     token = TokenInfo(
-        token_id="t1", name="admin", permissions=["admin"],
-        created_at="", expires_at=None,
+        token_id="t1",
+        name="admin",
+        permissions=["admin"],
+        created_at="",
+        expires_at=None,
     )
     assert auth.check_permission(token, "read") is True
     assert auth.check_permission(token, "write", "any-ns") is True
@@ -127,8 +134,11 @@ def test_admin_grants_all(auth: AuthManager):
 
 def test_write_ns_grants_write_and_read(auth: AuthManager):
     token = TokenInfo(
-        token_id="t2", name="writer", permissions=["write:my-org"],
-        created_at="", expires_at=None,
+        token_id="t2",
+        name="writer",
+        permissions=["write:my-org"],
+        created_at="",
+        expires_at=None,
     )
     assert auth.check_permission(token, "write", "my-org") is True
     assert auth.check_permission(token, "read") is True
@@ -137,16 +147,22 @@ def test_write_ns_grants_write_and_read(auth: AuthManager):
 
 def test_write_wrong_namespace_returns_false(auth: AuthManager):
     token = TokenInfo(
-        token_id="t3", name="writer", permissions=["write:my-org"],
-        created_at="", expires_at=None,
+        token_id="t3",
+        name="writer",
+        permissions=["write:my-org"],
+        created_at="",
+        expires_at=None,
     )
     assert auth.check_permission(token, "write", "other-org") is False
 
 
 def test_read_grants_read_only(auth: AuthManager):
     token = TokenInfo(
-        token_id="t4", name="reader", permissions=["read"],
-        created_at="", expires_at=None,
+        token_id="t4",
+        name="reader",
+        permissions=["read"],
+        created_at="",
+        expires_at=None,
     )
     assert auth.check_permission(token, "read") is True
     assert auth.check_permission(token, "write", "my-org") is False
@@ -155,13 +171,17 @@ def test_read_grants_read_only(auth: AuthManager):
 
 def test_write_without_namespace_returns_false(auth: AuthManager):
     token = TokenInfo(
-        token_id="t5", name="writer", permissions=["write:my-org"],
-        created_at="", expires_at=None,
+        token_id="t5",
+        name="writer",
+        permissions=["write:my-org"],
+        created_at="",
+        expires_at=None,
     )
     assert auth.check_permission(token, "write", None) is False
 
 
 # -- auth_disabled mode -----------------------------------------------------
+
 
 def test_auth_disabled_verify_returns_anonymous(auth_disabled: AuthManager):
     info = auth_disabled.verify_token("")
@@ -178,6 +198,7 @@ def test_auth_disabled_verify_any_token_returns_anonymous(auth_disabled: AuthMan
 
 
 # -- token with expiry set (not yet expired) --------------------------------
+
 
 def test_verify_token_with_future_expiry(auth: AuthManager):
     raw = auth.create_token("future", ["read"], expires_in_days=30)

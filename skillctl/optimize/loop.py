@@ -64,9 +64,7 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
     skill_name = read_skill_name_from_manifest(config.skill_path)
 
     # Initial evaluation
-    current_eval = evaluate_skill(
-        config.skill_path, timeout=config.timeout, agent=config.agent
-    )
+    current_eval = evaluate_skill(config.skill_path, timeout=config.timeout, agent=config.agent)
     initial_score = current_eval.overall_score
     current_score = initial_score if initial_score is not None else 0.0
 
@@ -92,9 +90,7 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
         # --- Phase 2: Variant Generation (partial failure OK) ---
         variants = []
         try:
-            variants = generate_variants(
-                current_content, analysis, config.num_variants, llm_client
-            )
+            variants = generate_variants(current_content, analysis, config.num_variants, llm_client)
         except Exception:
             # Req 11.3: evaluate whatever we got
             pass
@@ -116,14 +112,10 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
             scored_variants.append((variant, variant_eval))
 
         # --- Phase 4: Promotion Decision ---
-        decision = check_promotion(
-            scored_variants, current_score, config.threshold, config.approve
-        )
+        decision = check_promotion(scored_variants, current_score, config.threshold, config.approve)
 
         # Save cycle data to provenance store
-        store.save_cycle(
-            cycle_num, current_eval, analysis, scored_variants, decision
-        )
+        store.save_cycle(cycle_num, current_eval, analysis, scored_variants, decision)
 
         # Build variant records for the cycle
         cycle_dir = f"cycle-{cycle_num:03d}"
@@ -154,14 +146,10 @@ def run_optimization(config: OptimizeConfig) -> OptimizationRun:
 
         if decision.promoted:
             # Find the promoted variant
-            best_variant = next(
-                v for v, e in scored_variants if v.id == decision.variant_id
-            )
+            best_variant = next(v for v, e in scored_variants if v.id == decision.variant_id)
             current_content = best_variant.content
             current_score = decision.best_score
-            current_eval = next(
-                e for v, e in scored_variants if v.id == decision.variant_id
-            )
+            current_eval = next(e for v, e in scored_variants if v.id == decision.variant_id)
             plateau_counter = 0
             promoted_variant_id = decision.variant_id
 

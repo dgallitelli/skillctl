@@ -10,7 +10,9 @@ from skillctl.eval.explanations import get_explanation
 from skillctl.eval.schemas import AuditReport, Finding, Severity
 
 
-def format_text_report(report: AuditReport, verbose: bool = False, explain: bool = False, file: TextIO | None = None) -> None:
+def format_text_report(
+    report: AuditReport, verbose: bool = False, explain: bool = False, file: TextIO | None = None
+) -> None:
     """Print a human-readable text report."""
     if file is None:
         file = sys.stdout

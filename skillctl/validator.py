@@ -76,9 +76,7 @@ class SchemaValidator:
             warnings=warnings,
         )
 
-    def check_capabilities(
-        self, manifest: SkillManifest, content: str
-    ) -> list[ValidationIssue]:
+    def check_capabilities(self, manifest: SkillManifest, content: str) -> list[ValidationIssue]:
         """Check declared capabilities against skill content."""
         warnings: list[ValidationIssue] = []
         declared = set(manifest.spec.capabilities)

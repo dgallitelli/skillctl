@@ -18,7 +18,10 @@ from typing import Optional
 from skillctl.eval.cost import estimate_eval_cost, format_cost
 from skillctl.eval.errors import EvalError
 from skillctl.eval.eval_schemas import (
-    EvalCase, GradingResult, RunPairResult, BenchmarkReport,
+    EvalCase,
+    GradingResult,
+    RunPairResult,
+    BenchmarkReport,
 )
 from skillctl.eval.agent_runner import AgentRunner, get_runner
 from skillctl.eval.grading import grade_output
@@ -27,6 +30,7 @@ from skillctl.eval.grading import grade_output
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def run_functional_eval(
     skill_path: str,
@@ -109,7 +113,12 @@ def run_functional_eval(
     for eval_case in eval_cases:
         for run_idx in range(runs_per_eval):
             pair, with_grading, without_grading = _execute_eval_pair(
-                eval_case, path, evals_dir, run_idx, timeout, runner=runner,
+                eval_case,
+                path,
+                evals_dir,
+                run_idx,
+                timeout,
+                runner=runner,
             )
             all_pairs.append(pair)
             all_grading.append(with_grading)
@@ -117,7 +126,12 @@ def run_functional_eval(
 
     # Aggregate benchmark
     report = _aggregate_benchmark(
-        skill_name, str(path), eval_cases, all_pairs, all_grading, runs_per_eval,
+        skill_name,
+        str(path),
+        eval_cases,
+        all_pairs,
+        all_grading,
+        runs_per_eval,
     )
 
     # Write benchmark.json
@@ -137,6 +151,7 @@ def run_functional_eval(
 # ---------------------------------------------------------------------------
 # Cost-efficiency Pareto classification
 # ---------------------------------------------------------------------------
+
 
 def classify_cost_efficiency(
     quality_delta: float,
@@ -194,6 +209,7 @@ def classify_cost_efficiency(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_evals(evals_file: Path) -> list[EvalCase]:
     """Load and validate eval cases from evals.json."""
     if not evals_file.is_file():
@@ -231,8 +247,10 @@ def _execute_eval_pair(
     # Set up separate workspaces for with-skill and without-skill runs.
     # Using independent workspaces prevents contamination — without-skill
     # should not see skill scripts/SKILL.md that were copied for with-skill.
-    with tempfile.TemporaryDirectory(prefix="skill-eval-with-") as with_tmpdir, \
-         tempfile.TemporaryDirectory(prefix="skill-eval-without-") as without_tmpdir:
+    with (
+        tempfile.TemporaryDirectory(prefix="skill-eval-with-") as with_tmpdir,
+        tempfile.TemporaryDirectory(prefix="skill-eval-without-") as without_tmpdir,
+    ):
         with_workspace = Path(with_tmpdir)
         without_workspace = Path(without_tmpdir)
 
@@ -349,34 +367,20 @@ def _aggregate_benchmark(
     std_without = _stddev(without_pass_rates)
 
     # Token counts — output only (backward-compat "mean_tokens")
-    with_output_tokens = [
-        g.execution_metrics.get("token_counts", {}).get("output_tokens", 0)
-        for g in with_gradings
-    ]
+    with_output_tokens = [g.execution_metrics.get("token_counts", {}).get("output_tokens", 0) for g in with_gradings]
     without_output_tokens = [
-        g.execution_metrics.get("token_counts", {}).get("output_tokens", 0)
-        for g in without_gradings
+        g.execution_metrics.get("token_counts", {}).get("output_tokens", 0) for g in without_gradings
     ]
 
     # Token counts — input
-    with_input_tokens = [
-        g.execution_metrics.get("token_counts", {}).get("input_tokens", 0)
-        for g in with_gradings
-    ]
+    with_input_tokens = [g.execution_metrics.get("token_counts", {}).get("input_tokens", 0) for g in with_gradings]
     without_input_tokens = [
-        g.execution_metrics.get("token_counts", {}).get("input_tokens", 0)
-        for g in without_gradings
+        g.execution_metrics.get("token_counts", {}).get("input_tokens", 0) for g in without_gradings
     ]
 
     # Token counts — total (input + output)
-    with_total_tokens = [
-        _total_tokens(g.execution_metrics.get("token_counts", {}))
-        for g in with_gradings
-    ]
-    without_total_tokens = [
-        _total_tokens(g.execution_metrics.get("token_counts", {}))
-        for g in without_gradings
-    ]
+    with_total_tokens = [_total_tokens(g.execution_metrics.get("token_counts", {})) for g in with_gradings]
+    without_total_tokens = [_total_tokens(g.execution_metrics.get("token_counts", {})) for g in without_gradings]
 
     # Tool call counts
     with_tools = [g.execution_metrics.get("tool_calls", 0) for g in with_gradings]
@@ -579,7 +583,9 @@ def _print_functional_report(report: BenchmarkReport) -> None:
         if wc and woc:
             print(f"    With skill:    {format_cost(wc['total_cost'])} per run")
             print(f"    Without skill: {format_cost(woc['total_cost'])} per run")
-        print(f"    Runs:          {ec.get('total_runs', 0)} ({report.eval_count} evals \u00d7 {report.runs_per_eval} runs \u00d7 2)")
+        print(
+            f"    Runs:          {ec.get('total_runs', 0)} ({report.eval_count} evals \u00d7 {report.runs_per_eval} runs \u00d7 2)"
+        )
         print(f"{'─' * w}")
 
     scores = report.scores

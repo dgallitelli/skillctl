@@ -45,6 +45,7 @@ def store(tmp_path):
 
 # -- push then pull returns identical content --------------------------------
 
+
 def test_push_then_pull(store):
     """Pushing content and pulling it back returns the same bytes."""
     manifest = _make_manifest()
@@ -62,6 +63,7 @@ def test_push_then_pull(store):
 
 # -- push same name@version twice raises E_ALREADY_EXISTS -------------------
 
+
 def test_push_duplicate_raises(store):
     """Pushing the same name@version twice raises E_ALREADY_EXISTS."""
     manifest = _make_manifest()
@@ -75,6 +77,7 @@ def test_push_duplicate_raises(store):
 
 # -- pull non-existent skill raises E_NOT_FOUND ------------------------------
 
+
 def test_pull_nonexistent_raises(store):
     """Pulling a skill that was never pushed raises E_NOT_FOUND."""
     with pytest.raises(SkillctlError) as exc_info:
@@ -84,6 +87,7 @@ def test_pull_nonexistent_raises(store):
 
 
 # -- delete then pull raises E_NOT_FOUND ------------------------------------
+
 
 def test_delete_then_pull_raises(store):
     """After deleting a skill, pulling it raises E_NOT_FOUND."""
@@ -105,6 +109,7 @@ def test_delete_then_pull_raises(store):
 
 # -- list_skills with namespace filter ---------------------------------------
 
+
 def test_list_skills_namespace_filter(store):
     """list_skills filters by namespace prefix."""
     store.push(_make_manifest(name="alpha/skill-a", version="1.0.0"), b"a")
@@ -121,6 +126,7 @@ def test_list_skills_namespace_filter(store):
 
 
 # -- list_skills with tag filter ---------------------------------------------
+
 
 def test_list_skills_tag_filter(store):
     """list_skills filters by tag."""
@@ -147,6 +153,7 @@ def test_list_skills_tag_filter(store):
 
 # -- list_versions returns results -------------------------------------------
 
+
 def test_list_versions(store):
     """list_versions returns all versions of a named skill, newest first."""
     store.push(_make_manifest(name="org/versioned", version="1.0.0"), b"v1")
@@ -164,6 +171,7 @@ def test_list_versions(store):
 
 
 # -- dry_run push does not modify filesystem ---------------------------------
+
 
 def test_dry_run_push(store):
     """A dry_run push returns a PushResult but does not write anything."""
@@ -185,6 +193,7 @@ def test_dry_run_push(store):
 
 
 # -- _write_manifest creates a YAML file -------------------------------------
+
 
 def test_write_manifest_creates_yaml(tmp_path, store):
     """_write_manifest writes a valid YAML file."""

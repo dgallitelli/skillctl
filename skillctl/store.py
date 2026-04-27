@@ -141,9 +141,7 @@ class ContentStore:
 
         return content, entry.__dict__
 
-    def list_skills(
-        self, namespace: str = None, tag: str = None
-    ) -> list[IndexEntry]:
+    def list_skills(self, namespace: str = None, tag: str = None) -> list[IndexEntry]:
         """List skills in the store, optionally filtered."""
         index = self._load_index()
         results = index
@@ -215,9 +213,7 @@ class ContentStore:
                 pass
             raise
 
-    def _find_entry(
-        self, index: list[IndexEntry], name: str, version: str
-    ) -> IndexEntry | None:
+    def _find_entry(self, index: list[IndexEntry], name: str, version: str) -> IndexEntry | None:
         for entry in index:
             if entry.name == name and entry.version == version:
                 return entry

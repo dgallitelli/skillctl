@@ -68,5 +68,6 @@ def test_cycle_cost_only_counts_current_cycle():
 
     # cycle_cost should only reflect the second track call's tokens
     from skillctl.eval.cost import estimate_cost
+
     expected = estimate_cost(2000, 1000, "sonnet")["total_cost"]
     assert bt.cycle_cost() == expected

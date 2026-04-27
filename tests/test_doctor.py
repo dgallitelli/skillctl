@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 
 
-
 def _run_doctor(monkeypatch, home_dir):
     """Run cmd_doctor with a mocked home directory and capture output."""
     monkeypatch.setattr(Path, "home", staticmethod(lambda: home_dir))
 
     from io import StringIO
+
     captured = StringIO()
 
     # Patch sys.stdout to capture output
@@ -41,6 +41,7 @@ def _run_doctor(monkeypatch, home_dir):
 
 # -- Doctor runs without errors in a clean environment ---------------------
 
+
 def test_doctor_clean_environment(monkeypatch, tmp_path):
     """Doctor runs and produces output in a clean environment."""
     # Set up a minimal valid environment
@@ -63,6 +64,7 @@ def test_doctor_clean_environment(monkeypatch, tmp_path):
 
 # -- Doctor detects missing store directory --------------------------------
 
+
 def test_doctor_missing_store(monkeypatch, tmp_path):
     """Doctor flags missing store directory as a warning (fresh install)."""
     # Empty home — no .skillctl directory at all
@@ -73,6 +75,7 @@ def test_doctor_missing_store(monkeypatch, tmp_path):
 
 
 # -- Doctor detects invalid index ------------------------------------------
+
 
 def test_doctor_invalid_index(monkeypatch, tmp_path):
     """Doctor flags invalid JSON in the store index."""
@@ -90,6 +93,7 @@ def test_doctor_invalid_index(monkeypatch, tmp_path):
 
 
 # -- Doctor reports correct skill count ------------------------------------
+
 
 def test_doctor_skill_count(monkeypatch, tmp_path):
     """Doctor reports the number of skills in the store."""

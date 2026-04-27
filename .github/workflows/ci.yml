@@ -22,6 +22,25 @@ jobs:
       - name: Lint
         run: ruff check skillctl/ plugin/ tests/
 
+      - name: Format check
+        run: ruff format --check skillctl/ plugin/ tests/
+
+  typecheck:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,plugin,optimize]" pyright
+
+      - name: Type check
+        run: pyright skillctl/ --pythonversion 3.10
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -39,3 +58,19 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q
+
+  security:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -e "." pip-audit
+
+      - name: Audit dependencies
+        run: pip-audit

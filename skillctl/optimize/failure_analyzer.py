@@ -73,19 +73,23 @@ def _extract_evidence(eval_result: EvalResult) -> list[dict]:
 
     # Audit findings (prefer structured audit_findings when available)
     if eval_result.audit_findings:
-        evidence.append({
-            "category": "audit",
-            "score": eval_result.sections.get("audit", {}).get("score", 0),
-            "issues": eval_result.audit_findings,
-        })
+        evidence.append(
+            {
+                "category": "audit",
+                "score": eval_result.sections.get("audit", {}).get("score", 0),
+                "issues": eval_result.audit_findings,
+            }
+        )
     elif "audit" in eval_result.sections:
         audit = eval_result.sections["audit"]
         if audit.get("critical", 0) > 0 or audit.get("warning", 0) > 0:
-            evidence.append({
-                "category": "audit",
-                "score": audit.get("score", 0),
-                "issues": audit.get("findings", []),
-            })
+            evidence.append(
+                {
+                    "category": "audit",
+                    "score": audit.get("score", 0),
+                    "issues": audit.get("findings", []),
+                }
+            )
 
     # Functional eval failures
     if "functional" in eval_result.sections:
@@ -93,20 +97,24 @@ def _extract_evidence(eval_result: EvalResult) -> list[dict]:
         if func.get("scores"):
             failing = {k: v for k, v in func["scores"].items() if v < 0.7}
             if failing:
-                evidence.append({
-                    "category": "functional",
-                    "overall": func.get("overall", 0),
-                    "failing_dimensions": failing,
-                })
+                evidence.append(
+                    {
+                        "category": "functional",
+                        "overall": func.get("overall", 0),
+                        "failing_dimensions": failing,
+                    }
+                )
 
     # Trigger eval failures
     if "trigger" in eval_result.sections:
         trig = eval_result.sections["trigger"]
         if trig.get("pass_rate", 1.0) < 0.8:
-            evidence.append({
-                "category": "trigger",
-                "pass_rate": trig.get("pass_rate", 0),
-            })
+            evidence.append(
+                {
+                    "category": "trigger",
+                    "pass_rate": trig.get("pass_rate", 0),
+                }
+            )
 
     return evidence
 
@@ -150,13 +158,15 @@ def _parse_weaknesses(content: str) -> list[Weakness]:
 
         weaknesses = []
         for item in raw_weaknesses:
-            weaknesses.append(Weakness(
-                category=item.get("category", "functional"),
-                description=item.get("description", "Unknown weakness"),
-                severity=item.get("severity", "medium"),
-                evidence=item.get("evidence", []),
-                hypothesis=item.get("hypothesis", "Review and revise the skill content"),
-            ))
+            weaknesses.append(
+                Weakness(
+                    category=item.get("category", "functional"),
+                    description=item.get("description", "Unknown weakness"),
+                    severity=item.get("severity", "medium"),
+                    evidence=item.get("evidence", []),
+                    hypothesis=item.get("hypothesis", "Review and revise the skill content"),
+                )
+            )
         return weaknesses
     except (json.JSONDecodeError, ValueError, KeyError, TypeError):
         return [

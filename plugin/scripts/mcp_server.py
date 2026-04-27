@@ -22,8 +22,7 @@ from skillctl.validator import SchemaValidator
 mcp = FastMCP(
     "skillctl",
     instructions=(
-        "skillctl governance tools for agent skills. "
-        "Use these to validate, evaluate, optimize, and manage skills."
+        "skillctl governance tools for agent skills. Use these to validate, evaluate, optimize, and manage skills."
     ),
 )
 
@@ -63,7 +62,9 @@ def skillctl_validate(skill_path: str) -> str:
 
         content_text = ""
         try:
-            content_text = _loader.resolve_content(manifest, str(Path(skill_path).resolve().parent if Path(skill_path).is_file() else skill_path))
+            content_text = _loader.resolve_content(
+                manifest, str(Path(skill_path).resolve().parent if Path(skill_path).is_file() else skill_path)
+            )
         except Exception:
             pass
 
@@ -72,9 +73,18 @@ def skillctl_validate(skill_path: str) -> str:
         output = {
             "valid": result.valid,
             "exit_code": result.exit_code,
-            "errors": [{"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity} for i in result.errors],
-            "warnings": [{"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity} for i in result.warnings],
-            "capability_warnings": [{"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity} for i in cap_warnings],
+            "errors": [
+                {"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity}
+                for i in result.errors
+            ],
+            "warnings": [
+                {"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity}
+                for i in result.warnings
+            ],
+            "capability_warnings": [
+                {"code": i.code, "message": i.message, "path": i.path, "hint": i.hint, "severity": i.severity}
+                for i in cap_warnings
+            ],
             "load_warnings": [str(w) for w in load_warnings],
             "skill_name": manifest.metadata.name,
             "version": manifest.metadata.version,
@@ -109,40 +119,54 @@ def skillctl_apply(
         manifest, _ = _loader.load(skill_path)
         result = _validator.validate(manifest)
         if not result.valid:
-            return json.dumps({
-                "success": False,
-                "reason": "validation_failed",
-                "errors": [{"code": i.code, "message": i.message, "hint": i.hint} for i in result.errors],
-            }, indent=2)
+            return json.dumps(
+                {
+                    "success": False,
+                    "reason": "validation_failed",
+                    "errors": [{"code": i.code, "message": i.message, "hint": i.hint} for i in result.errors],
+                },
+                indent=2,
+            )
 
         base_dir = str(Path(skill_path).resolve().parent if Path(skill_path).is_file() else Path(skill_path).resolve())
         content = _loader.resolve_content(manifest, base_dir)
 
         if not local:
             from skillctl.eval.cli import run_audit
+
             report = run_audit(base_dir)
             if report.critical_count > 0:
-                return json.dumps({
-                    "success": False,
-                    "reason": "security_gate_blocked",
-                    "audit_grade": report.grade,
-                    "audit_score": report.score,
-                    "critical_findings": [{"code": f.code, "title": f.title, "fix": f.fix} for f in report.findings if f.severity.value == "CRITICAL"],
-                    "hint": "Fix CRITICAL findings or use local=True to skip the security gate.",
-                }, indent=2)
+                return json.dumps(
+                    {
+                        "success": False,
+                        "reason": "security_gate_blocked",
+                        "audit_grade": report.grade,
+                        "audit_score": report.score,
+                        "critical_findings": [
+                            {"code": f.code, "title": f.title, "fix": f.fix}
+                            for f in report.findings
+                            if f.severity.value == "CRITICAL"
+                        ],
+                        "hint": "Fix CRITICAL findings or use local=True to skip the security gate.",
+                    },
+                    indent=2,
+                )
 
         store = _store()
         push_result = store.push(manifest, content.encode("utf-8"), dry_run=dry_run)
-        return json.dumps({
-            "success": True,
-            "hash": push_result.hash,
-            "path": push_result.path,
-            "size": push_result.size,
-            "created": push_result.created,
-            "dry_run": dry_run,
-            "skill_name": manifest.metadata.name,
-            "version": manifest.metadata.version,
-        }, indent=2)
+        return json.dumps(
+            {
+                "success": True,
+                "hash": push_result.hash,
+                "path": push_result.path,
+                "size": push_result.size,
+                "created": push_result.created,
+                "dry_run": dry_run,
+                "skill_name": manifest.metadata.name,
+                "version": manifest.metadata.version,
+            },
+            indent=2,
+        )
     except Exception as e:
         return _error_response(e)
 
@@ -160,20 +184,23 @@ def skillctl_list(
     """
     store = _store()
     entries = store.list_skills(namespace=namespace, tag=tag)
-    return json.dumps({
-        "count": len(entries),
-        "skills": [
-            {
-                "name": e.name,
-                "version": e.version,
-                "hash": e.hash,
-                "tags": e.tags,
-                "pushed_at": e.pushed_at,
-                "size": e.size,
-            }
-            for e in entries
-        ],
-    }, indent=2)
+    return json.dumps(
+        {
+            "count": len(entries),
+            "skills": [
+                {
+                    "name": e.name,
+                    "version": e.version,
+                    "hash": e.hash,
+                    "tags": e.tags,
+                    "pushed_at": e.pushed_at,
+                    "size": e.size,
+                }
+                for e in entries
+            ],
+        },
+        indent=2,
+    )
 
 
 @mcp.tool()
@@ -185,6 +212,7 @@ def skillctl_describe(skill_ref: str) -> str:
     """
     try:
         from skillctl.utils import parse_ref
+
         name, version = parse_ref(skill_ref)
         store = _store()
         content_bytes, entry = store.pull(name, version)
@@ -195,18 +223,22 @@ def skillctl_describe(skill_ref: str) -> str:
         manifest_dict = {}
         if manifest_path.exists():
             import yaml
+
             manifest_dict = yaml.safe_load(manifest_path.read_text()) or {}
 
-        return json.dumps({
-            "name": entry["name"],
-            "version": entry["version"],
-            "hash": entry["hash"],
-            "pushed_at": entry["pushed_at"],
-            "size": entry["size"],
-            "tags": entry["tags"],
-            "manifest": manifest_dict,
-            "content": content_text,
-        }, indent=2)
+        return json.dumps(
+            {
+                "name": entry["name"],
+                "version": entry["version"],
+                "hash": entry["hash"],
+                "pushed_at": entry["pushed_at"],
+                "size": entry["size"],
+                "tags": entry["tags"],
+                "manifest": manifest_dict,
+                "content": content_text,
+            },
+            indent=2,
+        )
     except Exception as e:
         return _error_response(e)
 
@@ -220,6 +252,7 @@ def skillctl_delete(skill_ref: str) -> str:
     """
     try:
         from skillctl.utils import parse_ref
+
         name, version = parse_ref(skill_ref)
         store = _store()
         store.delete_skill(name, version)
@@ -265,10 +298,12 @@ def skillctl_create(name: str, description: str = "A new skill", target_dir: str
     parent = Path(target_dir) if target_dir else Path.cwd()
     skill_dir = parent / skill_dir_name
     if skill_dir.exists():
-        return json.dumps({
-            "success": False,
-            "reason": f"Directory {skill_dir} already exists",
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "reason": f"Directory {skill_dir} already exists",
+            }
+        )
 
     skill_dir.mkdir(parents=True)
 
@@ -291,11 +326,11 @@ spec:
 """
 
     skill_md_content = f"""---
-name: {name.split('/')[-1]}
+name: {name.split("/")[-1]}
 description: {description}
 ---
 
-# {name.split('/')[-1].replace('-', ' ').title()}
+# {name.split("/")[-1].replace("-", " ").title()}
 
 Instructions for the skill go here.
 """
@@ -303,17 +338,20 @@ Instructions for the skill go here.
     (skill_dir / "skill.yaml").write_text(manifest_content)
     (skill_dir / "SKILL.md").write_text(skill_md_content)
 
-    return json.dumps({
-        "success": True,
-        "path": str(skill_dir),
-        "files": ["skill.yaml", "SKILL.md"],
-        "name": name,
-        "next_steps": [
-            "Edit SKILL.md with the skill's instructions",
-            "Fill in metadata in skill.yaml (authors, tags, capabilities)",
-            "Run skillctl_validate to check the manifest",
-        ],
-    }, indent=2)
+    return json.dumps(
+        {
+            "success": True,
+            "path": str(skill_dir),
+            "files": ["skill.yaml", "SKILL.md"],
+            "name": name,
+            "next_steps": [
+                "Edit SKILL.md with the skill's instructions",
+                "Fill in metadata in skill.yaml (authors, tags, capabilities)",
+                "Run skillctl_validate to check the manifest",
+            ],
+        },
+        indent=2,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -350,18 +388,21 @@ def skillctl_eval_audit(
             ignore_codes=ignore_set,
             include_all=include_all,
         )
-        return json.dumps({
-            "skill_name": report.skill_name,
-            "skill_path": report.skill_path,
-            "score": report.score,
-            "grade": report.grade,
-            "passed": report.passed,
-            "critical_count": report.critical_count,
-            "warning_count": report.warning_count,
-            "info_count": report.info_count,
-            "findings": [f.to_dict() for f in report.findings],
-            "metadata": report.metadata,
-        }, indent=2)
+        return json.dumps(
+            {
+                "skill_name": report.skill_name,
+                "skill_path": report.skill_path,
+                "score": report.score,
+                "grade": report.grade,
+                "passed": report.passed,
+                "critical_count": report.critical_count,
+                "warning_count": report.warning_count,
+                "info_count": report.info_count,
+                "findings": [f.to_dict() for f in report.findings],
+                "metadata": report.metadata,
+            },
+            indent=2,
+        )
     except Exception as e:
         return _error_response(e)
 
@@ -391,6 +432,7 @@ def skillctl_eval_functional(
     """
     try:
         from skillctl.eval.functional import run_functional_eval
+
         exit_code = run_functional_eval(
             skill_path,
             evals_path=evals_path,
@@ -437,6 +479,7 @@ def skillctl_eval_trigger(
     """
     try:
         from skillctl.eval.trigger import run_trigger_eval
+
         exit_code = run_trigger_eval(
             skill_path,
             queries_path=queries_path,
@@ -486,6 +529,7 @@ def skillctl_eval_report(
     """
     try:
         from skillctl.eval.unified_report import run_unified_report
+
         exit_code = run_unified_report(
             skill_path,
             format="json",
@@ -577,11 +621,15 @@ def skillctl_optimize_history(skill_name: str | None = None) -> str:
     """
     try:
         from skillctl.optimize.provenance import ProvenanceStore
+
         runs = ProvenanceStore.list_runs(skill_name=skill_name)
-        return json.dumps({
-            "count": len(runs),
-            "runs": [r.to_dict() for r in runs],
-        }, indent=2)
+        return json.dumps(
+            {
+                "count": len(runs),
+                "runs": [r.to_dict() for r in runs],
+            },
+            indent=2,
+        )
     except Exception as e:
         return _error_response(e)
 

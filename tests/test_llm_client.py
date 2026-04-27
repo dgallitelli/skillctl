@@ -18,6 +18,7 @@ from skillctl.optimize.types import LLMResponse
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _mock_litellm_response(content="Hello", input_tokens=10, output_tokens=20):
     resp = MagicMock()
     resp.choices = [MagicMock()]
@@ -31,8 +32,8 @@ def _mock_litellm_response(content="Hello", input_tokens=10, output_tokens=20):
 # Unit tests
 # ===================================================================
 
-class TestLLMClientInit:
 
+class TestLLMClientInit:
     def test_default_model(self):
         client = LLMClient()
         assert client.model == DEFAULT_MODEL
@@ -44,11 +45,12 @@ class TestLLMClientInit:
 
 
 class TestLLMClientCall:
-
     @patch("litellm.completion")
     def test_call_returns_llm_response(self, mock_completion):
         mock_completion.return_value = _mock_litellm_response(
-            "Hello from LiteLLM", 10, 20,
+            "Hello from LiteLLM",
+            10,
+            20,
         )
 
         client = LLMClient()
@@ -79,7 +81,6 @@ class TestLLMClientCall:
 
 
 class TestLLMClientRetry:
-
     @patch("skillctl.optimize.llm_client.time.sleep")
     @patch("litellm.completion")
     def test_retries_on_failure_then_succeeds(self, mock_completion, mock_sleep):
@@ -126,9 +127,9 @@ class TestLLMClientRetry:
 # Integration tests — call real providers
 # ===================================================================
 
+
 @pytest.mark.integration
 class TestLLMClientIntegration:
-
     def test_bedrock_simple_call(self):
         client = LLMClient()
         resp = client.call(
@@ -142,6 +143,7 @@ class TestLLMClientIntegration:
 
     def test_bedrock_json_response(self):
         import json
+
         client = LLMClient()
         resp = client.call(
             system="Return only valid JSON. No markdown fences.",

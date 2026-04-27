@@ -20,6 +20,7 @@ from skillctl.errors import SkillctlError
 # Custom exceptions
 # ---------------------------------------------------------------------------
 
+
 class NotFoundError(SkillctlError):
     """Raised when a requested blob does not exist in storage."""
 
@@ -48,6 +49,7 @@ class IntegrityError(SkillctlError):
 # Abstract base class (Task 2.1)
 # ---------------------------------------------------------------------------
 
+
 class StorageBackend(ABC):
     """Abstract content-addressed blob storage."""
 
@@ -75,6 +77,7 @@ class StorageBackend(ABC):
 # ---------------------------------------------------------------------------
 # Filesystem implementation (Task 2.2)
 # ---------------------------------------------------------------------------
+
 
 class FilesystemBackend(StorageBackend):
     """Content-addressed filesystem storage under ``data_dir/blobs/<prefix>/<hash>``."""

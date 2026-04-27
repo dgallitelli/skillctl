@@ -24,6 +24,7 @@ from skillctl.registry.storage import FilesystemBackend
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _create_app(tmp_path: Path, auth_disabled: bool = True) -> FastAPI:
     """Create a minimal FastAPI app with all state objects wired up."""
     app = FastAPI()
@@ -92,8 +93,9 @@ VALID_MANIFEST = {
 SKILL_CONTENT = b"# Code Reviewer\nReview code for quality issues."
 
 
-def _publish(client: TestClient, manifest: dict | None = None, content: bytes | None = None,
-             headers: dict | None = None):
+def _publish(
+    client: TestClient, manifest: dict | None = None, content: bytes | None = None, headers: dict | None = None
+):
     """Helper to publish a skill."""
     m = manifest or VALID_MANIFEST
     c = content or SKILL_CONTENT
@@ -108,6 +110,7 @@ def _publish(client: TestClient, manifest: dict | None = None, content: bytes | 
 # ---------------------------------------------------------------------------
 # 6.7 Health check
 # ---------------------------------------------------------------------------
+
 
 class TestHealth:
     def test_health_returns_ok(self, client: TestClient):
@@ -127,6 +130,7 @@ class TestHealth:
 # ---------------------------------------------------------------------------
 # 6.1 Publish skill
 # ---------------------------------------------------------------------------
+
 
 class TestPublish:
     def test_publish_returns_201(self, client: TestClient):
@@ -153,7 +157,12 @@ class TestPublish:
         assert resp.json()["version"] == "1.1.0"
 
     def test_publish_invalid_manifest_returns_400(self, client: TestClient):
-        bad_manifest = {"apiVersion": "wrong", "kind": "Skill", "metadata": {"name": "", "version": "bad"}, "spec": {"content": {"inline": "x"}}}
+        bad_manifest = {
+            "apiVersion": "wrong",
+            "kind": "Skill",
+            "metadata": {"name": "", "version": "bad"},
+            "spec": {"content": {"inline": "x"}},
+        }
         resp = _publish(client, manifest=bad_manifest)
         assert resp.status_code == 400
 
@@ -175,6 +184,7 @@ class TestPublish:
 # ---------------------------------------------------------------------------
 # 6.2 List/search skills
 # ---------------------------------------------------------------------------
+
 
 class TestSearch:
     def test_list_empty(self, client: TestClient):
@@ -214,8 +224,10 @@ class TestSearch:
     def test_search_pagination(self, client: TestClient):
         # Publish multiple skills
         for i in range(5):
-            m = {**VALID_MANIFEST, "metadata": {**VALID_MANIFEST["metadata"],
-                 "name": f"my-org/skill-{i}", "version": "1.0.0"}}
+            m = {
+                **VALID_MANIFEST,
+                "metadata": {**VALID_MANIFEST["metadata"], "name": f"my-org/skill-{i}", "version": "1.0.0"},
+            }
             _publish(client, manifest=m)
 
         resp = client.get("/api/v1/skills", params={"limit": 2, "offset": 0})
@@ -229,6 +241,7 @@ class TestSearch:
 # ---------------------------------------------------------------------------
 # 6.3 Skill detail
 # ---------------------------------------------------------------------------
+
 
 class TestDetail:
     def test_get_skill_detail(self, client: TestClient):
@@ -260,12 +273,16 @@ class TestDetail:
 # 6.4 Content download
 # ---------------------------------------------------------------------------
 
+
 class TestContentDownload:
     def test_download_content(self, client: TestClient):
         _publish(client)
         resp = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0/content")
         assert resp.status_code == 200
-        assert "text/markdown" in resp.headers["content-type"] or resp.headers["content-type"] == "application/octet-stream"
+        assert (
+            "text/markdown" in resp.headers["content-type"]
+            or resp.headers["content-type"] == "application/octet-stream"
+        )
         assert resp.content == SKILL_CONTENT
 
     def test_download_not_found(self, client: TestClient):
@@ -276,6 +293,7 @@ class TestContentDownload:
 # ---------------------------------------------------------------------------
 # 6.5 Delete skill
 # ---------------------------------------------------------------------------
+
 
 class TestDelete:
     def test_delete_skill(self, client: TestClient):
@@ -301,6 +319,7 @@ class TestDelete:
 # ---------------------------------------------------------------------------
 # 6.6 Attach eval
 # ---------------------------------------------------------------------------
+
 
 class TestEval:
     def test_attach_eval(self, client: TestClient):
@@ -350,6 +369,7 @@ class TestEval:
 # ---------------------------------------------------------------------------
 # 6.8 Token management
 # ---------------------------------------------------------------------------
+
 
 class TestTokenManagement:
     def test_create_token(self, client: TestClient):
@@ -407,6 +427,7 @@ class TestTokenManagement:
 # ---------------------------------------------------------------------------
 # Auth flows (auth enabled)
 # ---------------------------------------------------------------------------
+
 
 class TestAuthFlows:
     def test_missing_token_returns_401(self, auth_client: TestClient):
@@ -476,6 +497,7 @@ class TestAuthFlows:
 # ---------------------------------------------------------------------------
 # Full lifecycle
 # ---------------------------------------------------------------------------
+
 
 class TestLifecycle:
     def test_publish_search_pull_eval_delete(self, client: TestClient):

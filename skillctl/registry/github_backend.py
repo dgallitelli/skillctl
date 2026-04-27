@@ -70,9 +70,10 @@ class GitHubBackend(StorageBackend):
         else:
             self._clone_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["git", "clone", "--branch", self._branch, "--single-branch",
-                 self._auth_url, str(self._clone_dir)],
-                check=True, capture_output=True, text=True,
+                ["git", "clone", "--branch", self._branch, "--single-branch", self._auth_url, str(self._clone_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
             )
         self._skills_dir.mkdir(exist_ok=True)
 
@@ -99,16 +100,15 @@ class GitHubBackend(StorageBackend):
         # Write files
         (skill_dir / "skill.yaml").write_text(manifest_json)
         (skill_dir / "content").write_bytes(content)
-        (skill_dir / "metadata.json").write_text(
-            json.dumps(metadata, indent=2)
-        )
+        (skill_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
         content_hash = hashlib.sha256(content).hexdigest()
 
         # Git add + commit + push
         self._git("add", "-A")
         self._git(
-            "commit", "-m",
+            "commit",
+            "-m",
             f"publish: {name}@{version}",
             "--allow-empty",
         )
@@ -241,9 +241,7 @@ class GitHubBackend(StorageBackend):
                     if db.get_skill(full_name, version) is not None:
                         count += 1
                         continue
-                    record = self._read_skill_record(
-                        full_name, namespace, version, ver_dir
-                    )
+                    record = self._read_skill_record(full_name, namespace, version, ver_dir)
                     if record:
                         try:
                             db.insert_skill(record)
@@ -253,9 +251,7 @@ class GitHubBackend(StorageBackend):
                             count += 1
         return count
 
-    def _read_skill_record(
-        self, full_name: str, namespace: str, version: str, ver_dir: Path
-    ) -> SkillRecord | None:
+    def _read_skill_record(self, full_name: str, namespace: str, version: str, ver_dir: Path) -> SkillRecord | None:
         """Read a SkillRecord from a version directory in the repo."""
         manifest_path = ver_dir / "skill.yaml"
         content_path = ver_dir / "content"
@@ -327,7 +323,10 @@ class GitHubBackend(StorageBackend):
             if self._token and self._token in str(e.cmd):
                 sanitized_cmd = [a.replace(self._token, "***") for a in e.cmd]
                 raise subprocess.CalledProcessError(
-                    e.returncode, sanitized_cmd, e.output, e.stderr,
+                    e.returncode,
+                    sanitized_cmd,
+                    e.output,
+                    e.stderr,
                 ) from None
             raise
 

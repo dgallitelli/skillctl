@@ -52,7 +52,7 @@ def _bar_html(value: float, width: int = 200) -> str:
     return (
         f'<div style="background:#1e293b;border-radius:4px;width:{width}px;height:20px;display:inline-block;vertical-align:middle">'
         f'<div style="background:{color};border-radius:4px;width:{pct:.1f}%;height:100%"></div>'
-        f'</div>'
+        f"</div>"
     )
 
 
@@ -249,9 +249,9 @@ def _render_audit(audit: dict) -> str:
             badge_cls = {"CRITICAL": "badge-critical", "WARNING": "badge-warning"}.get(sev, "badge-info")
             rows += f"""<tr>
                 <td><span class="badge {badge_cls}">{_esc(sev)}</span></td>
-                <td>{_esc(f.get('code', ''))}</td>
-                <td>{_esc(f.get('title', f.get('message', '')))}</td>
-                <td>{_esc(f.get('file_path', '') or '')}</td>
+                <td>{_esc(f.get("code", ""))}</td>
+                <td>{_esc(f.get("title", f.get("message", "")))}</td>
+                <td>{_esc(f.get("file_path", "") or "")}</td>
             </tr>"""
         findings_html = f"""
         <table>
@@ -267,11 +267,11 @@ def _render_audit(audit: dict) -> str:
   </div>
   <div class="metric-row">
     <span class="metric-label">Critical</span>
-    <span class="metric-value" style="color:{'#ef4444' if critical else '#22c55e'}">{critical}</span>
+    <span class="metric-value" style="color:{"#ef4444" if critical else "#22c55e"}">{critical}</span>
   </div>
   <div class="metric-row">
     <span class="metric-label">Warning</span>
-    <span class="metric-value" style="color:{'#eab308' if warning else '#22c55e'}">{warning}</span>
+    <span class="metric-value" style="color:{"#eab308" if warning else "#22c55e"}">{warning}</span>
   </div>
   <div class="metric-row">
     <span class="metric-label">Info</span>
@@ -321,7 +321,7 @@ def _render_functional(func: dict) -> str:
         <div style="margin-top:0.75rem;padding:0.75rem;background:#0f172a;border-radius:6px">
             <div style="font-weight:500;margin-bottom:0.25rem">{emoji} {cls}</div>
             <div style="color:#94a3b8;font-size:0.85rem">{desc}</div>
-            <div style="color:#94a3b8;font-size:0.85rem">Quality: {'+' if qd>=0 else ''}{qd:.2f} | Cost: {'+' if cd>=0 else ''}{cd:.1f}%</div>
+            <div style="color:#94a3b8;font-size:0.85rem">Quality: {"+" if qd >= 0 else ""}{qd:.2f} | Cost: {"+" if cd >= 0 else ""}{cd:.1f}%</div>
         </div>"""
 
     # Estimated cost
@@ -334,7 +334,7 @@ def _render_functional(func: dict) -> str:
             <div style="font-weight:500;margin-bottom:0.25rem">💰 Estimated Cost ({model} pricing)</div>
             <div class="metric-row">
                 <span class="metric-label">Total</span>
-                <span class="metric-value">{_cost_fmt(ec['total_cost'])}</span>
+                <span class="metric-value">{_cost_fmt(ec["total_cost"])}</span>
             </div>"""
         wc = ec.get("with_skill_per_run", {})
         woc = ec.get("without_skill_per_run", {})
@@ -342,15 +342,17 @@ def _render_functional(func: dict) -> str:
             cost_html += f"""
             <div class="metric-row">
                 <span class="metric-label">With skill (per run)</span>
-                <span class="metric-value">{_cost_fmt(wc['total_cost'])}</span>
+                <span class="metric-value">{_cost_fmt(wc["total_cost"])}</span>
             </div>
             <div class="metric-row">
                 <span class="metric-label">Without skill (per run)</span>
-                <span class="metric-value">{_cost_fmt(woc['total_cost'])}</span>
+                <span class="metric-value">{_cost_fmt(woc["total_cost"])}</span>
             </div>"""
         cost_html += "</div>"
 
-    status = '<span class="badge badge-pass">PASSED</span>' if passed else '<span class="badge badge-fail">FAILED</span>'
+    status = (
+        '<span class="badge badge-pass">PASSED</span>' if passed else '<span class="badge badge-fail">FAILED</span>'
+    )
 
     return f"""<h2>⚡ Functional Evaluation</h2>
 <div class="card">
@@ -380,7 +382,9 @@ def _render_trigger(trigger: dict) -> str:
     total = trigger.get("total_queries", 0)
     gc = _grade_color(grade)
 
-    status = '<span class="badge badge-pass">PASSED</span>' if passed else '<span class="badge badge-fail">FAILED</span>'
+    status = (
+        '<span class="badge badge-pass">PASSED</span>' if passed else '<span class="badge badge-fail">FAILED</span>'
+    )
 
     # Query results if available
     queries_html = ""
@@ -389,7 +393,11 @@ def _render_trigger(trigger: dict) -> str:
         rows = ""
         for qr in query_results:
             q_passed = qr.get("passed", False)
-            badge = '<span class="badge badge-pass">PASS</span>' if q_passed else '<span class="badge badge-fail">FAIL</span>'
+            badge = (
+                '<span class="badge badge-pass">PASS</span>'
+                if q_passed
+                else '<span class="badge badge-fail">FAIL</span>'
+            )
             expected = "trigger" if qr.get("should_trigger") else "no-trigger"
             rate = qr.get("trigger_rate", 0)
             query_text = _esc(qr.get("query", "")[:60])

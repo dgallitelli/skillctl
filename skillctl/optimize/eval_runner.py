@@ -91,13 +91,15 @@ def _parse_report(data: dict, report_path: str) -> EvalResult:
     audit_findings = []
     audit_section = sections.get("audit", {})
     for f in audit_section.get("findings", []):
-        audit_findings.append({
-            "code": f.get("code", ""),
-            "severity": f.get("severity", ""),
-            "title": f.get("title", ""),
-            "detail": f.get("detail", ""),
-            "file_path": f.get("file_path", ""),
-        })
+        audit_findings.append(
+            {
+                "code": f.get("code", ""),
+                "severity": f.get("severity", ""),
+                "title": f.get("title", ""),
+                "detail": f.get("detail", ""),
+                "file_path": f.get("file_path", ""),
+            }
+        )
 
     return EvalResult(
         overall_score=data.get("overall_score"),

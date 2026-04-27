@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 
-
 from skillctl.config import (
     SkillctlConfig,
     load_config,
@@ -17,8 +16,8 @@ from skillctl.config import (
 # Defaults
 # ---------------------------------------------------------------------------
 
-class TestDefaults:
 
+class TestDefaults:
     def test_default_config_has_local_backend(self):
         cfg = SkillctlConfig()
         assert cfg.registry.backend == "local"
@@ -45,8 +44,8 @@ class TestDefaults:
 # to_dict / round-trip
 # ---------------------------------------------------------------------------
 
-class TestToDict:
 
+class TestToDict:
     def test_to_dict_omits_none(self):
         cfg = SkillctlConfig()
         d = cfg.to_dict()
@@ -66,8 +65,8 @@ class TestToDict:
 # _parse_config
 # ---------------------------------------------------------------------------
 
-class TestParseConfig:
 
+class TestParseConfig:
     def test_parse_empty_dict(self):
         cfg = _parse_config({})
         assert cfg.registry.backend == "local"
@@ -138,8 +137,8 @@ class TestParseConfig:
 # load_config / save_config (filesystem)
 # ---------------------------------------------------------------------------
 
-class TestLoadSave:
 
+class TestLoadSave:
     def test_load_missing_file_returns_defaults(self, tmp_path, monkeypatch):
         monkeypatch.setattr("skillctl.config.CONFIG_PATH", tmp_path / "nonexistent.yaml")
         cfg = load_config()
@@ -214,16 +213,18 @@ class TestLoadSave:
 # run_configure_wizard
 # ---------------------------------------------------------------------------
 
-class TestConfigureWizard:
 
+class TestConfigureWizard:
     def test_wizard_local_backend(self, monkeypatch):
-        inputs = iter([
-            "local",                          # backend
-            "https://my-server:8080",         # url
-            "",                               # token (blank)
-            "",                               # model (default)
-            "5.0",                            # budget
-        ])
+        inputs = iter(
+            [
+                "local",  # backend
+                "https://my-server:8080",  # url
+                "",  # token (blank)
+                "",  # model (default)
+                "5.0",  # budget
+            ]
+        )
         monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
         cfg = run_configure_wizard(SkillctlConfig())
@@ -233,13 +234,15 @@ class TestConfigureWizard:
         assert cfg.optimize.budget_usd == 5.0
 
     def test_wizard_agent_registry_backend(self, monkeypatch):
-        inputs = iter([
-            "agent-registry",                 # backend
-            "arn:aws:test:registry/my-reg",   # registry_id
-            "us-west-2",                      # region
-            "openai/gpt-4o",                  # model
-            "20.0",                           # budget
-        ])
+        inputs = iter(
+            [
+                "agent-registry",  # backend
+                "arn:aws:test:registry/my-reg",  # registry_id
+                "us-west-2",  # region
+                "openai/gpt-4o",  # model
+                "20.0",  # budget
+            ]
+        )
         monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
         cfg = run_configure_wizard(SkillctlConfig())
@@ -262,13 +265,15 @@ class TestConfigureWizard:
         existing.registry.backend = "agent-registry"
         existing.registry.agent_registry.registry_id = "arn:existing"
 
-        inputs = iter([
-            "",                               # backend (keep agent-registry)
-            "",                               # registry_id (keep existing)
-            "",                               # region (keep default)
-            "anthropic/claude-sonnet-4-6",    # new model
-            "",                               # budget (keep default)
-        ])
+        inputs = iter(
+            [
+                "",  # backend (keep agent-registry)
+                "",  # registry_id (keep existing)
+                "",  # region (keep default)
+                "anthropic/claude-sonnet-4-6",  # new model
+                "",  # budget (keep default)
+            ]
+        )
         monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
         cfg = run_configure_wizard(existing)
@@ -277,13 +282,15 @@ class TestConfigureWizard:
         assert cfg.optimize.model == "anthropic/claude-sonnet-4-6"
 
     def test_wizard_invalid_budget_keeps_default(self, monkeypatch):
-        inputs = iter([
-            "",           # backend
-            "",           # url
-            "",           # token
-            "",           # model
-            "not-a-number",  # invalid budget
-        ])
+        inputs = iter(
+            [
+                "",  # backend
+                "",  # url
+                "",  # token
+                "",  # model
+                "not-a-number",  # invalid budget
+            ]
+        )
         monkeypatch.setattr("builtins.input", lambda _: next(inputs))
 
         cfg = run_configure_wizard(SkillctlConfig())

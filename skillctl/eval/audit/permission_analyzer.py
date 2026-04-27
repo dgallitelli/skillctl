@@ -22,13 +22,11 @@ TOOL_RISK_LEVELS = {
     "Shell": "high",
     "Terminal": "high",
     "Execute": "high",
-
     # Medium risk - file operations
     "Write": "medium",
     "Edit": "medium",
     "MultiEdit": "medium",
     "FileWrite": "medium",
-
     # Low risk - read-only operations
     "Read": "low",
     "ReadFile": "low",
@@ -37,14 +35,12 @@ TOOL_RISK_LEVELS = {
     "Glob": "low",
     "List": "low",
     "ListDir": "low",
-
     # Network operations
     "WebSearch": "medium",
     "WebFetch": "medium",
     "HttpRequest": "high",
-
     # Agent operations
-    "Task": "medium",     # Can spawn sub-agents
+    "Task": "medium",  # Can spawn sub-agents
     "TodoRead": "low",
     "TodoWrite": "low",
 }
@@ -119,37 +115,43 @@ def analyze_permissions(
                     high_risk_tools.append(tool)
 
         if unscoped_bash:
-            findings.append(Finding(
-                code="PERM-001",
-                severity=Severity.WARNING,
-                category=Category.PERMISSION,
-                title="Unrestricted Bash/Shell access",
-                detail=f"allowed-tools includes unrestricted shell access: {', '.join(high_risk_tools)}. "
-                       f"This allows the skill to execute arbitrary system commands.",
-                file_path=str(skill_md),
-                fix="Scope Bash to specific commands, e.g., 'Bash(python3:*) Bash(git:*)' instead of 'Bash(*)'.",
-            ))
+            findings.append(
+                Finding(
+                    code="PERM-001",
+                    severity=Severity.WARNING,
+                    category=Category.PERMISSION,
+                    title="Unrestricted Bash/Shell access",
+                    detail=f"allowed-tools includes unrestricted shell access: {', '.join(high_risk_tools)}. "
+                    f"This allows the skill to execute arbitrary system commands.",
+                    file_path=str(skill_md),
+                    fix="Scope Bash to specific commands, e.g., 'Bash(python3:*) Bash(git:*)' instead of 'Bash(*)'.",
+                )
+            )
         elif high_risk_tools:
-            findings.append(Finding(
-                code="PERM-002",
-                severity=Severity.INFO,
-                category=Category.PERMISSION,
-                title=f"High-risk tools declared: {', '.join(high_risk_tools)}",
-                detail="The skill declares high-risk tools in allowed-tools. Ensure these are necessary for the skill's function.",
-                file_path=str(skill_md),
-            ))
+            findings.append(
+                Finding(
+                    code="PERM-002",
+                    severity=Severity.INFO,
+                    category=Category.PERMISSION,
+                    title=f"High-risk tools declared: {', '.join(high_risk_tools)}",
+                    detail="The skill declares high-risk tools in allowed-tools. Ensure these are necessary for the skill's function.",
+                    file_path=str(skill_md),
+                )
+            )
 
         # Check for excessive number of tools
         if len(tools) > 15:
-            findings.append(Finding(
-                code="PERM-003",
-                severity=Severity.INFO,
-                category=Category.PERMISSION,
-                title=f"Large number of allowed-tools ({len(tools)})",
-                detail="Many declared tools may indicate over-privilege. Skills should request only the tools they need.",
-                file_path=str(skill_md),
-                fix="Review each tool and remove any not required for the skill's core function.",
-            ))
+            findings.append(
+                Finding(
+                    code="PERM-003",
+                    severity=Severity.INFO,
+                    category=Category.PERMISSION,
+                    title=f"Large number of allowed-tools ({len(tools)})",
+                    detail="Many declared tools may indicate over-privilege. Skills should request only the tools they need.",
+                    file_path=str(skill_md),
+                    fix="Review each tool and remove any not required for the skill's core function.",
+                )
+            )
 
     # --- Check 2: Instructions that imply broad permissions ---
     _check_implicit_permissions(skill_content, skill_md, findings)
@@ -165,42 +167,54 @@ def _check_implicit_permissions(content: str, skill_md: Path, findings: list[Fin
 
     patterns = [
         # Sensitive file access
-        (re.compile(r"(?:read|access|open|cat)\s+(?:~/|/etc/|/home/|\$HOME/|~/)\.(?:ssh|gnupg|aws|kube)", re.IGNORECASE),
-         "References sensitive directory access",
-         "Skill instructs agent to access sensitive directories (~/.ssh, ~/.aws, etc.)",
-         Severity.WARNING),
-
+        (
+            re.compile(
+                r"(?:read|access|open|cat)\s+(?:~/|/etc/|/home/|\$HOME/|~/)\.(?:ssh|gnupg|aws|kube)", re.IGNORECASE
+            ),
+            "References sensitive directory access",
+            "Skill instructs agent to access sensitive directories (~/.ssh, ~/.aws, etc.)",
+            Severity.WARNING,
+        ),
         # Root/sudo access
-        (re.compile(r"(?:sudo|as\s+root|with\s+root|root\s+access)", re.IGNORECASE),
-         "References root/sudo access",
-         "Skill instructs operations requiring root privileges",
-         Severity.WARNING),
-
+        (
+            re.compile(r"(?:sudo|as\s+root|with\s+root|root\s+access)", re.IGNORECASE),
+            "References root/sudo access",
+            "Skill instructs operations requiring root privileges",
+            Severity.WARNING,
+        ),
         # Network listener
-        (re.compile(r"(?:listen|bind|serve)\s+(?:on\s+)?(?:port|0\.0\.0\.0|all\s+interfaces)", re.IGNORECASE),
-         "Starts network listener",
-         "Skill instructs agent to start a network listener, which could expose the machine",
-         Severity.INFO),
-
+        (
+            re.compile(r"(?:listen|bind|serve)\s+(?:on\s+)?(?:port|0\.0\.0\.0|all\s+interfaces)", re.IGNORECASE),
+            "Starts network listener",
+            "Skill instructs agent to start a network listener, which could expose the machine",
+            Severity.INFO,
+        ),
         # Credential access
-        (re.compile(r"(?:read|access|use|get)\s+(?:the\s+)?(?:credentials?|password|token|key)\s+(?:from|in|at)", re.IGNORECASE),
-         "Accesses stored credentials",
-         "Skill instructs agent to read credentials from storage",
-         Severity.INFO),
+        (
+            re.compile(
+                r"(?:read|access|use|get)\s+(?:the\s+)?(?:credentials?|password|token|key)\s+(?:from|in|at)",
+                re.IGNORECASE,
+            ),
+            "Accesses stored credentials",
+            "Skill instructs agent to read credentials from storage",
+            Severity.INFO,
+        ),
     ]
 
     for line_num, line in enumerate(content.split("\n"), 1):
         for pattern, title, detail, severity in patterns:
             if pattern.search(line):
-                findings.append(Finding(
-                    code="PERM-004",
-                    severity=severity,
-                    category=Category.PERMISSION,
-                    title=title,
-                    detail=f"{detail}. Line: {line.strip()[:100]}",
-                    file_path=str(skill_md),
-                    line_number=line_num,
-                ))
+                findings.append(
+                    Finding(
+                        code="PERM-004",
+                        severity=severity,
+                        category=Category.PERMISSION,
+                        title=title,
+                        detail=f"{detail}. Line: {line.strip()[:100]}",
+                        file_path=str(skill_md),
+                        line_number=line_num,
+                    )
+                )
 
 
 def _check_file_access_patterns(content: str, skill_md: Path, findings: list[Finding]) -> None:
@@ -220,13 +234,15 @@ def _check_file_access_patterns(content: str, skill_md: Path, findings: list[Fin
             # Exclude common safe references
             if any(safe in stripped.lower() for safe in ["example", "e.g.", "such as", "like /etc"]):
                 continue
-            findings.append(Finding(
-                code="PERM-005",
-                severity=Severity.INFO,
-                category=Category.PERMISSION,
-                title="References absolute system path",
-                detail=f"Skill references an absolute system path. Line: {stripped[:100]}",
-                file_path=str(skill_md),
-                line_number=line_num,
-                fix="Skills should operate within the workspace directory. Avoid absolute system paths.",
-            ))
+            findings.append(
+                Finding(
+                    code="PERM-005",
+                    severity=Severity.INFO,
+                    category=Category.PERMISSION,
+                    title="References absolute system path",
+                    detail=f"Skill references an absolute system path. Line: {stripped[:100]}",
+                    file_path=str(skill_md),
+                    line_number=line_num,
+                    fix="Skills should operate within the workspace directory. Avoid absolute system paths.",
+                )
+            )

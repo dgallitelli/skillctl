@@ -18,8 +18,8 @@ class RegistryConfig:
     port: int = 8080
     data_dir: Path = field(default_factory=lambda: Path("~/.skillctl/registry").expanduser())
     storage_backend: str = "filesystem"  # "filesystem" or "github"
-    github_repo: str | None = None       # e.g. "https://github.com/org/skill-registry.git"
-    github_token: str | None = None      # PAT for push access
+    github_repo: str | None = None  # e.g. "https://github.com/org/skill-registry.git"
+    github_token: str | None = None  # PAT for push access
     github_branch: str = "main"
     auth_disabled: bool = False
     hmac_key: str | None = None  # Auto-generated if not set

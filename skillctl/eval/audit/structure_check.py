@@ -134,8 +134,7 @@ def _simple_yaml_parse(text: str) -> dict:
             i = j
         else:
             # Strip quotes
-            if (value.startswith('"') and value.endswith('"')) or \
-               (value.startswith("'") and value.endswith("'")):
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
             result[key] = value
             i += 1
@@ -158,14 +157,16 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
 
     # --- Check 1: Directory exists ---
     if not skill_path.is_dir():
-        findings.append(Finding(
-            code="STR-001",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Skill path is not a directory",
-            detail=f"Expected a directory at '{skill_path}', but it doesn't exist or isn't a directory.",
-            file_path=str(skill_path),
-        ))
+        findings.append(
+            Finding(
+                code="STR-001",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Skill path is not a directory",
+                detail=f"Expected a directory at '{skill_path}', but it doesn't exist or isn't a directory.",
+                file_path=str(skill_path),
+            )
+        )
         return findings, None, 0  # Can't continue without the directory
 
     dir_name = skill_path.name
@@ -173,71 +174,81 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
     # --- Check 2: SKILL.md exists ---
     skill_md = skill_path / "SKILL.md"
     if not skill_md.is_file():
-        findings.append(Finding(
-            code="STR-002",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Missing SKILL.md",
-            detail="Every skill must have a SKILL.md file at its root. This is the only required file.",
-            file_path=str(skill_md),
-            fix="Create a SKILL.md with YAML frontmatter (name, description) and markdown instructions.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-002",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Missing SKILL.md",
+                detail="Every skill must have a SKILL.md file at its root. This is the only required file.",
+                file_path=str(skill_md),
+                fix="Create a SKILL.md with YAML frontmatter (name, description) and markdown instructions.",
+            )
+        )
         return findings, None, 0  # Can't continue without SKILL.md
 
     # --- Read and parse SKILL.md ---
     try:
         content = skill_md.read_text(encoding="utf-8")
     except Exception as e:
-        findings.append(Finding(
-            code="STR-003",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Cannot read SKILL.md",
-            detail=f"Failed to read SKILL.md: {e}",
-            file_path=str(skill_md),
-        ))
+        findings.append(
+            Finding(
+                code="STR-003",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Cannot read SKILL.md",
+                detail=f"Failed to read SKILL.md: {e}",
+                file_path=str(skill_md),
+            )
+        )
         return findings, None, 0
 
     frontmatter, error, body_start = _parse_frontmatter(content)
 
     if error:
-        findings.append(Finding(
-            code="STR-004",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Invalid frontmatter",
-            detail=error,
-            file_path=str(skill_md),
-            line_number=1,
-            fix="SKILL.md must start with --- followed by YAML key-value pairs and a closing ---.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-004",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Invalid frontmatter",
+                detail=error,
+                file_path=str(skill_md),
+                line_number=1,
+                fix="SKILL.md must start with --- followed by YAML key-value pairs and a closing ---.",
+            )
+        )
         return findings, None, 0
 
     # --- Check 3: name field ---
     name = frontmatter.get("name")
     if not name:
-        findings.append(Finding(
-            code="STR-005",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Missing required 'name' field",
-            detail="The 'name' field is required in SKILL.md frontmatter.",
-            file_path=str(skill_md),
-            line_number=1,
-            fix="Add 'name: your-skill-name' to the frontmatter.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-005",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Missing required 'name' field",
+                detail="The 'name' field is required in SKILL.md frontmatter.",
+                file_path=str(skill_md),
+                line_number=1,
+                fix="Add 'name: your-skill-name' to the frontmatter.",
+            )
+        )
     elif isinstance(name, str):
         # Validate name format
         if len(name) > _MAX_NAME_LEN:
-            findings.append(Finding(
-                code="STR-006",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title=f"Name too long ({len(name)} chars, max {_MAX_NAME_LEN})",
-                detail=f"The name '{name}' exceeds the {_MAX_NAME_LEN}-character limit.",
-                file_path=str(skill_md),
-                fix=f"Shorten the name to {_MAX_NAME_LEN} characters or fewer.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-006",
+                    severity=Severity.WARNING,
+                    category=Category.STRUCTURE,
+                    title=f"Name too long ({len(name)} chars, max {_MAX_NAME_LEN})",
+                    detail=f"The name '{name}' exceeds the {_MAX_NAME_LEN}-character limit.",
+                    file_path=str(skill_md),
+                    fix=f"Shorten the name to {_MAX_NAME_LEN} characters or fewer.",
+                )
+            )
 
         if not _NAME_RE.match(name):
             issues = []
@@ -250,93 +261,111 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
             if _CONSECUTIVE_HYPHENS.search(name):
                 issues.append("contains consecutive hyphens (--)")
 
-            detail = f"The name '{name}' is invalid: {'; '.join(issues)}." if issues else f"The name '{name}' doesn't match the required pattern."
-            findings.append(Finding(
-                code="STR-007",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title="Invalid name format",
-                detail=detail,
-                file_path=str(skill_md),
-                fix="Name must be 1-64 lowercase alphanumeric characters and hyphens, not starting/ending with hyphen.",
-            ))
+            detail = (
+                f"The name '{name}' is invalid: {'; '.join(issues)}."
+                if issues
+                else f"The name '{name}' doesn't match the required pattern."
+            )
+            findings.append(
+                Finding(
+                    code="STR-007",
+                    severity=Severity.WARNING,
+                    category=Category.STRUCTURE,
+                    title="Invalid name format",
+                    detail=detail,
+                    file_path=str(skill_md),
+                    fix="Name must be 1-64 lowercase alphanumeric characters and hyphens, not starting/ending with hyphen.",
+                )
+            )
 
         # Check name matches directory name
         if name != dir_name:
-            findings.append(Finding(
-                code="STR-008",
-                severity=Severity.INFO,
-                category=Category.STRUCTURE,
-                title="Name doesn't match directory",
-                detail=f"Frontmatter name '{name}' doesn't match directory name '{dir_name}'.",
-                file_path=str(skill_md),
-                fix=f"Either rename the directory to '{name}/' or change the name field to '{dir_name}'.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-008",
+                    severity=Severity.INFO,
+                    category=Category.STRUCTURE,
+                    title="Name doesn't match directory",
+                    detail=f"Frontmatter name '{name}' doesn't match directory name '{dir_name}'.",
+                    file_path=str(skill_md),
+                    fix=f"Either rename the directory to '{name}/' or change the name field to '{dir_name}'.",
+                )
+            )
 
         # Check name does not contain reserved words (agentskills.io spec)
         _RESERVED_WORDS = ["anthropic", "claude"]
         for reserved in _RESERVED_WORDS:
             if reserved in name:
-                findings.append(Finding(
-                    code="STR-018",
-                    severity=Severity.WARNING,
-                    category=Category.STRUCTURE,
-                    title=f"Name contains reserved word '{reserved}'",
-                    detail=f"The name '{name}' contains '{reserved}', which is reserved per the agentskills.io specification. "
-                           f"Names must not contain 'anthropic' or 'claude'.",
-                    file_path=str(skill_md),
-                    fix=f"Remove '{reserved}' from the skill name. Use a descriptive name for what the skill does instead.",
-                ))
+                findings.append(
+                    Finding(
+                        code="STR-018",
+                        severity=Severity.WARNING,
+                        category=Category.STRUCTURE,
+                        title=f"Name contains reserved word '{reserved}'",
+                        detail=f"The name '{name}' contains '{reserved}', which is reserved per the agentskills.io specification. "
+                        f"Names must not contain 'anthropic' or 'claude'.",
+                        file_path=str(skill_md),
+                        fix=f"Remove '{reserved}' from the skill name. Use a descriptive name for what the skill does instead.",
+                    )
+                )
                 break  # One finding is enough
 
     # --- Check 4: description field ---
     desc = frontmatter.get("description")
     if not desc:
-        findings.append(Finding(
-            code="STR-009",
-            severity=Severity.CRITICAL,
-            category=Category.STRUCTURE,
-            title="Missing required 'description' field",
-            detail="The 'description' field is required in SKILL.md frontmatter. It's the primary trigger signal.",
-            file_path=str(skill_md),
-            line_number=1,
-            fix="Add 'description: What it does and when to use it' to the frontmatter.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-009",
+                severity=Severity.CRITICAL,
+                category=Category.STRUCTURE,
+                title="Missing required 'description' field",
+                detail="The 'description' field is required in SKILL.md frontmatter. It's the primary trigger signal.",
+                file_path=str(skill_md),
+                line_number=1,
+                fix="Add 'description: What it does and when to use it' to the frontmatter.",
+            )
+        )
     elif isinstance(desc, str):
         if len(desc) > _MAX_DESC_LEN:
-            findings.append(Finding(
-                code="STR-010",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title=f"Description too long ({len(desc)} chars, max {_MAX_DESC_LEN})",
-                detail=f"The description exceeds the {_MAX_DESC_LEN}-character limit.",
-                file_path=str(skill_md),
-                fix=f"Shorten the description to {_MAX_DESC_LEN} characters. Move details to the body.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-010",
+                    severity=Severity.WARNING,
+                    category=Category.STRUCTURE,
+                    title=f"Description too long ({len(desc)} chars, max {_MAX_DESC_LEN})",
+                    detail=f"The description exceeds the {_MAX_DESC_LEN}-character limit.",
+                    file_path=str(skill_md),
+                    fix=f"Shorten the description to {_MAX_DESC_LEN} characters. Move details to the body.",
+                )
+            )
 
         if len(desc) < 20:
-            findings.append(Finding(
-                code="STR-011",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title="Description too short",
-                detail=f"The description '{desc}' is very short ({len(desc)} chars). It should describe what the skill does AND when to use it.",
-                file_path=str(skill_md),
-                fix="Include both what the skill does and specific trigger contexts/phrases.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-011",
+                    severity=Severity.WARNING,
+                    category=Category.STRUCTURE,
+                    title="Description too short",
+                    detail=f"The description '{desc}' is very short ({len(desc)} chars). It should describe what the skill does AND when to use it.",
+                    file_path=str(skill_md),
+                    fix="Include both what the skill does and specific trigger contexts/phrases.",
+                )
+            )
 
         # Check description does not contain XML tags (agentskills.io spec)
         if re.search(r"<[a-zA-Z][^>]*>", desc):
-            findings.append(Finding(
-                code="STR-019",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title="Description contains XML tags",
-                detail="The description field must not contain XML tags per the agentskills.io specification. "
-                       "XML tags in the description can interfere with system prompt injection.",
-                file_path=str(skill_md),
-                fix="Remove all XML/HTML tags from the description. Use plain text only.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-019",
+                    severity=Severity.WARNING,
+                    category=Category.STRUCTURE,
+                    title="Description contains XML tags",
+                    detail="The description field must not contain XML tags per the agentskills.io specification. "
+                    "XML tags in the description can interfere with system prompt injection.",
+                    file_path=str(skill_md),
+                    fix="Remove all XML/HTML tags from the description. Use plain text only.",
+                )
+            )
 
         # Check description uses third person (Anthropic best practice)
         # Flag first-person ("I can", "I will", "I help") and second-person ("You can", "You will")
@@ -352,29 +381,33 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
         sp_match = _SECOND_PERSON_RE.search(desc)
         if fp_match or sp_match:
             matched = fp_match.group(0) if fp_match else sp_match.group(0)
-            findings.append(Finding(
-                code="STR-020",
-                severity=Severity.INFO,
-                category=Category.STRUCTURE,
-                title="Description should use third person",
-                detail=f"Found '{matched}' in description. Per Anthropic best practices, descriptions should use "
-                       f"third person (e.g., 'Processes Excel files') instead of first person ('I can help') "
-                       f"or second person ('You can use this'). Inconsistent point-of-view can cause discovery problems.",
-                file_path=str(skill_md),
-                fix="Rewrite the description in third person: 'Analyzes data...' instead of 'I analyze data...'.",
-            ))
+            findings.append(
+                Finding(
+                    code="STR-020",
+                    severity=Severity.INFO,
+                    category=Category.STRUCTURE,
+                    title="Description should use third person",
+                    detail=f"Found '{matched}' in description. Per Anthropic best practices, descriptions should use "
+                    f"third person (e.g., 'Processes Excel files') instead of first person ('I can help') "
+                    f"or second person ('You can use this'). Inconsistent point-of-view can cause discovery problems.",
+                    file_path=str(skill_md),
+                    fix="Rewrite the description in third person: 'Analyzes data...' instead of 'I analyze data...'.",
+                )
+            )
 
     # --- Check 5: compatibility field ---
     compat = frontmatter.get("compatibility")
     if compat and isinstance(compat, str) and len(compat) > _MAX_COMPAT_LEN:
-        findings.append(Finding(
-            code="STR-012",
-            severity=Severity.WARNING,
-            category=Category.STRUCTURE,
-            title=f"Compatibility field too long ({len(compat)} chars, max {_MAX_COMPAT_LEN})",
-            detail=f"The compatibility field exceeds {_MAX_COMPAT_LEN} characters.",
-            file_path=str(skill_md),
-        ))
+        findings.append(
+            Finding(
+                code="STR-012",
+                severity=Severity.WARNING,
+                category=Category.STRUCTURE,
+                title=f"Compatibility field too long ({len(compat)} chars, max {_MAX_COMPAT_LEN})",
+                detail=f"The compatibility field exceeds {_MAX_COMPAT_LEN} characters.",
+                file_path=str(skill_md),
+            )
+        )
 
     # --- Check 6: metadata field type ---
     metadata = frontmatter.get("metadata")
@@ -383,36 +416,43 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
         if isinstance(metadata, str):
             try:
                 import json
+
                 parsed = json.loads(metadata)
                 if isinstance(parsed, dict):
                     metadata = parsed  # Valid inline JSON map, accept it
                 else:
-                    findings.append(Finding(
+                    findings.append(
+                        Finding(
+                            code="STR-013",
+                            severity=Severity.WARNING,
+                            category=Category.STRUCTURE,
+                            title="metadata field should be a mapping",
+                            detail=f"The metadata field should be a YAML mapping (key: value pairs). Parsed JSON is {type(parsed).__name__}.",
+                            file_path=str(skill_md),
+                        )
+                    )
+            except (json.JSONDecodeError, Exception):
+                findings.append(
+                    Finding(
                         code="STR-013",
                         severity=Severity.WARNING,
                         category=Category.STRUCTURE,
                         title="metadata field should be a mapping",
-                        detail=f"The metadata field should be a YAML mapping (key: value pairs). Parsed JSON is {type(parsed).__name__}.",
+                        detail="The metadata field should be a YAML mapping (key: value pairs), got string that isn't valid JSON.",
                         file_path=str(skill_md),
-                    ))
-            except (json.JSONDecodeError, Exception):
-                findings.append(Finding(
+                    )
+                )
+        else:
+            findings.append(
+                Finding(
                     code="STR-013",
                     severity=Severity.WARNING,
                     category=Category.STRUCTURE,
                     title="metadata field should be a mapping",
-                    detail="The metadata field should be a YAML mapping (key: value pairs), got string that isn't valid JSON.",
+                    detail=f"The metadata field should be a YAML mapping (key: value pairs), got {type(metadata).__name__}.",
                     file_path=str(skill_md),
-                ))
-        else:
-            findings.append(Finding(
-                code="STR-013",
-                severity=Severity.WARNING,
-                category=Category.STRUCTURE,
-                title="metadata field should be a mapping",
-                detail=f"The metadata field should be a YAML mapping (key: value pairs), got {type(metadata).__name__}.",
-                file_path=str(skill_md),
-            ))
+                )
+            )
 
     # --- Check 7: Progressive disclosure - SKILL.md size ---
     lines = content.split("\n")
@@ -421,41 +461,47 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
     total_lines = len(lines)
 
     if total_lines > _RECOMMENDED_MAX_LINES:
-        findings.append(Finding(
-            code="STR-014",
-            severity=Severity.INFO,
-            category=Category.STRUCTURE,
-            title=f"SKILL.md exceeds recommended {_RECOMMENDED_MAX_LINES} lines ({total_lines} lines)",
-            detail=f"The spec recommends keeping SKILL.md under {_RECOMMENDED_MAX_LINES} lines for efficient context usage.",
-            file_path=str(skill_md),
-            fix="Move detailed reference material to separate files in references/ or scripts/.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-014",
+                severity=Severity.INFO,
+                category=Category.STRUCTURE,
+                title=f"SKILL.md exceeds recommended {_RECOMMENDED_MAX_LINES} lines ({total_lines} lines)",
+                detail=f"The spec recommends keeping SKILL.md under {_RECOMMENDED_MAX_LINES} lines for efficient context usage.",
+                file_path=str(skill_md),
+                fix="Move detailed reference material to separate files in references/ or scripts/.",
+            )
+        )
 
     # Approximate token count (rough: ~4 chars per token for English)
     approx_tokens = len(body_text) // 4
     if approx_tokens > _RECOMMENDED_MAX_BODY_TOKENS_APPROX:
-        findings.append(Finding(
-            code="STR-015",
-            severity=Severity.INFO,
-            category=Category.STRUCTURE,
-            title=f"SKILL.md body is large (~{approx_tokens} tokens, recommended <{_RECOMMENDED_MAX_BODY_TOKENS_APPROX})",
-            detail="Large SKILL.md files consume significant context when activated. The spec recommends <5000 tokens for the instructions body.",
-            file_path=str(skill_md),
-            fix="Use progressive disclosure: move detailed content to references/ files loaded on demand.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-015",
+                severity=Severity.INFO,
+                category=Category.STRUCTURE,
+                title=f"SKILL.md body is large (~{approx_tokens} tokens, recommended <{_RECOMMENDED_MAX_BODY_TOKENS_APPROX})",
+                detail="Large SKILL.md files consume significant context when activated. The spec recommends <5000 tokens for the instructions body.",
+                file_path=str(skill_md),
+                fix="Use progressive disclosure: move detailed content to references/ files loaded on demand.",
+            )
+        )
 
     # --- Check 8: README.md conflict ---
     readme = skill_path / "README.md"
     if readme.is_file():
-        findings.append(Finding(
-            code="STR-016",
-            severity=Severity.INFO,
-            category=Category.STRUCTURE,
-            title="README.md present alongside SKILL.md",
-            detail="Some agents may confuse README.md with SKILL.md. The skill entry point should be SKILL.md only.",
-            file_path=str(readme),
-            fix="Consider removing README.md or clearly differentiating it from SKILL.md.",
-        ))
+        findings.append(
+            Finding(
+                code="STR-016",
+                severity=Severity.INFO,
+                category=Category.STRUCTURE,
+                title="README.md present alongside SKILL.md",
+                detail="Some agents may confuse README.md with SKILL.md. The skill entry point should be SKILL.md only.",
+                file_path=str(readme),
+                fix="Consider removing README.md or clearly differentiating it from SKILL.md.",
+            )
+        )
 
     # --- Check 9: Standard directories ---
     known_dirs = {"scripts", "references", "assets", "evals", "agents"}
@@ -472,16 +518,18 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
                 try:
                     first_line = script_file.read_text(encoding="utf-8").split("\n")[0]
                     if script_file.suffix in (".py", ".sh") and not first_line.startswith("#!"):
-                        findings.append(Finding(
-                            code="STR-017",
-                            severity=Severity.INFO,
-                            category=Category.QUALITY,
-                            title="Script missing shebang line",
-                            detail=f"'{script_file.name}' lacks a shebang (e.g., #!/usr/bin/env python3). Agents may not know how to execute it.",
-                            file_path=str(script_file),
-                            line_number=1,
-                            fix="Add '#!/usr/bin/env python3' (or appropriate) as the first line.",
-                        ))
+                        findings.append(
+                            Finding(
+                                code="STR-017",
+                                severity=Severity.INFO,
+                                category=Category.QUALITY,
+                                title="Script missing shebang line",
+                                detail=f"'{script_file.name}' lacks a shebang (e.g., #!/usr/bin/env python3). Agents may not know how to execute it.",
+                                file_path=str(script_file),
+                                line_number=1,
+                                fix="Add '#!/usr/bin/env python3' (or appropriate) as the first line.",
+                            )
+                        )
                 except Exception:
                     pass
 

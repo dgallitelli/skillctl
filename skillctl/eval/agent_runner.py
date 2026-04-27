@@ -24,6 +24,7 @@ from skillctl.eval.errors import EvalError
 # Abstract interface
 # ---------------------------------------------------------------------------
 
+
 class AgentRunner(abc.ABC):
     """Abstract base class for agent CLI runners.
 
@@ -87,6 +88,7 @@ class AgentRunner(abc.ABC):
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class AgentNotAvailableError(EvalError):
     """Raised when an agent CLI is not found on PATH."""
 
@@ -103,6 +105,7 @@ class AgentNotAvailableError(EvalError):
 # ---------------------------------------------------------------------------
 # ClaudeRunner — default implementation
 # ---------------------------------------------------------------------------
+
 
 class ClaudeRunner(AgentRunner):
     """Agent runner for the Claude Code CLI.
@@ -142,9 +145,18 @@ class ClaudeRunner(AgentRunner):
         """Build claude CLI argument list for running WITH a skill installed."""
         skill_content = self._read_skill_content(skill_path)
         cmd = [
-            self.CLI_NAME, "-p", prompt,
-            "--permission-mode", "bypassPermissions",
-            "--allowedTools", "Read", "Glob", "Grep", "Bash", "Write", "Edit",
+            self.CLI_NAME,
+            "-p",
+            prompt,
+            "--permission-mode",
+            "bypassPermissions",
+            "--allowedTools",
+            "Read",
+            "Glob",
+            "Grep",
+            "Bash",
+            "Write",
+            "Edit",
         ]
         if skill_content:
             # Append a workspace hint so the agent knows skill resources
@@ -164,9 +176,18 @@ class ClaudeRunner(AgentRunner):
     def _build_cmd_without_skill(self, prompt: str) -> list[str]:
         """Build claude CLI argument list for running WITHOUT a skill."""
         return [
-            self.CLI_NAME, "-p", prompt,
-            "--permission-mode", "bypassPermissions",
-            "--allowedTools", "Read", "Glob", "Grep", "Bash", "Write", "Edit",
+            self.CLI_NAME,
+            "-p",
+            prompt,
+            "--permission-mode",
+            "bypassPermissions",
+            "--allowedTools",
+            "Read",
+            "Glob",
+            "Grep",
+            "Bash",
+            "Write",
+            "Edit",
         ]
 
     def run_prompt(
@@ -232,11 +253,13 @@ class ClaudeRunner(AgentRunner):
             if event_type == "content_block_start":
                 cb = event.get("content_block", {})
                 if cb.get("type") == "tool_use":
-                    tool_calls.append({
-                        "name": cb.get("name", ""),
-                        "input": cb.get("input", {}),
-                        "id": cb.get("id", ""),
-                    })
+                    tool_calls.append(
+                        {
+                            "name": cb.get("name", ""),
+                            "input": cb.get("input", {}),
+                            "id": cb.get("id", ""),
+                        }
+                    )
 
             # Format 2: Claude CLI stream-json
             # {"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{...}}]}}
@@ -244,11 +267,13 @@ class ClaudeRunner(AgentRunner):
                 msg = event.get("message", {})
                 for content_block in msg.get("content", []):
                     if content_block.get("type") == "tool_use":
-                        tool_calls.append({
-                            "name": content_block.get("name", ""),
-                            "input": content_block.get("input", {}),
-                            "id": content_block.get("id", ""),
-                        })
+                        tool_calls.append(
+                            {
+                                "name": content_block.get("name", ""),
+                                "input": content_block.get("input", {}),
+                                "id": content_block.get("id", ""),
+                            }
+                        )
                     elif content_block.get("type") == "text":
                         text_parts.append(content_block.get("text", ""))
 

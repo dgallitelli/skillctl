@@ -42,12 +42,11 @@ def _make_skill(
 
 # -- initialize -------------------------------------------------------------
 
+
 def test_initialize_creates_tables(db: MetadataDB):
     tables = {
         row[0]
-        for row in db.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger')"
-        ).fetchall()
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'trigger')").fetchall()
     }
     assert "skills" in tables
     assert "skills_fts" in tables
@@ -68,6 +67,7 @@ def test_initialize_is_idempotent(db: MetadataDB):
 
 
 # -- insert and get ---------------------------------------------------------
+
 
 def test_insert_and_get_skill(db: MetadataDB):
     skill = _make_skill()
@@ -96,6 +96,7 @@ def test_insert_duplicate_raises(db: MetadataDB):
 
 # -- get_versions -----------------------------------------------------------
 
+
 def test_get_versions(db: MetadataDB):
     db.insert_skill(_make_skill(version="1.0.0"))
     db.insert_skill(_make_skill(version="1.1.0"))
@@ -116,6 +117,7 @@ def test_get_versions_empty(db: MetadataDB):
 
 # -- delete_skill -----------------------------------------------------------
 
+
 def test_delete_skill(db: MetadataDB):
     db.insert_skill(_make_skill())
     assert db.delete_skill("my-org/code-reviewer", "1.0.0") is True
@@ -127,6 +129,7 @@ def test_delete_missing_skill_returns_false(db: MetadataDB):
 
 
 # -- update_eval ------------------------------------------------------------
+
 
 def test_update_eval(db: MetadataDB):
     db.insert_skill(_make_skill())
@@ -143,6 +146,7 @@ def test_update_eval_missing_returns_false(db: MetadataDB):
 
 
 # -- FTS5 search -------------------------------------------------------------
+
 
 def test_search_by_query(db: MetadataDB):
     db.insert_skill(_make_skill(description="Automated code review tool"))
@@ -174,6 +178,7 @@ def test_search_matches_tags(db: MetadataDB):
 
 # -- namespace filter -------------------------------------------------------
 
+
 def test_search_namespace_filter(db: MetadataDB):
     db.insert_skill(_make_skill())
     db.insert_skill(
@@ -190,6 +195,7 @@ def test_search_namespace_filter(db: MetadataDB):
 
 
 # -- tag filter -------------------------------------------------------------
+
 
 def test_search_tag_filter(db: MetadataDB):
     db.insert_skill(_make_skill(tags=["security", "code-review"]))
@@ -208,6 +214,7 @@ def test_search_tag_filter(db: MetadataDB):
 
 
 # -- pagination -------------------------------------------------------------
+
 
 def test_search_pagination(db: MetadataDB):
     for i in range(10):
@@ -250,6 +257,7 @@ def test_count_search(db: MetadataDB):
 
 # -- edge cases --------------------------------------------------------------
 
+
 def test_search_empty_query_returns_all(db: MetadataDB):
     db.insert_skill(_make_skill())
     db.insert_skill(
@@ -269,9 +277,7 @@ def test_search_empty_query_returns_all(db: MetadataDB):
 
 
 def test_search_special_characters(db: MetadataDB):
-    db.insert_skill(
-        _make_skill(description="Handles C++ and C# code")
-    )
+    db.insert_skill(_make_skill(description="Handles C++ and C# code"))
     # FTS5 should not crash on special chars — we just verify no exception
     results = db.search(query="C++")
     # May or may not match depending on FTS tokenizer, but should not error

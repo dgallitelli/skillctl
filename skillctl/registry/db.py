@@ -18,22 +18,23 @@ from pathlib import Path
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SkillRecord:
     """One row in the ``skills`` table."""
 
     id: int | None
-    name: str                       # "my-org/code-reviewer"
-    namespace: str                  # "my-org"
+    name: str  # "my-org/code-reviewer"
+    namespace: str  # "my-org"
     version: str
     description: str
     content_hash: str
     tags: list[str] = field(default_factory=list)
     authors: list[dict] = field(default_factory=list)
     license: str | None = None
-    eval_grade: str | None = None   # A-F or None
-    eval_score: float | None = None # 0-100 or None
-    created_at: str = ""            # ISO 8601
+    eval_grade: str | None = None  # A-F or None
+    eval_score: float | None = None  # 0-100 or None
+    created_at: str = ""  # ISO 8601
     updated_at: str = ""
     manifest_json: str = "{}"
 
@@ -118,6 +119,7 @@ _CREATE_INDEXES = [
 # MetadataDB
 # ---------------------------------------------------------------------------
 
+
 class MetadataDB:
     """SQLite-backed metadata index for skills and tokens."""
 
@@ -140,12 +142,7 @@ class MetadataDB:
         self._conn.execute("PRAGMA foreign_keys=ON;")
 
         self._conn.executescript(
-            _CREATE_SKILLS
-            + _CREATE_FTS
-            + _TRIGGER_AI
-            + _TRIGGER_AD
-            + _TRIGGER_AU
-            + _CREATE_TOKENS
+            _CREATE_SKILLS + _CREATE_FTS + _TRIGGER_AI + _TRIGGER_AD + _TRIGGER_AU + _CREATE_TOKENS
         )
         for idx_sql in _CREATE_INDEXES:
             self._conn.execute(idx_sql)
@@ -250,9 +247,7 @@ class MetadataDB:
         self.conn.commit()
         return cur.rowcount > 0
 
-    def update_eval(
-        self, name: str, version: str, grade: str, score: float
-    ) -> bool:
+    def update_eval(self, name: str, version: str, grade: str, score: float) -> bool:
         """Attach eval grade/score to a skill version.  Returns True if updated."""
         now = self._now_iso()
         cur = self.conn.execute(
@@ -298,7 +293,7 @@ class MetadataDB:
         tokens = query.split()
         if not tokens:
             return None
-        return " ".join(f'"{t.replace(chr(34), chr(34)+chr(34))}"' for t in tokens)
+        return " ".join(f'"{t.replace(chr(34), chr(34) + chr(34))}"' for t in tokens)
 
     def _build_search(
         self,

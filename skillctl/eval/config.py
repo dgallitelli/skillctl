@@ -51,6 +51,7 @@ from skillctl.eval.schemas import Severity
 @dataclass
 class CustomRule:
     """A user-defined regex-based audit rule."""
+
     code: str
     pattern: str
     severity: str = "WARNING"
@@ -68,6 +69,7 @@ class CustomRule:
 @dataclass
 class AuditConfig:
     """Configuration for audit behavior."""
+
     ignore: set[str] = field(default_factory=set)
     severity_overrides: dict[str, str] = field(default_factory=dict)
     safe_domains: set[str] = field(default_factory=set)
@@ -113,7 +115,6 @@ def load_config(skill_path: str | Path) -> AuditConfig:
     if config_file is None:
         return AuditConfig.empty()
 
-
     try:
         raw = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     except Exception:
@@ -149,13 +150,15 @@ def load_config(skill_path: str | Path) -> AuditConfig:
         for rule_dict in rules_raw:
             if isinstance(rule_dict, dict) and "code" in rule_dict and "pattern" in rule_dict:
                 try:
-                    custom_rules.append(CustomRule(
-                        code=str(rule_dict["code"]),
-                        pattern=str(rule_dict["pattern"]),
-                        severity=str(rule_dict.get("severity", "WARNING")).upper(),
-                        message=str(rule_dict.get("message", "")),
-                        file_pattern=str(rule_dict.get("file_pattern", "*")),
-                    ))
+                    custom_rules.append(
+                        CustomRule(
+                            code=str(rule_dict["code"]),
+                            pattern=str(rule_dict["pattern"]),
+                            severity=str(rule_dict.get("severity", "WARNING")).upper(),
+                            message=str(rule_dict.get("message", "")),
+                            file_pattern=str(rule_dict.get("file_pattern", "*")),
+                        )
+                    )
                 except re.error:
                     pass  # Skip rules with invalid regex
 

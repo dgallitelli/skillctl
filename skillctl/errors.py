@@ -16,11 +16,7 @@ class SkillctlError(Exception):
         return f"{self.code}: {self.what}"
 
     def format_human(self) -> str:
-        return (
-            f"Error: {self.what}\n"
-            f"  Why: {self.why}\n"
-            f"  Fix: {self.fix}\n"
-        )
+        return f"Error: {self.what}\n  Why: {self.why}\n  Fix: {self.fix}\n"
 
     def format_json(self) -> dict:
         return {
