@@ -55,6 +55,7 @@ class SkillMetadata:
     authors: list[Author] = field(default_factory=list)
     license: Optional[str] = None
     tags: list[str] = field(default_factory=list)
+    category: Optional[str] = None
 
 
 @dataclass
@@ -85,6 +86,7 @@ class SkillManifest:
                 ),
                 **({"license": self.metadata.license} if self.metadata.license else {}),
                 **({"tags": self.metadata.tags} if self.metadata.tags else {}),
+                **({"category": self.metadata.category} if self.metadata.category else {}),
             },
             "spec": {
                 "content": {
@@ -229,6 +231,7 @@ class ManifestLoader:
                 authors=authors,
                 license=meta_raw.get("license"),
                 tags=meta_raw.get("tags", []),
+                category=meta_raw.get("category"),
             ),
             spec=SkillSpec(
                 content=content,

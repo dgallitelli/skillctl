@@ -17,6 +17,21 @@ NAME_PATTERN = re.compile(r"^[a-z0-9-]+/[a-z0-9-]+$")
 
 VALID_PARAM_TYPES = {"string", "number", "boolean", "enum"}
 
+KNOWN_CATEGORIES = {
+    "code-review",
+    "deployment",
+    "documentation",
+    "dev-tools",
+    "frameworks",
+    "security",
+    "testing",
+    "data",
+    "design",
+    "infrastructure",
+    "observability",
+    "general",
+}
+
 
 @dataclass
 class ValidationIssue:
@@ -69,6 +84,10 @@ class SchemaValidator:
 
         cap_warnings = self._validate_capabilities(manifest.spec.capabilities)
         warnings.extend(cap_warnings)
+
+        cat_warning = self._validate_category(manifest.metadata.category)
+        if cat_warning:
+            warnings.append(cat_warning)
 
         return ValidationResult(
             valid=len(errors) == 0,
@@ -212,6 +231,17 @@ class SchemaValidator:
                     )
                 )
         return warnings
+
+    def _validate_category(self, category: Optional[str]) -> Optional[ValidationIssue]:
+        if category is not None and category not in KNOWN_CATEGORIES:
+            return ValidationIssue(
+                code="VAL-CAT-UNKNOWN",
+                message=f"Unknown category '{category}'",
+                path="metadata.category",
+                hint=f"Known categories: {', '.join(sorted(KNOWN_CATEGORIES))}",
+                severity="warning",
+            )
+        return None
 
     def _validate_content_ref(self, content: ContentRef) -> Optional[ValidationIssue]:
         if content.path and content.inline:

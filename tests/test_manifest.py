@@ -249,3 +249,34 @@ def test_resolve_content_allows_subdirectory_path(tmp_path, loader):
 
     result = loader.resolve_content(manifest, str(tmp_path))
     assert result == "# Helper content"
+
+
+# -- category field round-trip ------------------------------------------------
+
+
+def test_category_round_trip(tmp_path, loader):
+    """A manifest with category: security round-trips through load -> to_dict."""
+    data = _valid_manifest_dict()
+    data["metadata"]["category"] = "security"
+    _write_skill_yaml(tmp_path, data)
+
+    manifest, warnings = loader.load(str(tmp_path))
+
+    assert manifest.metadata.category == "security"
+    assert warnings == []
+
+    d = manifest.to_dict()
+    assert d["metadata"]["category"] == "security"
+
+
+def test_category_absent_round_trip(tmp_path, loader):
+    """A manifest without category omits it from to_dict output."""
+    data = _valid_manifest_dict()
+    # No category key at all
+    _write_skill_yaml(tmp_path, data)
+
+    manifest, warnings = loader.load(str(tmp_path))
+
+    assert manifest.metadata.category is None
+    d = manifest.to_dict()
+    assert "category" not in d["metadata"]

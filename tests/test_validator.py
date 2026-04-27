@@ -218,3 +218,40 @@ def test_check_capabilities_no_warning_when_declared(validator):
 
     write_warnings = [w for w in warnings if "write_file" in w.message]
     assert write_warnings == []
+
+
+# -- Category validation ------------------------------------------------------
+
+
+def test_known_category_passes(validator):
+    """A known category passes validation without warnings."""
+    manifest = _make_manifest()
+    manifest.metadata.category = "security"
+    result = validator.validate(manifest)
+
+    assert result.valid is True
+    cat_warnings = [w for w in result.warnings if w.code == "VAL-CAT-UNKNOWN"]
+    assert cat_warnings == []
+
+
+def test_unknown_category_produces_warning(validator):
+    """An unknown category produces a VAL-CAT-UNKNOWN warning (not error)."""
+    manifest = _make_manifest()
+    manifest.metadata.category = "banana"
+    result = validator.validate(manifest)
+
+    assert result.valid is True  # warning, not error
+    cat_warnings = [w for w in result.warnings if w.code == "VAL-CAT-UNKNOWN"]
+    assert len(cat_warnings) == 1
+    assert cat_warnings[0].severity == "warning"
+
+
+def test_missing_category_no_warning(validator):
+    """A manifest with no category set produces no category warnings."""
+    manifest = _make_manifest()
+    assert manifest.metadata.category is None
+    result = validator.validate(manifest)
+
+    assert result.valid is True
+    cat_warnings = [w for w in result.warnings if w.code == "VAL-CAT-UNKNOWN"]
+    assert cat_warnings == []

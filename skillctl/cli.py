@@ -535,6 +535,7 @@ def cmd_create_skill(args):
         f"  name: {name}\n"
         f"  version: 0.1.0\n"
         f'  description: ""\n'
+        f'  category: ""\n'
         f"\n"
         f"spec:\n"
         f"  content:\n"

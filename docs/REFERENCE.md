@@ -93,6 +93,7 @@ All commands follow kubectl-style verb patterns: `skillctl <verb> [resource] [ar
 | `skillctl logs <name>` | Show audit trail for a skill (from registry) |
 | `skillctl validate [path]` | Validate manifest structure, semver, capabilities |
 | `skillctl diff <ref-a> <ref-b>` | Compare two skill versions with breaking change detection |
+| `skillctl export` | Export skills from local store to a portable archive (tar.gz or zip) |
 | `skillctl doctor` | Diagnose environment issues |
 | `skillctl version` | Print version info |
 
@@ -103,6 +104,15 @@ All commands follow kubectl-style verb patterns: `skillctl <verb> [resource] [ar
 | `-f <path>` | Path to skill (alias for positional argument) |
 | `--dry-run` | Preview without mutating state |
 | `--local` | Skip remote publish, only push to local store |
+
+### `export` flags
+
+| Flag | Description |
+|------|-------------|
+| `--output <path>` / `-o` | Output file path (default: `skillctl-export-{timestamp}.tar.gz`) |
+| `--format tar.gz\|zip` | Archive format (default: `tar.gz`) |
+| `--namespace <ns>` | Export only skills in this namespace |
+| `--tag <tag>` | Export only skills with this tag |
 
 ### Registry commands
 
