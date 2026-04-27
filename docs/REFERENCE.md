@@ -135,6 +135,43 @@ Backward-compatible aliases: `registry.url` maps to `registry.local.url`, `regis
 | `skillctl eval compare <a> <b>` | Side-by-side skill comparison |
 | `skillctl eval lifecycle <path>` | Version tracking and change detection |
 
+### Install commands
+
+| Command | Description |
+|---------|-------------|
+| `skillctl install <ref-or-path> --target <targets>` | Install a skill to AI coding IDEs |
+| `skillctl uninstall <ref> --target <targets>` | Remove a skill from AI coding IDEs |
+| `skillctl get installations` | List all skillctl-managed installations |
+
+### `install` flags
+
+| Flag | Description |
+|------|-------------|
+| `--target <targets>` | **Required.** Comma-separated IDE names or `all`. Valid: `claude`, `cursor`, `windsurf`, `copilot`, `kiro` |
+| `--global` | Install to user-level directory instead of project-level |
+| `--force` | Overwrite files modified since last install |
+
+### `get installations` flags
+
+| Flag | Description |
+|------|-------------|
+| `--target <ide>` | Filter by IDE target |
+| `--json` | Output as JSON |
+
+### Supported IDE targets
+
+| Target | Project path | Global path | Format |
+|--------|-------------|-------------|--------|
+| `claude` | `.claude/skills/{name}/SKILL.md` | `~/.claude/skills/{name}/SKILL.md` | Markdown + Claude frontmatter |
+| `cursor` | `.cursor/rules/{name}.mdc` | — | Markdown + Cursor frontmatter |
+| `windsurf` | `.windsurf/rules/{name}.md` | `~/.codeium/windsurf/memories/global_rules.md` | Markdown + Windsurf frontmatter |
+| `copilot` | `.github/instructions/{name}.instructions.md` | — | Markdown + Copilot frontmatter |
+| `kiro` | `.kiro/steering/{name}.md` | `~/.kiro/steering/{name}.md` | Markdown + Kiro frontmatter |
+
+`--target all` auto-detects which IDEs are present by checking for their config directories. `--global` is only supported for targets with a global path (claude, windsurf, kiro).
+
+Frontmatter is automatically translated to each IDE's native format. Fields that don't map (e.g., `allowed-tools` for Cursor) are dropped with a warning to stderr.
+
 ### Optimizer commands
 
 | Command | Description |
@@ -287,4 +324,34 @@ The `examples/` directory contains three skill examples:
 ```bash
 skillctl validate examples/basic-skill
 skillctl eval audit examples/basic-skill
+```
+
+---
+
+## Compatibility
+
+### Python versions
+
+| Python | Status |
+|--------|--------|
+| 3.10 | Supported (tested in CI) |
+| 3.11 | Supported (not explicitly tested) |
+| 3.12 | Supported (tested in CI) |
+| 3.13 | Supported (tested in CI) |
+
+### Optional dependencies
+
+| Feature | Extra | Key dependencies |
+|---------|-------|-----------------|
+| Core CLI | (none) | pyyaml |
+| Registry server | `[server]` | fastapi, uvicorn |
+| Optimizer | `[optimize]` | litellm (>=1.83.14) |
+| Claude Code plugin | `[plugin]` | mcp |
+| All features | `[all]` | All of the above |
+| Development | `[dev]` | pytest, hypothesis, httpx |
+
+```bash
+pip install skillctl              # core only
+pip install "skillctl[optimize]"  # + optimizer
+pip install "skillctl[all]"       # everything
 ```

@@ -299,14 +299,14 @@ def main():
     # skillctl install <ref-or-path> --target <targets> [--global] [--force]
     install_p = sub.add_parser("install", help="Install a skill to AI coding IDEs")
     install_p.add_argument("ref", help="Skill ref (namespace/name@version) or path to skill directory")
-    install_p.add_argument("--target", required=True, help="Target IDEs (comma-separated or 'all')")
-    install_p.add_argument("--global", dest="global_scope", action="store_true", help="Install to user-level directory")
+    install_p.add_argument("--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')")
+    install_p.add_argument("--global", dest="global_scope", action="store_true", help="Install to user-level directory (claude, windsurf, kiro only)")
     install_p.add_argument("--force", action="store_true", help="Overwrite modified files")
 
     # skillctl uninstall <ref> --target <targets>
     uninstall_p = sub.add_parser("uninstall", help="Remove a skill from AI coding IDEs")
     uninstall_p.add_argument("ref", help="Skill ref (namespace/name@version)")
-    uninstall_p.add_argument("--target", required=True, help="Target IDEs (comma-separated or 'all')")
+    uninstall_p.add_argument("--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')")
 
     # -----------------------------------------------------------------------
     # DISPATCH
