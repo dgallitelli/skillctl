@@ -11,7 +11,7 @@ import json
 import sqlite3
 from typing import NoReturn
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile  # type: ignore[import-untyped]
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile  # type: ignore[import-untyped]
 from fastapi.responses import Response  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field  # type: ignore[import-untyped]
 
@@ -157,7 +157,7 @@ async def health(request: Request):
 async def publish_skill(
     request: Request,
     manifest: str = Form(...),
-    content: UploadFile = ...,
+    content: UploadFile = File(...),  # type: ignore[assignment]
     token: TokenInfo = Depends(get_current_token),
 ):
     db: MetadataDB = request.app.state.db

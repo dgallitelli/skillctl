@@ -51,10 +51,10 @@ class LLMClient:
             ],
             max_tokens=max_tokens,
         )
-        choice = response.choices[0]
-        usage = response.usage
+        choice = response.choices[0]  # type: ignore[union-attr]
+        usage = response.usage  # type: ignore[union-attr]
         return LLMResponse(
-            content=choice.message.content,
+            content=choice.message.content or "",
             input_tokens=usage.prompt_tokens,
             output_tokens=usage.completion_tokens,
         )
