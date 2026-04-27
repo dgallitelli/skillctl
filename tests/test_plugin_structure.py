@@ -120,7 +120,7 @@ class TestPluginMCP:
             msg = json.loads(line)
             if msg.get("id") == 2:
                 tool_names = [t["name"] for t in msg["result"]["tools"]]
-                assert len(tool_names) == 13
+                assert len(tool_names) == 14
                 assert "skillctl_validate" in tool_names
                 assert "skillctl_optimize" in tool_names
                 break

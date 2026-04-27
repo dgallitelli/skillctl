@@ -49,6 +49,7 @@ skillctl serve --auth-disabled           # start registry server
 - `skillctl/validator.py` — schema validation
 - `skillctl/diff.py` — version comparison
 - `skillctl/utils.py` — shared utilities (`parse_ref`, `read_skill_name_*`)
+- `skillctl/install.py` — multi-IDE installer (Claude Code, Cursor, Windsurf, Copilot, Kiro)
 - `skillctl/errors.py` — `SkillctlError(code, what, why, fix)` base exception
 - `skillctl/registry/` — FastAPI registry server (API, auth, storage, audit)
 - `skillctl/eval/` — evaluation suite (audit, functional, trigger, unified report)

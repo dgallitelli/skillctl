@@ -68,7 +68,8 @@ skill.yaml + SKILL.md  --->  Schema validation    --->  Local store (SHA-256)
 
 | Module | Purpose |
 |--------|---------|
-| `cli.py` | Entry point. kubectl-style command dispatch (apply, create, get, delete, diff, validate, eval, optimize, configure, serve, doctor, login). |
+| `cli.py` | Entry point. kubectl-style command dispatch (apply, create, get, delete, diff, validate, eval, optimize, install, uninstall, configure, serve, doctor, login). |
+| `install.py` | Multi-IDE skill installation. Target registry (Claude Code, Cursor, Windsurf, Copilot, Kiro), frontmatter translation, file operations, installation tracking via `~/.skillctl/installations.json`. |
 | `manifest.py` | Parses `skill.yaml` into `SkillManifest` dataclass. Auto-wraps plain `SKILL.md` files. |
 | `validator.py` | Schema validation: apiVersion, semver, name format, parameter types, capability checking. |
 | `store.py` | Content-addressed local storage under `~/.skillctl/store/`. SHA-256 hashing, atomic writes, integrity verification on pull. |

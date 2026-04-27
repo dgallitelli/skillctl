@@ -87,6 +87,12 @@ skillctl create skill my-org/my-skill
 skillctl validate
 skillctl eval audit .
 skillctl apply
+
+# Install to your IDEs
+skillctl install my-org/my-skill@0.1.0 --target all      # all detected IDEs
+skillctl install my-org/my-skill@0.1.0 --target cursor    # specific IDE
+skillctl get installations                                 # list what's installed
+skillctl uninstall my-org/my-skill@0.1.0 --target all     # remove from all
 ```
 
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the full CLI reference, registry server setup, eval suite details, optimizer flags, skill format spec, and API endpoints.
@@ -129,6 +135,7 @@ When running inside Claude Code, `skillctl` emits a plugin hint on stderr so Cla
 | **Provider-agnostic LLM** | Any model via LiteLLM (Bedrock, OpenAI, Anthropic, Ollama, ...) |
 | **Runtime-agnostic** | Works with Claude, GPT, Gemini, or any SKILL.md-based agent |
 | **Claude Code plugin** | MCP tools + skills for governance inside agentic IDEs |
+| **Multi-IDE install** | Install governed skills to Claude Code, Cursor, Windsurf, Copilot, Kiro |
 
 ## How it fits in
 
