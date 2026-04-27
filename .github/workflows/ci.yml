@@ -60,7 +60,6 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +68,9 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install -e "." pip-audit
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[all]" pip-audit
 
       - name: Audit dependencies
         run: pip-audit

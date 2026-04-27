@@ -23,7 +23,7 @@ server = [
     "python-multipart>=0.0.9",
 ]
 optimize = [
-    "litellm>=1.60",
+    "litellm>=1.83.14",
 ]
 plugin = [
     "mcp>=1.0",
