@@ -72,7 +72,7 @@ skill.yaml + SKILL.md  --->  Schema validation    --->  Local store (SHA-256)
 | `install.py` | Multi-IDE skill installation. Target registry (Claude Code, Cursor, Windsurf, Copilot, Kiro), frontmatter translation, file operations, installation tracking via `~/.skillctl/installations.json`. |
 | `manifest.py` | Parses `skill.yaml` into `SkillManifest` dataclass. Auto-wraps plain `SKILL.md` files. |
 | `validator.py` | Schema validation: apiVersion, semver, name format, parameter types, capability checking. |
-| `store.py` | Content-addressed local storage under `~/.skillctl/store/`. SHA-256 hashing, atomic writes, integrity verification on pull. |
+| `store.py` | Content-addressed local storage under `~/.skillctl/store/`. SHA-256 hashing, atomic writes, integrity verification on pull, portable archive export (tar.gz/zip). |
 | `diff.py` | Structural diff between two stored skill versions. Detects breaking changes (removed params, capabilities). |
 | `config.py` | Centralized typed config: `SkillctlConfig` with registry (local/agent-registry), optimizer (model, budget), and GitHub settings. Interactive wizard via `run_configure_wizard`. |
 | `errors.py` | `SkillctlError(code, what, why, fix)` — all user-facing errors must use this format. `EvalError` subclasses it. |

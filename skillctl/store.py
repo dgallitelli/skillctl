@@ -3,9 +3,12 @@
 import hashlib
 import json
 import os
+import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 
 import yaml
@@ -191,6 +194,84 @@ class ContentStore:
             key=lambda e: e.version,
             reverse=True,
         )
+
+    def export_skills(
+        self,
+        output_path: Path,
+        format: str = "tar.gz",
+        namespace: str | None = None,
+        tag: str | None = None,
+    ) -> dict:
+        """Export skills from the store to a portable archive.
+
+        Returns dict with: path, format, skill_count, total_size
+        """
+        if format not in ("tar.gz", "zip"):
+            raise SkillctlError(
+                code="E_INVALID_FORMAT",
+                what=f"Unsupported export format '{format}'",
+                why="Only tar.gz and zip formats are supported",
+                fix="Use --format tar.gz or --format zip",
+            )
+
+        entries = self.list_skills(namespace=namespace, tag=tag)
+
+        # Build index and collect file data
+        index_records: list[dict] = []
+        file_entries: list[tuple[str, bytes]] = []  # (archive_path, data)
+        total_size = 0
+
+        for entry in entries:
+            prefix = entry.hash[:2]
+            content_path = self.store_dir / prefix / entry.hash
+            manifest_path = self.store_dir / prefix / f"{entry.hash}.manifest.yaml"
+
+            content = content_path.read_bytes() if content_path.exists() else b""
+            manifest_data = manifest_path.read_bytes() if manifest_path.exists() else b""
+
+            skill_dir = f"skills/{entry.name}@{entry.version}"
+            file_entries.append((f"{skill_dir}/SKILL.md", content))
+            file_entries.append((f"{skill_dir}/skill.yaml", manifest_data))
+
+            index_records.append(
+                {
+                    "name": entry.name,
+                    "version": entry.version,
+                    "hash": entry.hash,
+                }
+            )
+            total_size += len(content) + len(manifest_data)
+
+        index_json = json.dumps(index_records, indent=2).encode()
+        total_size += len(index_json)
+
+        # Write archive
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if format == "tar.gz":
+            with tarfile.open(str(output_path), "w:gz") as tar:
+                self._add_bytes_to_tar(tar, "index.json", index_json)
+                for archive_path, data in file_entries:
+                    self._add_bytes_to_tar(tar, archive_path, data)
+        else:
+            with zipfile.ZipFile(str(output_path), "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("index.json", index_json)
+                for archive_path, data in file_entries:
+                    zf.writestr(archive_path, data)
+
+        return {
+            "path": str(output_path),
+            "format": format,
+            "skill_count": len(entries),
+            "total_size": total_size,
+        }
+
+    @staticmethod
+    def _add_bytes_to_tar(tar: tarfile.TarFile, name: str, data: bytes) -> None:
+        """Add in-memory bytes to a tar archive."""
+        info = tarfile.TarInfo(name=name)
+        info.size = len(data)
+        tar.addfile(info, BytesIO(data))
 
     def _load_index(self) -> list[IndexEntry]:
         if not self.index_path.exists():
