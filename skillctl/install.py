@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -41,8 +42,22 @@ class InstallationTracker:
 
     def __init__(self, state_path: Path = DEFAULT_STATE_PATH):
         self.state_path = state_path
+        self._lock_fd = None
         self._data: dict[str, dict[str, InstallRecord]] = {}
+        self._acquire_lock()
         self._load()
+
+    def _acquire_lock(self):
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = self.state_path.with_suffix(".lock")
+        self._lock_fd = open(lock_path, "w")  # noqa: SIM115
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
+    def _release_lock(self):
+        if self._lock_fd:
+            fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+            self._lock_fd.close()
+            self._lock_fd = None
 
     def _load(self):
         if self.state_path.exists():
@@ -58,7 +73,7 @@ class InstallationTracker:
             os.write(tmp_fd, json.dumps(data, indent=2).encode())
             os.close(tmp_fd)
             os.replace(tmp_path, str(self.state_path))
-        except Exception:
+        except OSError as e:
             try:
                 os.close(tmp_fd)
             except OSError:
@@ -67,7 +82,14 @@ class InstallationTracker:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-            raise
+            raise SkillctlError(
+                code="E_STATE_WRITE",
+                what="Failed to write installation state",
+                why=str(e),
+                fix="Check disk space and permissions on ~/.skillctl/",
+            ) from e
+        finally:
+            self._release_lock()
 
     def add(self, ref: str, target: str, record: InstallRecord):
         if ref not in self._data:
@@ -368,6 +390,15 @@ def install_skill(
     name, version = parse_ref(ref)
     content_bytes, entry = store.pull(name, version)
     skill_content = content_bytes.decode("utf-8", errors="replace")
+
+    if not skill_content.strip():
+        raise SkillctlError(
+            code="E_EMPTY_CONTENT",
+            what=f"Skill {ref} has empty content",
+            why="Cannot install a skill with no content to IDE targets",
+            fix="Check the skill's SKILL.md or inline content in skill.yaml",
+        )
+
     frontmatter, body = _parse_skill_frontmatter(skill_content)
 
     resolved = _resolve_targets(targets, global_scope)

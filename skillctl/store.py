@@ -79,7 +79,7 @@ class ContentStore:
             os.write(tmp_fd, content)
             os.close(tmp_fd)
             os.replace(tmp_path, str(store_path))
-        except Exception:
+        except OSError as e:
             try:
                 os.close(tmp_fd)
             except OSError:
@@ -88,7 +88,12 @@ class ContentStore:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-            raise
+            raise SkillctlError(
+                code="E_STORE_WRITE",
+                what="Failed to write to skill store",
+                why=str(e),
+                fix="Check disk space and permissions on ~/.skillctl/",
+            ) from e
 
         # Write manifest alongside content
         manifest_path = self.store_dir / prefix / f"{content_hash}.manifest.yaml"

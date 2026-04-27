@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- File locking (`fcntl.flock`) on `installations.json` prevents concurrent install commands from corrupting state
+- Atomic write failures in store and installation tracker now raise `SkillctlError` with actionable messages (`E_STORE_WRITE`, `E_STATE_WRITE`)
+- Empty skill content is rejected before installation (`E_EMPTY_CONTENT`)
+
 ## v0.1.0b1 (2026-04-23)
 
 First public beta.
