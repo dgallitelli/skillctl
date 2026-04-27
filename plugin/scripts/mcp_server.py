@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import json
 import traceback
-from dataclasses import asdict
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from skillctl.diff import diff_skills, format_diff
+from skillctl.diff import diff_skills
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
 from skillctl.store import ContentStore
@@ -37,8 +36,10 @@ def _store() -> ContentStore:
     return ContentStore()
 
 
-def _error_response(e: SkillctlError) -> str:
-    return json.dumps(e.format_json(), indent=2)
+def _error_response(e: Exception) -> str:
+    if isinstance(e, SkillctlError):
+        return json.dumps(e.format_json(), indent=2)
+    return json.dumps({"error": str(e), "traceback": traceback.format_exc()}, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +80,7 @@ def skillctl_validate(skill_path: str) -> str:
             "version": manifest.metadata.version,
         }
         return json.dumps(output, indent=2)
-    except SkillctlError as e:
+    except Exception as e:
         return _error_response(e)
 
 
@@ -142,7 +143,7 @@ def skillctl_apply(
             "skill_name": manifest.metadata.name,
             "version": manifest.metadata.version,
         }, indent=2)
-    except SkillctlError as e:
+    except Exception as e:
         return _error_response(e)
 
 
@@ -206,7 +207,7 @@ def skillctl_describe(skill_ref: str) -> str:
             "manifest": manifest_dict,
             "content": content_text,
         }, indent=2)
-    except SkillctlError as e:
+    except Exception as e:
         return _error_response(e)
 
 
@@ -223,7 +224,7 @@ def skillctl_delete(skill_ref: str) -> str:
         store = _store()
         store.delete_skill(name, version)
         return json.dumps({"deleted": True, "name": name, "version": version})
-    except SkillctlError as e:
+    except Exception as e:
         return _error_response(e)
 
 
@@ -242,7 +243,7 @@ def skillctl_diff(ref_a: str, ref_b: str) -> str:
         store = _store()
         result = diff_skills(store, ref_a, ref_b)
         return json.dumps(result.to_dict(), indent=2)
-    except SkillctlError as e:
+    except Exception as e:
         return _error_response(e)
 
 
@@ -252,17 +253,17 @@ def skillctl_diff(ref_a: str, ref_b: str) -> str:
 
 
 @mcp.tool()
-def skillctl_create(name: str, description: str = "A new skill") -> str:
+def skillctl_create(name: str, description: str = "A new skill", target_dir: str | None = None) -> str:
     """Scaffold a new skill directory with skill.yaml and SKILL.md.
-
-    Creates a ready-to-edit skill in the current directory.
 
     Args:
         name: Skill name in "namespace/skill-name" format (lowercase, hyphens ok).
         description: One-line description of the skill.
+        target_dir: Parent directory to create the skill in (default: current working directory).
     """
     skill_dir_name = name.replace("/", "-")
-    skill_dir = Path.cwd() / skill_dir_name
+    parent = Path(target_dir) if target_dir else Path.cwd()
+    skill_dir = parent / skill_dir_name
     if skill_dir.exists():
         return json.dumps({
             "success": False,
@@ -362,9 +363,7 @@ def skillctl_eval_audit(
             "metadata": report.metadata,
         }, indent=2)
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 @mcp.tool()
@@ -410,9 +409,7 @@ def skillctl_eval_functional(
 
         return json.dumps({"exit_code": exit_code, "format": "json"})
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 @mcp.tool()
@@ -458,9 +455,7 @@ def skillctl_eval_trigger(
 
         return json.dumps({"exit_code": exit_code, "format": "json"})
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 @mcp.tool()
@@ -511,9 +506,7 @@ def skillctl_eval_report(
 
         return json.dumps({"exit_code": exit_code, "format": "json"})
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 # ---------------------------------------------------------------------------
@@ -572,30 +565,25 @@ def skillctl_optimize(
         run = run_optimization(config)
         return json.dumps(run.to_dict(), indent=2)
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 @mcp.tool()
-def skillctl_optimize_history(skill_path: str | None = None) -> str:
-    """List past optimization runs, optionally filtered by skill path.
+def skillctl_optimize_history(skill_name: str | None = None) -> str:
+    """List past optimization runs, optionally filtered by skill name.
 
     Args:
-        skill_path: Filter to runs for this skill (optional).
+        skill_name: Filter to runs for this skill name (e.g., "my-org/my-skill").
     """
     try:
         from skillctl.optimize.provenance import ProvenanceStore
-        store = ProvenanceStore()
-        runs = store.list_runs(skill_path=skill_path)
+        runs = ProvenanceStore.list_runs(skill_name=skill_name)
         return json.dumps({
             "count": len(runs),
             "runs": [r.to_dict() for r in runs],
         }, indent=2)
     except Exception as e:
-        if isinstance(e, SkillctlError):
-            return _error_response(e)
-        return json.dumps({"error": str(e), "traceback": traceback.format_exc()})
+        return _error_response(e)
 
 
 # ---------------------------------------------------------------------------
