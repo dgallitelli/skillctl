@@ -46,6 +46,9 @@ def generate_variants(
     if not failure_analysis.weaknesses:
         return []
 
+    if llm_client is None:
+        llm_client = LLMClient()
+
     for i in range(num_variants):
         # Round-robin weakness assignment
         weakness = failure_analysis.weaknesses[i % len(failure_analysis.weaknesses)]

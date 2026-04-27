@@ -272,7 +272,9 @@ class MetadataDB:
         """Full-text search with optional namespace/tag filters and pagination."""
         # Treat empty string as no query
         q = query if query and query.strip() else None
-        return self._build_search(q, namespace, tag, limit, offset, count_only=False)
+        result = self._build_search(q, namespace, tag, limit, offset, count_only=False)
+        assert isinstance(result, list)
+        return result
 
     def count_search(
         self,
@@ -282,7 +284,9 @@ class MetadataDB:
     ) -> int:
         """Return total count matching the same filters (for pagination)."""
         q = query if query and query.strip() else None
-        return self._build_search(q, namespace, tag, limit=0, offset=0, count_only=True)
+        result = self._build_search(q, namespace, tag, limit=0, offset=0, count_only=True)
+        assert isinstance(result, int)
+        return result
 
     @staticmethod
     def _sanitize_fts_query(query: str) -> str | None:

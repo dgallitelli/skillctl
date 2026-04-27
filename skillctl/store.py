@@ -141,7 +141,7 @@ class ContentStore:
 
         return content, entry.__dict__
 
-    def list_skills(self, namespace: str = None, tag: str = None) -> list[IndexEntry]:
+    def list_skills(self, namespace: str | None = None, tag: str | None = None) -> list[IndexEntry]:
         """List skills in the store, optionally filtered."""
         index = self._load_index()
         results = index

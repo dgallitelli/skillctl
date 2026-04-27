@@ -12,7 +12,7 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI  # type: ignore[import-not-found]
 
 from skillctl.registry.api import api_router
 from skillctl.registry.audit import AuditLogger

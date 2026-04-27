@@ -32,7 +32,8 @@ def check_promotion(
         )
 
     # Find the best variant by score
-    best_variant, best_eval = max(valid, key=lambda pair: pair[1].overall_score)
+    best_variant, best_eval = max(valid, key=lambda pair: pair[1].overall_score or 0.0)
+    assert best_eval.overall_score is not None  # guaranteed by valid filter above
     best_score = best_eval.overall_score
     delta = best_score - current_score
 

@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import urllib.parse
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -420,6 +421,7 @@ def cmd_apply(args):
         return
 
     # 4. Push to local store (idempotent)
+    push_result = None
     try:
         push_result = store.push(manifest, content.encode())
         local_status = "pushed"
@@ -464,7 +466,7 @@ def cmd_apply(args):
     else:
         scope = "local only" if getattr(args, "local", False) or not registry_url else "local"
         print(f"✓ Applied {ref} ({scope})")
-    if local_status != "unchanged":
+    if local_status != "unchanged" and push_result is not None:
         print(f"  Hash: {push_result.hash}")
 
 
@@ -539,9 +541,11 @@ def cmd_get(args):
 def cmd_get_skills(args):
     """List skills from local store."""
     store = ContentStore()
+    ns: str | None = getattr(args, "namespace", None)
+    tg: str | None = getattr(args, "tag", None)
     entries = store.list_skills(
-        namespace=getattr(args, "namespace", None),
-        tag=getattr(args, "tag", None),
+        namespace=ns,
+        tag=tg,
     )
 
     if getattr(args, "json", False):
@@ -563,13 +567,13 @@ def cmd_get_skills_remote(args):
     params = []
     query = getattr(args, "query", None)
     if query:
-        params.append(f"q={urllib.request.quote(query)}")
+        params.append(f"q={urllib.parse.quote(query)}")
     namespace = getattr(args, "namespace", None)
     if namespace:
-        params.append(f"namespace={urllib.request.quote(namespace)}")
+        params.append(f"namespace={urllib.parse.quote(namespace)}")
     tag = getattr(args, "tag", None)
     if tag:
-        params.append(f"tag={urllib.request.quote(tag)}")
+        params.append(f"tag={urllib.parse.quote(tag)}")
     limit = getattr(args, "limit", 20)
     params.append(f"limit={limit}")
 
@@ -1023,7 +1027,7 @@ def cmd_eval_passthrough(remaining_args: list[str]):
 
 def cmd_serve(args):
     """Start the skill registry server."""
-    import uvicorn
+    import uvicorn  # type: ignore[import-not-found]
     from skillctl.registry.config import RegistryConfig
     from skillctl.registry.server import create_app
 

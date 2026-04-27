@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from skillctl.eval.cost import estimate_eval_cost, format_cost
 from skillctl.eval.errors import EvalError
@@ -505,13 +505,13 @@ def _total_tokens(token_counts: dict) -> int:
     return token_counts.get("input_tokens", 0) + token_counts.get("output_tokens", 0)
 
 
-def _mean(values: list[float | int]) -> float:
+def _mean(values: Sequence[float | int]) -> float:
     if not values:
         return 0.0
     return sum(values) / len(values)
 
 
-def _stddev(values: list[float | int]) -> float:
+def _stddev(values: Sequence[float | int]) -> float:
     if len(values) < 2:
         return 0.0
     m = _mean(values)

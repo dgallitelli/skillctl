@@ -9,10 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from typing import NoReturn
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile  # type: ignore[import-untyped]
+from fastapi.responses import Response  # type: ignore[import-untyped]
+from pydantic import BaseModel, Field  # type: ignore[import-untyped]
 
 from skillctl.manifest import ManifestLoader
 from skillctl.registry.auth import AuthManager, TokenInfo, get_current_token
@@ -125,7 +126,7 @@ def _record_to_detail(r: SkillRecord, versions: list[str]) -> SkillDetail:
     )
 
 
-def _error_response(status: int, code: str, what: str, why: str, fix: str) -> None:
+def _error_response(status: int, code: str, what: str, why: str, fix: str) -> NoReturn:
     raise HTTPException(
         status_code=status,
         detail=ErrorResponse(code=code, what=what, why=why, fix=fix).model_dump(),
@@ -294,6 +295,14 @@ async def publish_skill(
 
     # Return detail
     inserted = db.get_skill(parsed.metadata.name, parsed.metadata.version)
+    if inserted is None:
+        _error_response(
+            500,
+            "E_INTERNAL",
+            "Failed to retrieve newly published skill",
+            "Skill was inserted but could not be read back",
+            "Retry the publish operation",
+        )
     versions = [v.version for v in db.get_versions(parsed.metadata.name)]
     return _record_to_detail(inserted, versions)
 
@@ -608,6 +617,14 @@ async def attach_eval(
     )
 
     updated = db.get_skill(full_name, version)
+    if updated is None:
+        _error_response(
+            500,
+            "E_INTERNAL",
+            "Failed to retrieve updated skill",
+            "Eval was attached but the skill could not be read back",
+            "Retry the eval attachment",
+        )
     version_strings = [v.version for v in db.get_versions(full_name)]
     return _record_to_detail(updated, version_strings)
 

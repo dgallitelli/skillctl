@@ -41,7 +41,7 @@ class LLMClient:
         raise last_exc  # type: ignore[misc]
 
     def _call(self, system: str, prompt: str, max_tokens: int) -> LLMResponse:
-        import litellm
+        import litellm  # type: ignore[import-not-found]
 
         response = litellm.completion(
             model=self.model,

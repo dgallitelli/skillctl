@@ -14,6 +14,7 @@ Checks:
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Optional
@@ -221,6 +222,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
         return findings, None, 0
 
     # --- Check 3: name field ---
+    assert frontmatter is not None  # guaranteed: we returned above if None
     name = frontmatter.get("name")
     if not name:
         findings.append(
@@ -380,7 +382,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
         fp_match = _FIRST_PERSON_RE.search(desc)
         sp_match = _SECOND_PERSON_RE.search(desc)
         if fp_match or sp_match:
-            matched = fp_match.group(0) if fp_match else sp_match.group(0)
+            matched = fp_match.group(0) if fp_match else sp_match.group(0) if sp_match else ""
             findings.append(
                 Finding(
                     code="STR-020",
@@ -415,8 +417,6 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
         # Try to parse as inline JSON (common in OpenClaw skills)
         if isinstance(metadata, str):
             try:
-                import json
-
                 parsed = json.loads(metadata)
                 if isinstance(parsed, dict):
                     metadata = parsed  # Valid inline JSON map, accept it
