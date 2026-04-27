@@ -56,7 +56,9 @@ jobs:
         run: pip install -e ".[dev,plugin,optimize]"
 
       - name: Run tests
-        run: pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q
+        run: >
+          pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q
+          ${{ matrix.python-version == '3.13' && '--cov=skillctl --cov-report=term-missing:skip-covered' || '' }}
 
   security:
     runs-on: ubuntu-latest
