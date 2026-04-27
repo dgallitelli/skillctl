@@ -8,8 +8,15 @@ import os
 import sys
 import tempfile
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+
+import yaml
+
+from skillctl.errors import SkillctlError
+from skillctl.store import ContentStore
+from skillctl.utils import parse_ref
 
 DEFAULT_STATE_PATH = Path.home() / ".skillctl" / "installations.json"
 
@@ -292,3 +299,187 @@ def detect_targets(global_scope: bool = False) -> list[str]:
             if Path(cfg.detect_dir).is_dir():
                 detected.append(name)
     return sorted(detected)
+
+
+# ---------------------------------------------------------------------------
+# Install / uninstall
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class InstallResult:
+    target: str
+    success: bool
+    path: str
+    message: str
+
+
+@dataclass
+class UninstallResult:
+    target: str
+    success: bool
+    path: str
+    message: str
+
+
+def _resolve_targets(targets: list[str], global_scope: bool) -> list[str]:
+    resolved = []
+    for t in targets:
+        if t == "all":
+            resolved.extend(detect_targets(global_scope))
+        elif t in TARGETS:
+            resolved.append(t)
+        else:
+            raise SkillctlError(
+                code="E_TARGET_NOT_FOUND",
+                what=f"Unknown target: {t}",
+                why=f"Valid targets are: {', '.join(TARGETS.keys())}, all",
+                fix=f"Use one of: {', '.join(TARGETS.keys())}, all",
+            )
+    return sorted(set(resolved))
+
+
+def _parse_skill_frontmatter(content: str) -> tuple[dict, str]:
+    """Split SKILL.md content into frontmatter dict and body."""
+    if content.startswith("---"):
+        try:
+            end = content.index("---", 3)
+            fm_text = content[3:end].strip()
+            body = content[end + 3 :].strip()
+            fm = yaml.safe_load(fm_text) or {}
+            return fm, body
+        except (ValueError, yaml.YAMLError):
+            pass
+    return {}, content.strip()
+
+
+def install_skill(
+    ref: str,
+    targets: list[str],
+    global_scope: bool = False,
+    force: bool = False,
+    store: ContentStore | None = None,
+    tracker_path: Path = DEFAULT_STATE_PATH,
+) -> list[InstallResult]:
+    """Install a skill from the store to one or more IDE targets."""
+    if store is None:
+        store = ContentStore()
+
+    name, version = parse_ref(ref)
+    content_bytes, entry = store.pull(name, version)
+    skill_content = content_bytes.decode("utf-8", errors="replace")
+    frontmatter, body = _parse_skill_frontmatter(skill_content)
+
+    resolved = _resolve_targets(targets, global_scope)
+    tracker = InstallationTracker(state_path=tracker_path)
+    results: list[InstallResult] = []
+    skill_basename = _skill_basename(name)
+
+    for target_name in resolved:
+        cfg = TARGETS[target_name]
+
+        if global_scope:
+            if cfg.global_path_fn is None:
+                raise SkillctlError(
+                    code="E_NO_GLOBAL",
+                    what=f"{target_name} does not support global installation",
+                    why=f"Only project-level installation is available for {target_name}",
+                    fix="Remove --global flag",
+                )
+            target_path = cfg.global_path_fn(name)
+        else:
+            target_path = Path.cwd() / cfg.project_path(name)
+
+        existing = tracker.get(ref, target_name)
+        if existing and not force and tracker.is_modified(existing):
+            results.append(
+                InstallResult(
+                    target=target_name,
+                    success=False,
+                    path=str(target_path),
+                    message="File was modified externally. Use --force to overwrite.",
+                )
+            )
+            continue
+
+        formatted = cfg.format_fn(skill_basename, frontmatter, body)
+        content_hash = hashlib.sha256(formatted.encode()).hexdigest()
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(formatted)
+
+        record = InstallRecord(
+            path=str(target_path),
+            scope="global" if global_scope else "project",
+            installed_at=datetime.now(timezone.utc).isoformat(),
+            content_hash=content_hash,
+        )
+        tracker.add(ref, target_name, record)
+        results.append(
+            InstallResult(
+                target=target_name,
+                success=True,
+                path=str(target_path),
+                message=f"Installed to {target_path}",
+            )
+        )
+
+    tracker.save()
+    return results
+
+
+def uninstall_skill(
+    ref: str,
+    targets: list[str],
+    tracker_path: Path = DEFAULT_STATE_PATH,
+) -> list[UninstallResult]:
+    """Remove a skill from IDE targets."""
+    resolved = _resolve_targets(targets, global_scope=False)
+    tracker = InstallationTracker(state_path=tracker_path)
+    results: list[UninstallResult] = []
+
+    for target_name in resolved:
+        record = tracker.get(ref, target_name)
+        if record is None:
+            results.append(
+                UninstallResult(
+                    target=target_name,
+                    success=False,
+                    path="",
+                    message=f"No installation tracked for {ref} in {target_name}",
+                )
+            )
+            continue
+
+        path = Path(record.path)
+        if tracker.is_modified(record):
+            print(f"Warning: {path} was modified since installation", file=sys.stderr)
+
+        if path.exists():
+            path.unlink()
+            if path.parent.is_dir() and not any(path.parent.iterdir()):
+                path.parent.rmdir()
+
+        tracker.remove(ref, target_name)
+        results.append(
+            UninstallResult(
+                target=target_name,
+                success=True,
+                path=str(path),
+                message=f"Uninstalled from {path}",
+            )
+        )
+
+    tracker.save()
+    return results
+
+
+def list_installations(
+    target: str | None = None,
+    tracker_path: Path = DEFAULT_STATE_PATH,
+) -> dict:
+    """List all tracked installations."""
+    tracker = InstallationTracker(state_path=tracker_path)
+    if target:
+        return tracker.list_by_target(target)
+    return tracker.list_all()

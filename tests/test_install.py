@@ -3,6 +3,7 @@
 import hashlib
 from pathlib import Path
 
+from skillctl.errors import SkillctlError
 from skillctl.install import (
     TARGETS,
     InstallRecord,
@@ -13,7 +14,11 @@ from skillctl.install import (
     format_for_cursor,
     format_for_kiro,
     format_for_windsurf,
+    install_skill,
+    uninstall_skill,
 )
+from skillctl.manifest import ManifestLoader
+from skillctl.store import ContentStore
 
 
 # ---------------------------------------------------------------------------
@@ -259,3 +264,179 @@ class TestDetectTargets:
         monkeypatch.chdir(tmp_path)
         detected = detect_targets(global_scope=False)
         assert set(detected) == {"claude", "cursor", "kiro"}
+
+
+# ---------------------------------------------------------------------------
+# Task 4: install_skill, uninstall_skill, list_installations
+# ---------------------------------------------------------------------------
+
+
+def _create_stored_skill(tmp_path: Path) -> tuple[str, ContentStore]:
+    """Create a minimal skill in a temporary store and return (ref, store)."""
+    store = ContentStore(root=tmp_path / "store")
+    loader = ManifestLoader()
+    skill_dir = tmp_path / "src"
+    skill_dir.mkdir()
+    (skill_dir / "skill.yaml").write_text(
+        "apiVersion: skillctl.io/v1\n"
+        "kind: Skill\n"
+        "metadata:\n"
+        "  name: test/install-test\n"
+        "  version: 1.0.0\n"
+        "  description: A test skill\n"
+        "spec:\n"
+        "  content:\n"
+        "    inline: '# Test skill body'\n"
+    )
+    manifest, _ = loader.load(str(skill_dir / "skill.yaml"))
+    content = "# Test skill body"
+    store.push(manifest, content.encode(), dry_run=False)
+    return "test/install-test@1.0.0", store
+
+
+class TestInstallSkill:
+    def test_install_to_claude(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        ref, store = _create_stored_skill(tmp_path)
+        tracker_path = tmp_path / "installations.json"
+
+        results = install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+        assert len(results) == 1
+        assert results[0].success
+        installed_path = tmp_path / ".claude" / "skills" / "install-test" / "SKILL.md"
+        assert installed_path.exists()
+        assert "# Test skill body" in installed_path.read_text()
+
+    def test_install_to_cursor(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".cursor").mkdir()
+        ref, store = _create_stored_skill(tmp_path)
+        tracker_path = tmp_path / "installations.json"
+
+        results = install_skill(
+            ref=ref,
+            targets=["cursor"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+        assert len(results) == 1
+        assert results[0].success
+        installed_path = tmp_path / ".cursor" / "rules" / "install-test.mdc"
+        assert installed_path.exists()
+
+    def test_install_refuses_overwrite_without_force(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        ref, store = _create_stored_skill(tmp_path)
+        tracker_path = tmp_path / "installations.json"
+
+        install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+
+        installed_path = tmp_path / ".claude" / "skills" / "install-test" / "SKILL.md"
+        installed_path.write_text("# User modified this")
+
+        results = install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+        assert not results[0].success
+        assert "modified" in results[0].message.lower()
+
+    def test_install_force_overwrites(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        ref, store = _create_stored_skill(tmp_path)
+        tracker_path = tmp_path / "installations.json"
+
+        install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+
+        installed_path = tmp_path / ".claude" / "skills" / "install-test" / "SKILL.md"
+        installed_path.write_text("# User modified this")
+
+        results = install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=True,
+            store=store,
+            tracker_path=tracker_path,
+        )
+        assert results[0].success
+
+    def test_invalid_target(self, tmp_path):
+        ref, store = _create_stored_skill(tmp_path)
+        try:
+            install_skill(
+                ref=ref,
+                targets=["nonexistent"],
+                global_scope=False,
+                force=False,
+                store=store,
+                tracker_path=tmp_path / "i.json",
+            )
+            assert False, "Should have raised"
+        except SkillctlError as e:
+            assert e.code == "E_TARGET_NOT_FOUND"
+
+
+class TestUninstallSkill:
+    def test_uninstall_removes_file(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        ref, store = _create_stored_skill(tmp_path)
+        tracker_path = tmp_path / "installations.json"
+
+        install_skill(
+            ref=ref,
+            targets=["claude"],
+            global_scope=False,
+            force=False,
+            store=store,
+            tracker_path=tracker_path,
+        )
+
+        results = uninstall_skill(
+            ref="test/install-test@1.0.0",
+            targets=["claude"],
+            tracker_path=tracker_path,
+        )
+        assert len(results) == 1
+        assert results[0].success
+        installed_path = tmp_path / ".claude" / "skills" / "install-test" / "SKILL.md"
+        assert not installed_path.exists()
+
+    def test_uninstall_not_tracked(self, tmp_path):
+        results = uninstall_skill(
+            ref="fake/ref@1.0",
+            targets=["claude"],
+            tracker_path=tmp_path / "installations.json",
+        )
+        assert not results[0].success
