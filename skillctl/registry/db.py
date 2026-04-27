@@ -270,6 +270,9 @@ class MetadataDB:
         offset: int = 0,
     ) -> list[SkillRecord]:
         """Full-text search with optional namespace/tag filters and pagination."""
+        # Clamp pagination bounds
+        limit = max(1, min(limit, 500))
+        offset = max(0, min(offset, 100_000))
         # Treat empty string as no query
         q = query if query and query.strip() else None
         result = self._build_search(q, namespace, tag, limit, offset, count_only=False)

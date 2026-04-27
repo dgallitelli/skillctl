@@ -6,6 +6,7 @@ All config access should go through this module — not raw YAML loads.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -177,8 +178,8 @@ def run_configure_wizard(config: SkillctlConfig | None = None) -> SkillctlConfig
     )
     try:
         config.optimize.budget_usd = float(budget_str)
-    except ValueError:
-        pass
+    except ValueError as e:
+        print(f"Warning: Invalid budget value '{budget_str}', keeping default: {e}", file=sys.stderr)
 
     return config
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -56,6 +57,6 @@ def read_skill_name_from_frontmatter(skill_path: Path) -> Optional[str]:
             for line in fm_text.splitlines():
                 if line.strip().startswith("name:"):
                     return line.split(":", 1)[1].strip().strip('"').strip("'")
-    except (ValueError, IndexError):
-        pass
+    except (ValueError, IndexError) as e:
+        print(f"Warning: Failed to read frontmatter from {skill_md}: {e}", file=sys.stderr)
     return None

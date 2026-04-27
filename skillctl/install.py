@@ -370,8 +370,8 @@ def _parse_skill_frontmatter(content: str) -> tuple[dict, str]:
             body = content[end + 3 :].strip()
             fm = yaml.safe_load(fm_text) or {}
             return fm, body
-        except (ValueError, yaml.YAMLError):
-            pass
+        except (ValueError, yaml.YAMLError) as e:
+            print(f"Warning: Failed to parse skill frontmatter: {e}", file=sys.stderr)
     return {}, content.strip()
 
 

@@ -224,6 +224,45 @@ class ContentStore:
                 return entry
         return None
 
+    def verify_consistency(self) -> dict:
+        """Check store consistency: dangling index refs and orphaned blobs.
+
+        Returns a dict with:
+          - dangling_refs: list of index entries whose blob file is missing
+          - orphaned_blobs: list of blob files not referenced by any index entry
+          - ok: True if no issues found
+        """
+        index = self._load_index()
+
+        # Collect all hashes referenced by the index
+        indexed_hashes: set[str] = set()
+        dangling_refs: list[str] = []
+        for entry in index:
+            indexed_hashes.add(entry.hash)
+            prefix = entry.hash[:2]
+            blob_path = self.store_dir / prefix / entry.hash
+            if not blob_path.exists():
+                dangling_refs.append(f"{entry.name}@{entry.version} (hash={entry.hash})")
+
+        # Scan store_dir for blob files not in the index
+        orphaned_blobs: list[str] = []
+        if self.store_dir.is_dir():
+            for prefix_dir in self.store_dir.iterdir():
+                if not prefix_dir.is_dir():
+                    continue
+                for blob_file in prefix_dir.iterdir():
+                    # Skip manifest files — only check content blobs
+                    if blob_file.name.endswith(".manifest.yaml"):
+                        continue
+                    if blob_file.name not in indexed_hashes:
+                        orphaned_blobs.append(str(blob_file))
+
+        return {
+            "dangling_refs": dangling_refs,
+            "orphaned_blobs": orphaned_blobs,
+            "ok": len(dangling_refs) == 0 and len(orphaned_blobs) == 0,
+        }
+
     def _write_manifest(self, path: Path, manifest: SkillManifest):
         """Write manifest YAML alongside stored content."""
         with open(path, "w") as f:

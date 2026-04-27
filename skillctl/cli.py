@@ -299,14 +299,23 @@ def main():
     # skillctl install <ref-or-path> --target <targets> [--global] [--force]
     install_p = sub.add_parser("install", help="Install a skill to AI coding IDEs")
     install_p.add_argument("ref", help="Skill ref (namespace/name@version) or path to skill directory")
-    install_p.add_argument("--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')")
-    install_p.add_argument("--global", dest="global_scope", action="store_true", help="Install to user-level directory (claude, windsurf, kiro only)")
+    install_p.add_argument(
+        "--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')"
+    )
+    install_p.add_argument(
+        "--global",
+        dest="global_scope",
+        action="store_true",
+        help="Install to user-level directory (claude, windsurf, kiro only)",
+    )
     install_p.add_argument("--force", action="store_true", help="Overwrite modified files")
 
     # skillctl uninstall <ref> --target <targets>
     uninstall_p = sub.add_parser("uninstall", help="Remove a skill from AI coding IDEs")
     uninstall_p.add_argument("ref", help="Skill ref (namespace/name@version)")
-    uninstall_p.add_argument("--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')")
+    uninstall_p.add_argument(
+        "--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')"
+    )
 
     # -----------------------------------------------------------------------
     # DISPATCH
@@ -906,7 +915,8 @@ def cmd_validate(args):
     base_dir = str(Path(args.path).parent) if Path(args.path).is_file() else args.path
     try:
         content = loader.resolve_content(manifest, base_dir)
-    except Exception:
+    except Exception as e:
+        print(f"Warning: Could not resolve skill content for capability check: {e}", file=sys.stderr)
         content = ""
 
     cap_warnings = validator.check_capabilities(manifest, content)
@@ -1104,6 +1114,65 @@ def cmd_doctor(args):
         print(f"  ⚠ Optional deps not installed: {', '.join(optional_missing)}")
         warnings_count += 1
 
+    # 8b. Optional deps importability: fastapi, litellm, mcp
+    importable = []
+    not_importable = []
+    for pkg in ("fastapi", "litellm", "mcp"):
+        try:
+            __import__(pkg)
+            importable.append(pkg)
+        except ImportError:
+            not_importable.append(pkg)
+    if importable:
+        print(f"  ✓ Importable optional deps: {', '.join(importable)}")
+    if not_importable:
+        print(f"  ⚠ Not importable: {', '.join(not_importable)}")
+        warnings_count += 1
+
+    # 9. ~/.skillctl/ directory permissions
+    skillctl_dir = Path.home() / ".skillctl"
+    if skillctl_dir.is_dir():
+        dir_mode = skillctl_dir.stat().st_mode & 0o777
+        if dir_mode == 0o700:
+            print(f"  ✓ ~/.skillctl/ permissions: {oct(dir_mode)} (correct)")
+        else:
+            print(f"  ⚠ ~/.skillctl/ permissions: {oct(dir_mode)} (expected 0o700)")
+            warnings_count += 1
+    else:
+        print("  ⚠ ~/.skillctl/ directory does not exist yet")
+        warnings_count += 1
+
+    # 10. Install target directories writable
+    from skillctl.install import detect_targets
+
+    detected = detect_targets()
+    if detected:
+        print(f"  ✓ Detected IDE targets: {', '.join(detected)}")
+    else:
+        print("  ⚠ No IDE target directories detected in current directory")
+        warnings_count += 1
+
+    # 11. Store consistency check
+    store = ContentStore()
+    try:
+        consistency = store.verify_consistency()
+        if consistency["ok"]:
+            print("  ✓ Store consistency: OK")
+        else:
+            if consistency["dangling_refs"]:
+                print(f"  ✗ Store consistency: {len(consistency['dangling_refs'])} dangling index ref(s)")
+                for ref in consistency["dangling_refs"]:
+                    print(f"    - {ref}")
+                errors_count += 1
+            if consistency["orphaned_blobs"]:
+                print(f"  ⚠ Store consistency: {len(consistency['orphaned_blobs'])} orphaned blob(s)")
+                for blob in consistency["orphaned_blobs"]:
+                    print(f"    - {blob}")
+                warnings_count += 1
+    except Exception as e:
+        print(f"  ⚠ Store consistency: check failed ({e})")
+        warnings_count += 1
+
     # Summary
     print(f"\n{warnings_count} warnings, {errors_count} errors")
     sys.exit(1 if errors_count > 0 else 0)
@@ -1271,6 +1340,12 @@ def cmd_config_set(args):
     """Set a config value via typed config."""
     key = args.key
     value = args.value
+
+    if "token" in key.lower() or "secret" in key.lower():
+        print(
+            "Warning: Sensitive value may appear in shell history. Consider using 'skillctl login' for GitHub auth.",
+            file=sys.stderr,
+        )
 
     setter = _CONFIG_SETTER_MAP.get(key)
     if not setter:
