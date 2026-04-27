@@ -20,7 +20,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -e ".[dev,plugin]"
+        run: pip install -e ".[dev,plugin,optimize]"
 
       - name: Run tests
         run: pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q
