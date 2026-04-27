@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
 
 def _run_doctor(monkeypatch, home_dir):

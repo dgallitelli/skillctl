@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import time
 
-from skillctl.errors import SkillctlError
 from skillctl.optimize.types import LLMResponse
 
 DEFAULT_MODEL = "bedrock/us.anthropic.claude-opus-4-6-v1"

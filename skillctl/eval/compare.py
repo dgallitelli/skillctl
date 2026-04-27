@@ -9,15 +9,13 @@ from __future__ import annotations
 
 import json
 import shutil
-import sys
 import tempfile
-import time
 from pathlib import Path
 from typing import Optional
 
 from skillctl.eval.eval_schemas import CompareReport, EvalCase
 from skillctl.eval.errors import EvalError
-from skillctl.eval.agent_runner import AgentRunner, AgentNotAvailableError, get_runner
+from skillctl.eval.agent_runner import AgentRunner, get_runner
 from skillctl.eval.grading import grade_output
 
 
@@ -347,7 +345,7 @@ def _print_compare_report(report: CompareReport) -> None:
     w = 58
 
     print(f"\n{'=' * w}")
-    print(f"  Skill Comparison Report")
+    print("  Skill Comparison Report")
     print(f"{'=' * w}")
     print(f"  Skill A: {report.skill_a_name}")
     print(f"  Skill B: {report.skill_b_name}")
@@ -375,7 +373,7 @@ def _print_compare_report(report: CompareReport) -> None:
 
     # Per-eval breakdown
     if report.per_eval:
-        print(f"  Per-eval breakdown:")
+        print("  Per-eval breakdown:")
         for row in report.per_eval:
             eid = row["eval_id"]
             ra = row["skill_a"]

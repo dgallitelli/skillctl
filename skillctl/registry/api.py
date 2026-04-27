@@ -15,7 +15,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from skillctl.manifest import ManifestLoader
-from skillctl.registry.auth import AuthManager, TokenInfo, get_auth_manager, get_current_token
+from skillctl.registry.auth import AuthManager, TokenInfo, get_current_token
 from skillctl.registry.db import MetadataDB, SkillRecord
 from skillctl.validator import SchemaValidator
 from skillctl.version import __version__

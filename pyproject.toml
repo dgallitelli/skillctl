@@ -45,3 +45,12 @@ skillctl = "skillctl.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["skillctl*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+per-file-ignores = {"skillctl/**/cli.py" = ["E402"], "skillctl/eval/*.py" = ["E402"]}

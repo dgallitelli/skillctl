@@ -1,10 +1,8 @@
 """Tests for the skillctl MCP server tool handlers."""
 
 import json
-import tempfile
 from pathlib import Path
 
-import pytest
 
 from plugin.scripts.mcp_server import (
     skillctl_validate,

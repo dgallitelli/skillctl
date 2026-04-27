@@ -11,7 +11,7 @@ from skillctl.optimize.failure_analyzer import (
     _parse_weaknesses,
     analyze_failures,
 )
-from skillctl.optimize.types import EvalResult, LLMResponse, TokenUsage
+from skillctl.optimize.types import EvalResult, LLMResponse
 
 
 def _make_eval_result(**overrides) -> EvalResult:

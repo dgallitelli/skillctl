@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from skillctl.optimize.loop import run_optimization, _content_hash
 from skillctl.utils import read_skill_name_from_manifest as _read_skill_name

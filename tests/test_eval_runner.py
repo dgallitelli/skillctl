@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
@@ -161,7 +159,7 @@ class TestEvaluateSkill:
             return 0
 
         with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=mock_run):
-            result = evaluate_skill(str(skill_dir), content="# Variant\nNew content.")
+            evaluate_skill(str(skill_dir), content="# Variant\nNew content.")
 
         # During eval, the variant content was active
         assert written_content == "# Variant\nNew content."

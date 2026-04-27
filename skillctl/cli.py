@@ -432,7 +432,7 @@ def cmd_apply(args):
                 print(f"  ✗ [{f.code}] {f.title}", file=sys.stderr)
                 if f.detail:
                     print(f"    {f.detail}", file=sys.stderr)
-            print(f"\nFix the findings above, or use --local to push without publishing.", file=sys.stderr)
+            print("\nFix the findings above, or use --local to push without publishing.", file=sys.stderr)
             remote_status = "blocked (security)"
         else:
             try:
@@ -505,7 +505,7 @@ def cmd_create_skill(args):
 
     Path("skill.yaml").write_text(skill_yaml)
     Path("SKILL.md").write_text(skill_md)
-    print(f"✓ Skill scaffolded: skill.yaml + SKILL.md")
+    print("✓ Skill scaffolded: skill.yaml + SKILL.md")
 
 
 def cmd_get(args):
@@ -705,7 +705,7 @@ def cmd_describe_skill(args):
 
         params = spec.get("parameters", [])
         if params:
-            print(f"\nParameters:")
+            print("\nParameters:")
             for p in params:
                 p_type = p.get("type", "string")
                 p_default = p.get("default", "")
@@ -719,11 +719,11 @@ def cmd_describe_skill(args):
 
         caps = spec.get("capabilities", [])
         if caps:
-            print(f"\nCapabilities:")
+            print("\nCapabilities:")
             print(f"  {', '.join(caps)}")
 
         if all_versions:
-            print(f"\nVersions in store:")
+            print("\nVersions in store:")
             for v in all_versions:
                 marker = "  (current)" if v.version == version else ""
                 print(f"  {v.version}{marker}")
@@ -862,7 +862,6 @@ def cmd_diff(args):
 
 def cmd_doctor(args):
     """Check the health of the skillctl environment."""
-    import platform
     import shutil
     import subprocess
 
@@ -898,12 +897,12 @@ def cmd_doctor(args):
     if index_path.exists():
         try:
             json.loads(index_path.read_text())
-            print(f"  ✓ Store index: valid")
+            print("  ✓ Store index: valid")
         except (json.JSONDecodeError, OSError):
-            print(f"  ✗ Store index: invalid JSON")
+            print("  ✗ Store index: invalid JSON")
             errors_count += 1
     else:
-        print(f"  ⚠ Store index: not found (no skills pushed yet)")
+        print("  ⚠ Store index: not found (no skills pushed yet)")
         warnings_count += 1
 
     # 4. Config file exists and is valid
@@ -914,10 +913,10 @@ def cmd_doctor(args):
             print(f"    Registry backend: {typed_cfg.registry.backend}")
             print(f"    Optimizer model: {typed_cfg.optimize.model}")
         except Exception:
-            print(f"  ✗ Config file: invalid")
+            print("  ✗ Config file: invalid")
             errors_count += 1
     else:
-        print(f"  ⚠ Config file: not found (run 'skillctl configure')")
+        print("  ⚠ Config file: not found (run 'skillctl configure')")
         warnings_count += 1
 
     # 5. Registry
@@ -926,7 +925,7 @@ def cmd_doctor(args):
         if rid:
             print(f"  ✓ Registry: agent-registry ({rid})")
         else:
-            print(f"  ⚠ Registry: agent-registry (no registry_id configured)")
+            print("  ⚠ Registry: agent-registry (no registry_id configured)")
             warnings_count += 1
     else:
         registry_url = typed_cfg.registry.local.url or os.environ.get("SKILLCTL_REGISTRY_URL")
@@ -939,7 +938,7 @@ def cmd_doctor(args):
                 print(f"  ⚠ Registry: local ({registry_url}, unreachable)")
                 warnings_count += 1
         else:
-            print(f"  ⚠ Registry: not configured (run 'skillctl configure')")
+            print("  ⚠ Registry: not configured (run 'skillctl configure')")
             warnings_count += 1
 
     # 6. GitHub token
@@ -952,10 +951,10 @@ def cmd_doctor(args):
                 user = json.loads(resp.read().decode())
                 print(f"  ✓ GitHub token: valid ({user.get('login', 'unknown')})")
         except Exception:
-            print(f"  ⚠ GitHub token: configured but invalid")
+            print("  ⚠ GitHub token: configured but invalid")
             warnings_count += 1
     else:
-        print(f"  ⚠ GitHub token: not configured")
+        print("  ⚠ GitHub token: not configured")
         warnings_count += 1
 
     # 7. Git installed
@@ -968,18 +967,18 @@ def cmd_doctor(args):
             git_ver_num = git_ver.replace("git version ", "")
             print(f"  ✓ Git: installed ({git_ver_num})")
         except Exception:
-            print(f"  ⚠ Git: found but version check failed")
+            print("  ⚠ Git: found but version check failed")
             warnings_count += 1
     else:
-        print(f"  ⚠ Git: not installed")
+        print("  ⚠ Git: not installed")
         warnings_count += 1
 
     # 8. Dependencies
     try:
         __import__("yaml")
-        print(f"  ✓ Core deps: pyyaml installed")
+        print("  ✓ Core deps: pyyaml installed")
     except ImportError:
-        print(f"  ✗ Core deps: pyyaml missing")
+        print("  ✗ Core deps: pyyaml missing")
         errors_count += 1
 
     optional_available = []
@@ -1224,7 +1223,7 @@ def cmd_login(args):
     save_github_token(token)
 
     print(f"\n✓ Authenticated as {user.get('login', 'unknown')} ({user.get('name', '')})")
-    print(f"  Token saved to ~/.skillctl/config.yaml")
+    print("  Token saved to ~/.skillctl/config.yaml")
 
 
 def cmd_logout():

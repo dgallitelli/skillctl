@@ -2,19 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import patch
 
-import pytest
-import yaml
 
 from skillctl.config import (
     SkillctlConfig,
-    RegistryConfig,
-    RegistryLocalConfig,
-    RegistryAgentRegistryConfig,
-    OptimizeConfig,
-    GitHubConfig,
     load_config,
     save_config,
     _parse_config,

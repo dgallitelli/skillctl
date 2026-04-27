@@ -21,7 +21,6 @@ import json
 import os
 import subprocess
 import shutil
-from datetime import datetime, timezone
 from pathlib import Path
 
 from skillctl.registry.db import MetadataDB, SkillRecord

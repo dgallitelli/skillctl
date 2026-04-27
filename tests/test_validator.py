@@ -11,7 +11,7 @@ from skillctl.manifest import (
     SkillMetadata,
     SkillSpec,
 )
-from skillctl.validator import SchemaValidator, ValidationResult
+from skillctl.validator import SchemaValidator
 
 
 def _make_manifest(

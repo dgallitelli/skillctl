@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from skillctl.diff import diff_skills, format_diff, DiffResult
+from skillctl.diff import diff_skills, format_diff
 from skillctl.manifest import (
     SkillManifest,
     SkillMetadata,

@@ -45,7 +45,7 @@ def evaluate_skill(
 
         # --- Run unified report ---
         try:
-            exit_code = run_unified_report(
+            run_unified_report(
                 str(path),
                 format="json",
                 timeout=timeout,

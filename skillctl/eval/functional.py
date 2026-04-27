@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import math
 import shutil
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -19,9 +18,9 @@ from typing import Optional
 from skillctl.eval.cost import estimate_eval_cost, format_cost
 from skillctl.eval.errors import EvalError
 from skillctl.eval.eval_schemas import (
-    EvalCase, AssertionResult, GradingResult, RunPairResult, BenchmarkReport,
+    EvalCase, GradingResult, RunPairResult, BenchmarkReport,
 )
-from skillctl.eval.agent_runner import AgentRunner, AgentNotAvailableError, get_runner
+from skillctl.eval.agent_runner import AgentRunner, get_runner
 from skillctl.eval.grading import grade_output
 
 
@@ -521,7 +520,7 @@ def _print_functional_report(report: BenchmarkReport) -> None:
     w = 58
 
     print(f"\n{'=' * w}")
-    print(f"  Functional Evaluation Report")
+    print("  Functional Evaluation Report")
     print(f"{'=' * w}")
     print(f"  Skill:      {report.skill_name}")
     print(f"  Eval cases: {report.eval_count}")
@@ -550,7 +549,7 @@ def _print_functional_report(report: BenchmarkReport) -> None:
         wos_out = wos.get("mean_output_tokens", 0)
         dt = delta.get("total_tokens", 0)
         dt_sign = "+" if dt >= 0 else ""
-        print(f"  Token Usage (mean per run):")
+        print("  Token Usage (mean per run):")
         print(f"    With skill:    {ws_total:,.0f} total  ({ws_in:,.0f} in / {ws_out:,.0f} out)")
         print(f"    Without skill: {wos_total:,.0f} total  ({wos_in:,.0f} in / {wos_out:,.0f} out)")
         print(f"    Delta:         {dt_sign}{dt:,.0f} total")
@@ -563,7 +562,7 @@ def _print_functional_report(report: BenchmarkReport) -> None:
         cd = ce["cost_delta_pct"]
         qd_sign = "+" if qd >= 0 else ""
         cd_sign = "+" if cd >= 0 else ""
-        print(f"  Cost Efficiency:")
+        print("  Cost Efficiency:")
         print(f"    Classification: {ce['emoji']} {ce['classification']}")
         print(f"    Quality delta:  {qd_sign}{qd:.2f}")
         print(f"    Cost delta:     {cd_sign}{cd:.1f}%")
@@ -584,7 +583,7 @@ def _print_functional_report(report: BenchmarkReport) -> None:
         print(f"{'─' * w}")
 
     scores = report.scores
-    print(f"  Scores (0-1):")
+    print("  Scores (0-1):")
     print(f"    Outcome:    {scores.get('outcome', 0):.2f}")
     print(f"    Process:    {scores.get('process', 0):.2f}")
     print(f"    Style:      {scores.get('style', 0):.2f}")
@@ -593,7 +592,7 @@ def _print_functional_report(report: BenchmarkReport) -> None:
     print(f"{'─' * w}")
 
     if report.passed:
-        print(f"  Result: PASSED")
+        print("  Result: PASSED")
     else:
-        print(f"  Result: FAILED")
+        print("  Result: FAILED")
     print(f"{'=' * w}\n")

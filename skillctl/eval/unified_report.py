@@ -233,7 +233,7 @@ def _run_functional(
     path = Path(skill_path).resolve()
     out_file = path / "evals" / "benchmark.json"
 
-    exit_code = run_functional_eval(
+    run_functional_eval(
         skill_path,
         dry_run=dry_run,
         timeout=timeout,
@@ -274,7 +274,7 @@ def _run_trigger(
     path = Path(skill_path).resolve()
     out_file = path / "evals" / "trigger_report.json"
 
-    exit_code = run_trigger_eval(
+    run_trigger_eval(
         skill_path,
         dry_run=dry_run,
         timeout=timeout,

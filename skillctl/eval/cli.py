@@ -11,7 +11,7 @@ from skillctl.eval.schemas import AuditReport, Finding, calculate_score, calcula
 from skillctl.eval.audit.structure_check import check_structure
 from skillctl.eval.audit.security_scan import scan_security
 from skillctl.eval.audit.permission_analyzer import analyze_permissions
-from skillctl.eval.config import load_config, apply_config, AuditConfig
+from skillctl.eval.config import load_config, apply_config
 from skillctl.eval.report import format_text_report, format_json_report
 from skillctl.eval.version import version_info
 

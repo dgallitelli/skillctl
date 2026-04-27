@@ -9,14 +9,12 @@ import pytest
 
 from skillctl.optimize.provenance import ProvenanceStore, _content_hash
 from skillctl.optimize.types import (
-    CycleRecord,
     EvalResult,
     FailureAnalysis,
     OptimizationRun,
     PromotionDecision,
     TokenUsage,
     Variant,
-    VariantRecord,
     Weakness,
 )
 

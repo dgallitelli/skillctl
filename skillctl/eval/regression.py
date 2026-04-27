@@ -12,7 +12,6 @@ level and category fields).
 from __future__ import annotations
 
 import json
-import sys
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -21,9 +20,8 @@ from typing import Optional
 from skillctl.eval.audit.structure_check import check_structure
 
 from skillctl.eval.errors import EvalError
-from skillctl.eval.schemas import Finding, Severity, AuditReport, calculate_score, calculate_grade
+from skillctl.eval.schemas import Finding, AuditReport
 from skillctl.eval.cli import run_audit
-from skillctl.eval.report import format_text_report
 
 
 @dataclass
@@ -276,8 +274,8 @@ def check_regression(
     report = run_audit(str(path))
 
     # Compare findings
-    baseline_codes = set(baseline.finding_codes)
-    current_codes = set(f.code for f in report.findings)
+    set(baseline.finding_codes)
+    set(f.code for f in report.findings)
 
     # Build detailed finding maps for comparison.
     # Use (code, file_path, line_number, title) as key to avoid collisions
@@ -367,7 +365,7 @@ def _print_regression_report(result: RegressionResult, baseline: Snapshot) -> No
     w = 58
 
     print(f"\n{'═' * w}")
-    print(f"  Regression Check Report")
+    print("  Regression Check Report")
     print(f"{'═' * w}")
     print(f"  Baseline: {baseline.version} ({baseline.score}/{baseline.grade})")
     print(f"  Current:  {result.current_score}/{result.current_grade}")

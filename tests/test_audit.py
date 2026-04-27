@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import json
-import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 import pytest
 
-from skillctl.registry.audit import AuditEvent, AuditLogger
+from skillctl.registry.audit import AuditLogger
 
 
 HMAC_KEY = b"test-secret-key-for-audit"

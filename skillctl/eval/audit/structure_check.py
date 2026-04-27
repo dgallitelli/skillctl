@@ -34,12 +34,12 @@ _RECOMMENDED_MAX_BODY_TOKENS_APPROX = 5000  # ~4 chars per token
 
 def _parse_frontmatter(content: str) -> tuple[Optional[dict], Optional[str], int]:
     """Parse YAML frontmatter from SKILL.md content.
-    
+
     Returns (frontmatter_dict, error_message, body_start_line).
     If parsing fails, returns (None, error_msg, 0).
     """
     lines = content.split("\n")
-    
+
     # Find opening ---
     if not lines or lines[0].strip() != "---":
         return None, "SKILL.md does not start with YAML frontmatter (---)", 0
@@ -66,7 +66,7 @@ def _parse_frontmatter(content: str) -> tuple[Optional[dict], Optional[str], int
 
 def _simple_yaml_parse(text: str) -> dict:
     """Minimal YAML parser for frontmatter (handles flat key-value and nested maps).
-    
+
     Supports:
     - key: value
     - key: "quoted value"
@@ -74,7 +74,7 @@ def _simple_yaml_parse(text: str) -> dict:
     - key: |  (block scalar - joins lines)
     - nested maps (metadata:)
     - space-delimited strings (allowed-tools)
-    
+
     Does NOT support: arrays, complex nesting, anchors, etc.
     For production use, consider PyYAML, but we want zero dependencies.
     """
@@ -84,14 +84,14 @@ def _simple_yaml_parse(text: str) -> dict:
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
-        
+
         if not stripped or stripped.startswith("#"):
             i += 1
             continue
 
         # Check indent level
         indent = len(line) - len(line.lstrip())
-        
+
         match = re.match(r"^(\S[\w-]*)\s*:\s*(.*)", stripped)
         if not match:
             i += 1
@@ -112,7 +112,7 @@ def _simple_yaml_parse(text: str) -> dict:
                     j += 1
                 else:
                     break
-            
+
             if nested_lines:
                 # Check if it's a nested map (key: value pairs)
                 is_map = any(re.match(r"^\s+\S[\w-]*\s*:", nl) for nl in nested_lines if nl.strip())
@@ -155,7 +155,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
     """
     skill_path = Path(skill_path)
     findings: list[Finding] = []
-    
+
     # --- Check 1: Directory exists ---
     if not skill_path.is_dir():
         findings.append(Finding(
@@ -249,7 +249,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
                 issues.append("contains characters other than lowercase letters, numbers, and hyphens")
             if _CONSECUTIVE_HYPHENS.search(name):
                 issues.append("contains consecutive hyphens (--)")
-            
+
             detail = f"The name '{name}' is invalid: {'; '.join(issues)}." if issues else f"The name '{name}' doesn't match the required pattern."
             findings.append(Finding(
                 code="STR-007",
@@ -313,7 +313,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
                 file_path=str(skill_md),
                 fix=f"Shorten the description to {_MAX_DESC_LEN} characters. Move details to the body.",
             ))
-        
+
         if len(desc) < 20:
             findings.append(Finding(
                 code="STR-011",
@@ -401,7 +401,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
                     severity=Severity.WARNING,
                     category=Category.STRUCTURE,
                     title="metadata field should be a mapping",
-                    detail=f"The metadata field should be a YAML mapping (key: value pairs), got string that isn't valid JSON.",
+                    detail="The metadata field should be a YAML mapping (key: value pairs), got string that isn't valid JSON.",
                     file_path=str(skill_md),
                 ))
         else:
@@ -460,7 +460,7 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
     # --- Check 9: Standard directories ---
     known_dirs = {"scripts", "references", "assets", "evals", "agents"}
     actual_dirs = {d.name for d in skill_path.iterdir() if d.is_dir() and not d.name.startswith(".")}
-    unknown_dirs = actual_dirs - known_dirs
+    actual_dirs - known_dirs
     # Not a finding, just metadata — unusual dirs aren't necessarily wrong
 
     # --- Check 10: Scripts have no extension or are executable ---
@@ -476,11 +476,11 @@ def check_structure(skill_path: str | Path) -> tuple[list[Finding], Optional[dic
                             code="STR-017",
                             severity=Severity.INFO,
                             category=Category.QUALITY,
-                            title=f"Script missing shebang line",
+                            title="Script missing shebang line",
                             detail=f"'{script_file.name}' lacks a shebang (e.g., #!/usr/bin/env python3). Agents may not know how to execute it.",
                             file_path=str(script_file),
                             line_number=1,
-                            fix=f"Add '#!/usr/bin/env python3' (or appropriate) as the first line.",
+                            fix="Add '#!/usr/bin/env python3' (or appropriate) as the first line.",
                         ))
                 except Exception:
                     pass

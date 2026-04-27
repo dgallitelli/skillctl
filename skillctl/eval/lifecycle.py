@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path

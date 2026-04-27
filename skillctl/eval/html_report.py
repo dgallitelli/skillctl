@@ -7,9 +7,7 @@ No external dependencies (Jinja2, etc.) — uses Python string formatting.
 from __future__ import annotations
 
 import html
-import json
 from datetime import datetime
-from typing import Optional
 
 
 def _esc(text: str) -> str:

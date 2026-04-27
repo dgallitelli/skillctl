@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Optional
 
 from skillctl.eval.cost import estimate_trigger_cost, format_cost
 from skillctl.eval.errors import EvalError
 from skillctl.eval.eval_schemas import TriggerQuery, TriggerQueryResult, TriggerReport
-from skillctl.eval.agent_runner import AgentRunner, AgentNotAvailableError, get_runner
+from skillctl.eval.agent_runner import AgentRunner, get_runner
 
 
 # ---------------------------------------------------------------------------
@@ -420,7 +419,7 @@ def _print_trigger_report(report: TriggerReport) -> None:
     w = 58
 
     print(f"\n{'=' * w}")
-    print(f"  Trigger Reliability Report")
+    print("  Trigger Reliability Report")
     print(f"{'=' * w}")
     print(f"  Skill: {report.skill_name}")
     print(f"{'─' * w}")
@@ -455,7 +454,7 @@ def _print_trigger_report(report: TriggerReport) -> None:
         print(f"{'─' * w}")
 
     if report.passed:
-        print(f"  Result: PASSED")
+        print("  Result: PASSED")
     else:
-        print(f"  Result: FAILED")
+        print("  Result: FAILED")
     print(f"{'=' * w}\n")

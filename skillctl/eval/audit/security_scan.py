@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from skillctl.eval.schemas import Finding, Severity, Category
 
@@ -30,7 +29,7 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("Generic API Key assignment",
      re.compile(r"""(?:api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9_\-]{20,})['"]""", re.IGNORECASE),
      "Potential API key found in assignment"),
-    
+
     # AWS
     ("AWS Access Key",
      re.compile(r"AKIA[0-9A-Z]{16}"),
@@ -38,7 +37,7 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("AWS Secret Key",
      re.compile(r"""(?:aws[_-]?secret[_-]?(?:access[_-]?)?key|secret[_-]?key)\s*[:=]\s*['"]([a-zA-Z0-9/+]{40})['"]""", re.IGNORECASE),
      "Potential AWS Secret Access Key"),
-    
+
     # GitHub
     ("GitHub Token (classic)",
      re.compile(r"ghp_[a-zA-Z0-9]{36}"),
@@ -49,7 +48,7 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("GitHub OAuth",
      re.compile(r"gho_[a-zA-Z0-9]{36}"),
      "GitHub OAuth Token detected"),
-    
+
     # OpenAI
     ("OpenAI API Key",
      re.compile(r"sk-[a-zA-Z0-9]{20,}T3BlbkFJ[a-zA-Z0-9]{20,}"),
@@ -57,12 +56,12 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("OpenAI API Key (proj)",
      re.compile(r"sk-proj-[a-zA-Z0-9_\-]{40,}"),
      "OpenAI project API key detected"),
-    
+
     # Anthropic
     ("Anthropic API Key",
      re.compile(r"sk-ant-[a-zA-Z0-9_\-]{40,}"),
      "Anthropic API key detected"),
-    
+
     # Slack
     ("Slack Token",
      re.compile(r"xox[bpors]-[0-9a-zA-Z\-]{10,}"),
@@ -70,7 +69,7 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("Slack Webhook",
      re.compile(r"https://hooks\.slack\.com/services/T[a-zA-Z0-9_]+/B[a-zA-Z0-9_]+/[a-zA-Z0-9_]+"),
      "Slack webhook URL detected"),
-    
+
     # Generic secrets
     ("Generic Password",
      re.compile(r"""(?:password|passwd|pwd)\s*[:=]\s*['"]([^'"]{8,})['"]""", re.IGNORECASE),
@@ -81,17 +80,17 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern, str]] = [
     ("Generic Secret",
      re.compile(r"""(?:secret|client[_-]?secret)\s*[:=]\s*['"]([a-zA-Z0-9_\-]{16,})['"]""", re.IGNORECASE),
      "Potential secret in assignment"),
-    
+
     # Connection strings
     ("Database Connection String",
      re.compile(r"(?:mongodb|postgres|mysql|redis)://[^\s'\"]+:[^\s'\"]+@[^\s'\"]+", re.IGNORECASE),
      "Database connection string with credentials detected"),
-    
+
     # Private keys
     ("Private Key",
      re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"),
      "Private key detected"),
-    
+
     # High entropy strings (simplified - long hex or base64 strings that look like secrets)
     ("Potential Base64 Secret",
      re.compile(r"""(?:key|secret|token|password|credential)\s*[:=]\s*['"]([A-Za-z0-9+/=]{40,})['"]""", re.IGNORECASE),
@@ -263,7 +262,7 @@ MCP_CONFIG_PATTERNS: list[tuple[str, re.Pattern, str, str]] = [
 def _scan_file_for_secrets(file_path: Path, content: str) -> list[Finding]:
     """Scan a single file for secret patterns."""
     findings = []
-    
+
     for line_num, line in enumerate(content.split("\n"), 1):
         for pattern_name, pattern, description in SECRET_PATTERNS:
             match = pattern.search(line)
@@ -275,7 +274,7 @@ def _scan_file_for_secrets(file_path: Path, content: str) -> list[Finding]:
                 # Also check the full line for allowlist patterns
                 if any(allow.search(line) for allow in SECRET_ALLOWLIST):
                     continue
-                
+
                 findings.append(Finding(
                     code="SEC-001",
                     severity=Severity.CRITICAL,
@@ -286,7 +285,7 @@ def _scan_file_for_secrets(file_path: Path, content: str) -> list[Finding]:
                     line_number=line_num,
                     fix="Remove the secret. Use environment variables or a secrets manager instead.",
                 ))
-    
+
     return findings
 
 
@@ -312,20 +311,20 @@ def _scan_file_for_urls(file_path: Path, content: str, extra_safe_domains: set[s
             # Skip safe domains (exact match or proper subdomain)
             if any(domain == safe or domain.endswith("." + safe) for safe in all_safe):
                 continue
-            
+
             # Check if it's in a script (higher risk) vs documentation/comments (lower risk)
             is_script = file_path.suffix in (".py", ".sh", ".js", ".ts")
-            
+
             # In scripts, check if the URL is in a comment line
             line_stripped = line.strip()
-            is_comment = (line_stripped.startswith("#") or line_stripped.startswith("//") or 
+            is_comment = (line_stripped.startswith("#") or line_stripped.startswith("//") or
                          line_stripped.startswith("*") or line_stripped.startswith("\"\"\""))
-            
+
             if is_script and not is_comment:
                 severity = Severity.WARNING
             else:
                 severity = Severity.INFO
-            
+
             findings.append(Finding(
                 code="SEC-002",
                 severity=severity,
@@ -336,23 +335,23 @@ def _scan_file_for_urls(file_path: Path, content: str, extra_safe_domains: set[s
                 line_number=line_num,
                 fix="Document why this external endpoint is necessary. External calls are a data exfiltration risk.",
             ))
-    
+
     return findings
 
 
 def _scan_file_for_subprocess(file_path: Path, content: str) -> list[Finding]:
     """Scan script files for subprocess execution patterns."""
     findings = []
-    
+
     if file_path.suffix not in (".py", ".sh", ".js", ".ts", ".bash"):
         return findings
-    
+
     for line_num, line in enumerate(content.split("\n"), 1):
         for pattern_name, pattern, description in SUBPROCESS_PATTERNS:
             if pattern.search(line):
                 # shell=True is always a warning; others are INFO
                 severity = Severity.WARNING if "shell" in pattern_name.lower() or "eval" in pattern_name.lower() else Severity.INFO
-                
+
                 findings.append(Finding(
                     code="SEC-003",
                     severity=severity,
@@ -363,7 +362,7 @@ def _scan_file_for_subprocess(file_path: Path, content: str) -> list[Finding]:
                     line_number=line_num,
                     fix="Ensure inputs are validated before passing to subprocess. Avoid shell=True.",
                 ))
-    
+
     return findings
 
 
@@ -398,7 +397,7 @@ def _scan_file_for_installs(file_path: Path, content: str) -> list[Finding]:
                     line_number=line_num,
                     fix="Pin dependencies in a requirements file. Never pipe curl output to shell.",
                 ))
-    
+
     return findings
 
 
@@ -539,7 +538,6 @@ def _scan_skill_md_for_eval_exec(skill_md: Path, content: str) -> list[Finding]:
     """Scan SKILL.md code blocks for eval()/exec() instructions (SEC-005 enhancement)."""
     findings = []
     in_code_block = False
-    code_block_lang = ""
 
     for line_num, line in enumerate(content.split("\n"), 1):
         stripped = line.strip()
@@ -548,10 +546,9 @@ def _scan_skill_md_for_eval_exec(skill_md: Path, content: str) -> list[Finding]:
         if stripped.startswith("```"):
             if in_code_block:
                 in_code_block = False
-                code_block_lang = ""
             else:
                 in_code_block = True
-                code_block_lang = stripped[3:].strip().lower()
+                stripped[3:].strip().lower()
             continue
 
         if in_code_block and EVAL_EXEC_PATTERN.search(line):
@@ -572,7 +569,7 @@ def _scan_skill_md_for_eval_exec(skill_md: Path, content: str) -> list[Finding]:
 def _scan_skill_md_for_injection(skill_md: Path, content: str) -> list[Finding]:
     """Scan SKILL.md body for injection surface patterns."""
     findings = []
-    
+
     for line_num, line in enumerate(content.split("\n"), 1):
         for pattern_name, pattern, description, fix in INJECTION_SURFACE_PATTERNS:
             if pattern.search(line):
@@ -586,7 +583,7 @@ def _scan_skill_md_for_injection(skill_md: Path, content: str) -> list[Finding]:
                     line_number=line_num,
                     fix=fix,
                 ))
-    
+
     return findings
 
 
@@ -603,24 +600,24 @@ def _iter_scan_files(
     include_all: bool = False,
 ) -> list[Path]:
     """Collect files to scan based on scope.
-    
+
     When include_all is False (default), only scans:
     - SKILL.md (the skill manifest — the only root file agents read)
     - Executable skill directories: scripts/, agents/
-    
+
     This excludes README.md, demo scripts, pyproject.toml, references/,
     assets/, evals/, tests/, examples/, docs/, and other files that are
     not part of the skill's executable content. Documentation and
     development files may describe security anti-patterns without
     actually being vulnerable.
-    
+
     When include_all is True, scans the entire directory tree
     (excluding build artifacts).
-    
+
     Args:
         skill_path: Path to the skill directory
         include_all: If True, scan entire directory tree
-        
+
     Returns:
         List of file paths to scan
     """
@@ -628,12 +625,12 @@ def _iter_scan_files(
     skip_dirs = {".git", ".venv", "venv", "node_modules", "__pycache__",
                  ".pytest_cache", ".mypy_cache", ".ruff_cache",
                  "egg-info", ".egg-info", "dist", "build", ".tox"}
-    
+
     text_extensions = {".md", ".py", ".sh", ".js", ".ts", ".json", ".yaml", ".yml",
                        ".toml", ".txt", ".bash", ".zsh", ".env", ".cfg", ".ini", ".conf"}
-    
+
     files: list[Path] = []
-    
+
     if include_all:
         candidates = skill_path.rglob("*")
     else:
@@ -646,7 +643,7 @@ def _iter_scan_files(
             if item.is_dir() and item.name in SKILL_SCAN_DIRS:
                 candidates_list.extend(item.rglob("*"))
         candidates = iter(candidates_list)
-    
+
     for file_path in candidates:
         if not file_path.is_file():
             continue
@@ -661,40 +658,40 @@ def _iter_scan_files(
         if file_path.stat().st_size > 1_000_000:  # Skip files > 1MB
             continue
         files.append(file_path)
-    
+
     return files
 
 
 def scan_security(skill_path: str | Path, include_all: bool = False, extra_safe_domains: set[str] | None = None) -> list[Finding]:
     """Run all security scans on a skill directory.
-    
+
     By default, scans only skill-standard directories (SKILL.md, scripts/,
     references/, assets/, evals/, agents/ and root-level files). This matches
     the agentskills.io definition of skill content and avoids false positives
     from test fixtures or development files.
-    
+
     Use include_all=True to scan the entire directory tree.
-    
+
     Args:
         skill_path: Path to the skill directory
         include_all: If True, scan entire directory tree instead of
             just skill-standard directories
-        
+
     Returns:
         List of security findings
     """
     skill_path = Path(skill_path)
     findings: list[Finding] = []
-    
+
     if not skill_path.is_dir():
         return findings
-    
+
     for file_path in _iter_scan_files(skill_path, include_all=include_all):
         try:
             content = file_path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, PermissionError):
             continue
-        
+
         # Run all scanners
         findings.extend(_scan_file_for_secrets(file_path, content))
         findings.extend(_scan_file_for_urls(file_path, content, extra_safe_domains=extra_safe_domains))
@@ -704,7 +701,7 @@ def scan_security(skill_path: str | Path, include_all: bool = False, extra_safe_
         findings.extend(_scan_file_for_dynamic_imports(file_path, content))
         findings.extend(_scan_file_for_base64_payloads(file_path, content))
         findings.extend(_scan_file_for_mcp_references(file_path, content))
-    
+
     # Scan SKILL.md specifically for injection surfaces and eval/exec in code blocks
     skill_md = skill_path / "SKILL.md"
     if skill_md.is_file():
@@ -714,5 +711,5 @@ def scan_security(skill_path: str | Path, include_all: bool = False, extra_safe_
             findings.extend(_scan_skill_md_for_eval_exec(skill_md, content))
         except Exception:
             pass
-    
+
     return findings
