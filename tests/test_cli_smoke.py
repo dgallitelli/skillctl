@@ -88,6 +88,25 @@ class TestPluginHint:
         assert "claude-code-hint" not in r.stderr
 
 
+class TestApplyNamespaceGate:
+    def test_apply_bare_name_blocked(self, tmp_path):
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: bare-name\ndescription: test\n---\n\nBody")
+        r = _run(["apply", "--local", str(skill_dir)])
+        assert r.returncode != 0
+        assert "namespace" in r.stderr.lower()
+
+    def test_apply_namespaced_name_works(self, tmp_path):
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: code-reviewer\ndescription: test\nskillctl:\n  namespace: test-org\n  version: 0.1.0\n---\n\nBody"
+        )
+        r = _run(["apply", "--local", "--dry-run", str(skill_dir)])
+        assert r.returncode == 0
+
+
 class TestInstallCLI:
     def test_install_help(self):
         r = _run(["install", "--help"])

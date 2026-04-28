@@ -451,6 +451,15 @@ def cmd_apply(args):
             print(f"  ✗ [{e.code}] {e.message}", file=sys.stderr)
         sys.exit(1)
 
+    # 2b. Namespace gate — bare names blocked from store/registry
+    if "/" not in manifest.metadata.name:
+        raise SkillctlError(
+            code="E_NO_NAMESPACE",
+            what=f"Skill '{manifest.metadata.name}' has no namespace",
+            why="The store and registry require namespaced names to prevent collisions",
+            fix="Add 'skillctl:\\n  namespace: my-org' to SKILL.md frontmatter, or create a skill.yaml",
+        )
+
     # 3. Resolve content
     base_dir = str(Path(path).parent) if Path(path).is_file() else path
     content = loader.resolve_content(manifest, base_dir)
