@@ -93,6 +93,10 @@ skillctl install my-org/my-skill@0.1.0 --target all      # all detected IDEs
 skillctl install my-org/my-skill@0.1.0 --target cursor    # specific IDE
 skillctl get installations                                 # list what's installed
 skillctl uninstall my-org/my-skill@0.1.0 --target all     # remove from all
+
+# Works with existing IDE skills — no skill.yaml needed
+skillctl validate ~/.claude/skills/my-skill/SKILL.md
+skillctl eval audit ~/.claude/skills/my-skill/
 ```
 
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the full CLI reference, registry server setup, eval suite details, optimizer flags, skill format spec, and API endpoints.

@@ -73,6 +73,44 @@ The optional `metadata.category` field classifies a skill into a taxonomy. Custo
 
 Plain `SKILL.md` files (no `skill.yaml`) are auto-detected and wrapped in a minimal manifest with a warning. You don't need to rewrite existing skills to adopt governance.
 
+### SKILL.md format
+
+A SKILL.md file with YAML frontmatter is a fully valid skill definition. No companion `skill.yaml` is required for local operations (validate, eval, install).
+
+```yaml
+---
+name: code-reviewer
+description: Reviews code for security issues
+allowed-tools: Read Grep
+paths: "**/*.py"
+skillctl:
+  namespace: my-org
+  version: 1.2.0
+  category: security
+  tags: [security, code-review]
+  capabilities: [read_file, read_code]
+---
+
+When reviewing code, check for...
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | No | Skill name (default: directory name) |
+| `description` | No | What the skill does (recommended) |
+| `allowed-tools` | No | Claude Code tool permissions (passthrough) |
+| `paths` | No | File glob patterns for activation |
+| `disable-model-invocation` | No | Prevent auto-invocation by IDE |
+| `skillctl.namespace` | For `apply` | Governance namespace (e.g., `my-org`) |
+| `skillctl.version` | No | Semver version (default: `0.1.0`) |
+| `skillctl.category` | No | Skill category (see Known Categories) |
+| `skillctl.tags` | No | Discovery tags |
+| `skillctl.capabilities` | No | Declared tool capabilities |
+
+The `skillctl:` block is ignored by all IDEs (unknown YAML keys are silently skipped). Standard fields (`name`, `description`, `paths`, `allowed-tools`) are read by IDEs natively.
+
+When both `skill.yaml` and `SKILL.md` exist, `skill.yaml` takes precedence.
+
 ---
 
 ## CLI Reference
