@@ -505,6 +505,21 @@ def uninstall_skill(
     return results
 
 
+def download_skill(url: str, target_dir: Path) -> Path:
+    """Download a SKILL.md from a URL to a local directory. Returns the path."""
+    import urllib.request
+
+    content = urllib.request.urlopen(url, timeout=30).read().decode("utf-8")
+    skill_name = "downloaded-skill"
+    frontmatter, body = _parse_frontmatter(content)
+    if frontmatter.get("name"):
+        skill_name = frontmatter["name"]
+    skill_dir = target_dir / skill_name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text(content)
+    return skill_dir
+
+
 def list_installations(
     target: str | None = None,
     tracker_path: Path = DEFAULT_STATE_PATH,

@@ -234,11 +234,15 @@ class ManifestLoader:
         tags = governance.get("tags", [])
         capabilities = governance.get("capabilities", [])
 
+        authors_raw = governance.get("authors", [])
+        authors = [Author(**a) if isinstance(a, dict) else Author(name=a) for a in authors_raw]
+
         manifest = SkillManifest(
             metadata=SkillMetadata(
                 name=qualified_name,
                 version=version,
                 description=description,
+                authors=authors,
                 tags=tags,
                 category=category,
             ),

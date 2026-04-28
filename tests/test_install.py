@@ -442,6 +442,26 @@ class TestUninstallSkill:
         assert not results[0].success
 
 
+class TestDownloadSkill:
+    def test_download_skill_from_file_url(self, tmp_path):
+        source = tmp_path / "source.md"
+        source.write_text("---\nname: test-dl\ndescription: test\n---\n\nBody")
+        from skillctl.install import download_skill
+
+        result = download_skill(f"file://{source}", tmp_path / "dest")
+        assert (result / "SKILL.md").exists()
+        assert result.name == "test-dl"
+
+    def test_download_skill_fallback_name(self, tmp_path):
+        source = tmp_path / "source.md"
+        source.write_text("---\ndescription: test\n---\n\nBody")
+        from skillctl.install import download_skill
+
+        result = download_skill(f"file://{source}", tmp_path / "dest")
+        assert (result / "SKILL.md").exists()
+        assert result.name == "downloaded-skill"
+
+
 class TestInstallDryRun:
     def test_install_dry_run(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

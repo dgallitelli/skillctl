@@ -362,6 +362,28 @@ class TestWrapMarkdownWithFrontmatter:
         assert manifest.metadata.version == "0.0.0"
         assert any(w.code == "W_AUTO_WRAPPED" for w in warnings)
 
+    def test_frontmatter_with_authors(self, tmp_path):
+        md = tmp_path / "SKILL.md"
+        md.write_text(
+            "---\nname: test\ndescription: test\nskillctl:\n  namespace: org\n  authors:\n    - name: Alice\n      email: alice@example.com\n---\n\nBody"
+        )
+        loader = ManifestLoader()
+        manifest, warnings = loader.load(str(md))
+        assert len(manifest.metadata.authors) == 1
+        assert manifest.metadata.authors[0].name == "Alice"
+        assert manifest.metadata.authors[0].email == "alice@example.com"
+
+    def test_frontmatter_with_string_authors(self, tmp_path):
+        md = tmp_path / "SKILL.md"
+        md.write_text(
+            "---\nname: test\ndescription: test\nskillctl:\n  authors:\n    - Bob\n---\n\nBody"
+        )
+        loader = ManifestLoader()
+        manifest, warnings = loader.load(str(md))
+        assert len(manifest.metadata.authors) == 1
+        assert manifest.metadata.authors[0].name == "Bob"
+        assert manifest.metadata.authors[0].email is None
+
     def test_name_from_directory_when_not_in_frontmatter(self, tmp_path):
         skill_dir = tmp_path / "my-cool-skill"
         skill_dir.mkdir()

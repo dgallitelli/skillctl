@@ -106,6 +106,7 @@ When reviewing code, check for...
 | `skillctl.category` | No | Skill category (see Known Categories) |
 | `skillctl.tags` | No | Discovery tags |
 | `skillctl.capabilities` | No | Declared tool capabilities |
+| `skillctl.authors` | No | List of authors (string names or `{name, email}` objects) |
 
 The `skillctl:` block is ignored by all IDEs (unknown YAML keys are silently skipped). Standard fields (`name`, `description`, `paths`, `allowed-tools`) are read by IDEs natively.
 
@@ -216,6 +217,7 @@ Backward-compatible aliases: `registry.url` maps to `registry.local.url`, `regis
 | Flag | Description |
 |------|-------------|
 | `--target <targets>` | **Required.** Comma-separated IDE names or `all`. Valid: `claude`, `cursor`, `windsurf`, `copilot`, `kiro` |
+| `--from-url <url>` | Download a SKILL.md from a URL and install it (replaces the positional `ref` argument) |
 | `--global` | Install to user-level directory instead of project-level |
 | `--force` | Overwrite files modified since last install |
 | `--dry-run` | Preview what would be installed without writing files |

@@ -309,7 +309,10 @@ def main():
 
     # skillctl install <ref-or-path> --target <targets> [--global] [--force]
     install_p = sub.add_parser("install", help="Install a skill to AI coding IDEs")
-    install_p.add_argument("ref", help="Skill ref (namespace/name@version) or path to skill directory")
+    install_p.add_argument(
+        "ref", nargs="?", default=None, help="Skill ref (namespace/name@version) or path to skill directory"
+    )
+    install_p.add_argument("--from-url", default=None, help="Download SKILL.md from URL and install")
     install_p.add_argument(
         "--target", required=True, help="Target IDEs: claude,cursor,windsurf,copilot,kiro (comma-separated or 'all')"
     )
@@ -875,13 +878,41 @@ def cmd_logs(args):
 
 def cmd_install(args):
     """Install a skill to AI coding IDEs."""
-    from skillctl.install import install_skill
+    import tempfile
+
+    from skillctl.install import download_skill, install_skill
 
     ref = args.ref
+    from_url = getattr(args, "from_url", None)
     targets = [t.strip() for t in args.target.split(",")]
 
-    # If ref looks like a path, apply first
-    if "/" in ref and "@" not in ref and Path(ref).exists():
+    if from_url:
+        # Download from URL, apply locally, then install
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            skill_dir = download_skill(from_url, Path(tmp_dir))
+            print(f"Downloaded skill to {skill_dir}")
+            cmd_apply(
+                argparse.Namespace(
+                    path=str(skill_dir),
+                    file=None,
+                    dry_run=False,
+                    local=True,
+                    registry_url=None,
+                    token=None,
+                )
+            )
+            loader = ManifestLoader()
+            manifest, _ = loader.load(str(skill_dir))
+            ref = f"{manifest.metadata.name}@{manifest.metadata.version}"
+    elif ref is None:
+        raise SkillctlError(
+            code="E_MISSING_REF",
+            what="No skill ref or --from-url provided",
+            why="The install command needs a skill to install",
+            fix="Provide a skill ref (namespace/name@version), a path, or --from-url <url>",
+        )
+    elif "/" in ref and "@" not in ref and Path(ref).exists():
+        # If ref looks like a path, apply first
         print(f"Applying {ref} first...")
         cmd_apply(
             argparse.Namespace(
