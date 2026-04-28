@@ -123,6 +123,33 @@ def generate_eval_scaffold(skill_path: str) -> int:
         queries_file.write_text(json.dumps(queries_data, indent=2) + "\n")
         created.append(str(queries_file))
 
+    # Generate .skilleval.yaml
+    skilleval_file = Path(skill_path) / ".skilleval.yaml"
+    if skilleval_file.exists():
+        print(f"Warning: {skilleval_file} already exists, skipping", file=sys.stderr)
+        skipped.append(str(skilleval_file))
+    else:
+        skilleval_content = (
+            f"# Evaluation configuration for {skill_name}\n"
+            f"# See docs/REFERENCE.md for full options\n"
+            f"\n"
+            f"min_score: 70\n"
+            f"\n"
+            f"# Suppress specific finding codes\n"
+            f"ignore: []\n"
+            f"  # - STR-017  # Example: ignore missing structure\n"
+            f"\n"
+            f"# Additional safe domains for URL scanning\n"
+            f"safe_domains: []\n"
+            f"  # - api.example.com\n"
+            f"\n"
+            f"# Override finding severity levels\n"
+            f"overrides: {{}}\n"
+            f"  # SEC-002: INFO  # Example: downgrade URL finding\n"
+        )
+        skilleval_file.write_text(skilleval_content)
+        created.append(str(skilleval_file))
+
     if created:
         print(f"Created: {', '.join(created)}")
     return 0

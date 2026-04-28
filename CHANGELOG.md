@@ -17,6 +17,7 @@
 - **`logs` command**: `skillctl logs <name>` now fetches audit events from the registry API instead of showing a stub message
 - **`eval --help`**: running `skillctl eval` with no subcommand now correctly prints the eval parser help
 - **Quickstart hint**: main CLI `--help` now shows a quickstart example in the epilog
+- **`eval init` generates `.skilleval.yaml`**: `skillctl eval init` now also creates a `.skilleval.yaml` config file alongside `evals.json` and `eval_queries.json`
 
 ### Fixed
 
