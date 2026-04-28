@@ -13,7 +13,8 @@ SEMVER_PATTERN = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 )
 
-NAME_PATTERN = re.compile(r"^[a-z0-9-]+/[a-z0-9-]+$")
+NAMESPACED_NAME_PATTERN = re.compile(r"^[a-z0-9-]+/[a-z0-9-]+$")
+BARE_NAME_PATTERN = re.compile(r"^[a-z0-9-]+$")
 
 VALID_PARAM_TYPES = {"string", "number", "boolean", "enum"}
 
@@ -72,9 +73,11 @@ class SchemaValidator:
         if semver_issue:
             errors.append(semver_issue)
 
-        name_issue = self._validate_name(manifest.metadata.name)
-        if name_issue:
-            errors.append(name_issue)
+        name_error, name_info = self._validate_name(manifest.metadata.name)
+        if name_error:
+            errors.append(name_error)
+        if name_info:
+            warnings.append(name_info)
 
         errors.extend(self._validate_parameters(manifest.spec.parameters))
 
@@ -184,15 +187,31 @@ class SchemaValidator:
             )
         return None
 
-    def _validate_name(self, name: str) -> Optional[ValidationIssue]:
-        if name and not NAME_PATTERN.match(name):
-            return ValidationIssue(
+    def _validate_name(self, name: str) -> tuple[Optional[ValidationIssue], Optional[ValidationIssue]]:
+        if not name:
+            return (None, None)
+        if NAMESPACED_NAME_PATTERN.match(name):
+            return (None, None)
+        if BARE_NAME_PATTERN.match(name):
+            return (
+                None,
+                ValidationIssue(
+                    code="VAL-NAME-NO-NAMESPACE",
+                    message=f"Name '{name}' has no namespace prefix",
+                    path="metadata.name",
+                    hint="Consider using 'my-org/{}' for registry publishing".format(name),
+                    severity="warning",
+                ),
+            )
+        return (
+            ValidationIssue(
                 code="VAL-NAME-FORMAT",
                 message=f"Name '{name}' must be namespace/skill-name (lowercase, hyphens)",
                 path="metadata.name",
                 hint="Use format like 'my-org/my-skill'",
-            )
-        return None
+            ),
+            None,
+        )
 
     def _validate_parameters(self, params: list) -> list[ValidationIssue]:
         errors: list[ValidationIssue] = []

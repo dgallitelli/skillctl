@@ -101,6 +101,43 @@ def test_invalid_name_format(validator):
     assert "VAL-NAME-FORMAT" in codes
 
 
+def test_bare_name_passes(validator):
+    """A bare name like 'code-reviewer' should pass validation (valid=True)."""
+    manifest = _make_manifest(name="code-reviewer")
+    result = validator.validate(manifest)
+
+    assert result.valid is True
+    assert result.errors == []
+
+
+def test_bare_name_no_namespace_info(validator):
+    """A bare name should produce a VAL-NAME-NO-NAMESPACE warning."""
+    manifest = _make_manifest(name="code-reviewer")
+    result = validator.validate(manifest)
+
+    warning_codes = [w.code for w in result.warnings]
+    assert "VAL-NAME-NO-NAMESPACE" in warning_codes
+
+
+def test_namespaced_name_no_info(validator):
+    """A namespaced name like 'my-org/code-reviewer' should NOT produce the info warning."""
+    manifest = _make_manifest(name="my-org/code-reviewer")
+    result = validator.validate(manifest)
+
+    warning_codes = [w.code for w in result.warnings]
+    assert "VAL-NAME-NO-NAMESPACE" not in warning_codes
+
+
+def test_bare_name_still_validates_format(validator):
+    """An invalid bare name like 'INVALID_NAME' should fail with VAL-NAME-FORMAT."""
+    manifest = _make_manifest(name="INVALID_NAME")
+    result = validator.validate(manifest)
+
+    assert result.valid is False
+    codes = [e.code for e in result.errors]
+    assert "VAL-NAME-FORMAT" in codes
+
+
 # -- Empty name --------------------------------------------------------------
 
 
