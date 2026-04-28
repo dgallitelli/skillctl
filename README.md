@@ -226,7 +226,7 @@ skillctl doctor                       # checks Python, deps, store, registry, ID
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,optimize,plugin]"
-pytest -m "not integration"           # 528 unit tests
+pytest -m "not integration"           # 530+ unit tests
 pytest -m integration                 # 10 real Bedrock tests (needs AWS creds)
 ```
 

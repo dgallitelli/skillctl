@@ -9,7 +9,6 @@ skillctl is a Python CLI + self-hostable registry server for governing agent ski
 - `docs/REFERENCE.md` — full CLI reference, skill format, registry server, eval suite, API endpoints, optimizer flags
 - `ARCHITECTURE.md` — system overview, module map, data flow diagrams
 - `CHANGELOG.md` — version history
-- `docs/comparison-aws-agent-registry.md` — comparison with AWS Agent Registry
 
 ## Quick reference
 

@@ -18,6 +18,14 @@
 - **`eval --help`**: running `skillctl eval` with no subcommand now correctly prints the eval parser help
 - **Quickstart hint**: main CLI `--help` now shows a quickstart example in the epilog
 - **`eval init` generates `.skilleval.yaml`**: `skillctl eval init` now also creates a `.skilleval.yaml` config file alongside `evals.json` and `eval_queries.json`
+- **Import command**: `skillctl import archive.tar.gz` restores skills from exported archives (reverse of `export`)
+- **Install from local path**: `skillctl install ./my-skill --target cursor` auto-applies then installs (no store ref needed)
+- **Install from URL**: `skillctl install --from-url https://... --target all` downloads and installs a remote SKILL.md
+- **SKILL.md first-class ingest**: bare SKILL.md files with frontmatter are fully valid — no skill.yaml needed for local operations
+- **`skillctl:` governance block**: SKILL.md frontmatter supports `skillctl.namespace`, `skillctl.version`, `skillctl.category`, `skillctl.tags`, `skillctl.capabilities`, `skillctl.authors`
+- **Bare skill names**: names without namespace (e.g., `code-reviewer`) are valid locally; `apply` requires namespace for store/registry
+- **STR-021 token budget warning**: audit warns when SKILL.md body exceeds ~4,000 tokens
+- **Network error messages**: all registry HTTP errors now suggest `skillctl doctor` for diagnosis
 
 ### Fixed
 

@@ -972,9 +972,16 @@ def cmd_logs(args):
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             events = json.loads(resp.read())
-    except Exception as e:
-        print(f"Error fetching logs: {e}", file=sys.stderr)
+    except urllib.error.HTTPError as e:
+        print(f"Error fetching logs: HTTP {e.code} {e.reason}", file=sys.stderr)
+        print("  Fix: Check registry URL and auth token with 'skillctl doctor'", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"Error fetching logs: {e.reason}", file=sys.stderr)
         print("  Fix: Check registry URL with 'skillctl doctor'", file=sys.stderr)
+        sys.exit(1)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error parsing audit log response: {e}", file=sys.stderr)
         sys.exit(1)
 
     if not events:
