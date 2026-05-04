@@ -1,0 +1,14 @@
+{
+  "name": "sample-app",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "express": "4.17.1",
+    "lodash": "4.17.20",
+    "jsonwebtoken": "8.5.1",
+    "axios": "0.21.1"
+  },
+  "devDependencies": {
+    "jest": "27.0.0"
+  }
+}

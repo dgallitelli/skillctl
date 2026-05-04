@@ -1,0 +1,22 @@
+[
+  {
+    "id": "api-review-naming",
+    "prompt": "Review the API routes defined in routes.py for naming convention issues.",
+    "files": ["routes.py"],
+    "assertions": [
+      "identifies the verb-in-path issue with /create-user",
+      "flags the singular noun /order instead of /orders",
+      "recommends specific fixes for each issue found"
+    ]
+  },
+  {
+    "id": "api-review-errors",
+    "prompt": "Check whether the error handling in this API follows best practices.",
+    "files": ["error_handlers.py"],
+    "assertions": [
+      "flags the inconsistent error response format",
+      "identifies the stack trace leak in the 500 handler",
+      "recommends a consistent error envelope structure"
+    ]
+  }
+]

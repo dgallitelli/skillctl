@@ -1,0 +1,34 @@
+[
+  {
+    "query": "Implement a user registration endpoint with email validation",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix the off-by-one error in the pagination logic",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a retry mechanism to the HTTP client",
+    "should_trigger": true
+  },
+  {
+    "query": "Write tests first for the new caching layer",
+    "should_trigger": true
+  },
+  {
+    "query": "Update the README with the new installation steps",
+    "should_trigger": false
+  },
+  {
+    "query": "Change the log level from DEBUG to INFO in production config",
+    "should_trigger": false
+  },
+  {
+    "query": "What does the AuthMiddleware class do?",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename the variable from camelCase to snake_case across the codebase",
+    "should_trigger": false
+  }
+]

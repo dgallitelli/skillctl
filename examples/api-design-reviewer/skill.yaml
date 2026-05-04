@@ -1,0 +1,39 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: acme-corp/api-design-reviewer
+  version: 1.2.0
+  description: "Reviews REST API designs for consistency, naming conventions, versioning strategy, and error handling patterns"
+  authors:
+    - name: Platform Team
+      email: platform@acme-corp.example.com
+  license: Apache-2.0
+  tags:
+    - api
+    - rest
+    - code-review
+    - design
+
+spec:
+  content:
+    path: ./SKILL.md
+  parameters:
+    - name: strictness
+      type: enum
+      values: ["relaxed", "standard", "strict"]
+      default: "standard"
+      description: "How strictly to enforce conventions — relaxed allows common shortcuts, strict flags everything"
+    - name: check-versioning
+      type: boolean
+      required: false
+      default: "true"
+      description: "Whether to check API versioning strategy"
+    - name: max-issues
+      type: number
+      required: false
+      default: "20"
+      description: "Maximum number of issues to report"
+  capabilities:
+    - read_file
+    - read_code

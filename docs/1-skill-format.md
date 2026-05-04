@@ -390,13 +390,13 @@ The `examples/` directory contains three skill examples:
 
 | Example | Description |
 |---------|-------------|
-| `basic-skill/` | Complete skill with skill.yaml, SKILL.md, and sample eval report |
-| `parameterized-skill/` | Typed parameters (string, enum, number, boolean) with governance |
-| `minimal-skill/` | Plain SKILL.md with no manifest (tests backward compatibility) |
+| `tdd-workflow/` | Minimal format — SKILL.md with frontmatter, no skill.yaml manifest |
+| `api-design-reviewer/` | Full manifest with typed parameters (enum, boolean, number) |
+| `dependency-scanner/` | Security-relevant skill that triggers audit findings (URLs, exec capability) |
 
 ```bash
-skillctl validate examples/basic-skill
-skillctl eval audit examples/basic-skill
+skillctl validate examples/tdd-workflow
+skillctl eval audit examples/dependency-scanner
 ```
 
 ---

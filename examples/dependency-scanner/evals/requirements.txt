@@ -1,0 +1,8 @@
+flask==2.2.0
+requests==2.28.0
+pyjwt==2.4.0
+sqlalchemy==1.4.39
+pillow==9.2.0
+python-dotenv==0.20.0
+# GPL-licensed — potential compliance issue in MIT project
+pyqt5==5.15.7

@@ -1,0 +1,34 @@
+[
+  {
+    "query": "Are there any known vulnerabilities in our dependencies?",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit the npm packages before we cut a release",
+    "should_trigger": true
+  },
+  {
+    "query": "Check if any of our Python packages have security advisories",
+    "should_trigger": true
+  },
+  {
+    "query": "Run a supply chain security review on this project",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the authentication middleware for SQL injection",
+    "should_trigger": false
+  },
+  {
+    "query": "Deploy the application to the staging environment",
+    "should_trigger": false
+  },
+  {
+    "query": "Write unit tests for the payment processing module",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I configure the Kubernetes health check probes?",
+    "should_trigger": false
+  }
+]

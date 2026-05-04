@@ -1,0 +1,24 @@
+apiVersion: skillctl.io/v1
+kind: Skill
+
+metadata:
+  name: sectools/dependency-scanner
+  version: 2.0.0
+  description: "Guides agents through auditing project dependencies for known vulnerabilities, outdated packages, and license compliance issues"
+  authors:
+    - name: Security Engineering
+      email: security@sectools.example.com
+  license: MIT
+  tags:
+    - security
+    - dependencies
+    - vulnerabilities
+    - audit
+
+spec:
+  content:
+    path: ./SKILL.md
+  capabilities:
+    - read_file
+    - exec
+    - network_access

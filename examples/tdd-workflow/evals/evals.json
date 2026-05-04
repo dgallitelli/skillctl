@@ -1,0 +1,22 @@
+[
+  {
+    "id": "tdd-new-feature",
+    "prompt": "Add a function called `calculate_discount` that takes a price and a percentage, and returns the discounted price. Use TDD.",
+    "assertions": [
+      "a test file or test function is written before the implementation",
+      "the test captures the expected discount calculation behavior",
+      "implementation code exists that makes the test pass",
+      "output follows a red-green-refactor sequence"
+    ]
+  },
+  {
+    "id": "tdd-bugfix",
+    "prompt": "There is a bug where `parse_email` returns None for addresses with a plus sign like user+tag@example.com. Fix it using TDD.",
+    "files": ["parse_email.py"],
+    "assertions": [
+      "a failing test is written that reproduces the plus-sign bug",
+      "the fix makes the new test pass",
+      "existing test cases still pass after the fix"
+    ]
+  }
+]

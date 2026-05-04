@@ -1,0 +1,34 @@
+[
+  {
+    "query": "Review my REST API endpoints for consistency",
+    "should_trigger": true
+  },
+  {
+    "query": "I added new routes to the Flask app, can you check the naming?",
+    "should_trigger": true
+  },
+  {
+    "query": "Is my API error handling following best practices?",
+    "should_trigger": true
+  },
+  {
+    "query": "Design the endpoints for a new billing service",
+    "should_trigger": true
+  },
+  {
+    "query": "Optimize this SQL query for the orders table",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a GraphQL resolver for the user type",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up the CI pipeline for the project",
+    "should_trigger": false
+  },
+  {
+    "query": "What is the difference between PUT and PATCH?",
+    "should_trigger": false
+  }
+]
