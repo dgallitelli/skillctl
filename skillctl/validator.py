@@ -51,11 +51,9 @@ class ValidationResult:
 
     @property
     def exit_code(self) -> int:
-        """0=valid, 1=errors, 2=warnings only."""
+        """0=valid (even with warnings), 1=errors."""
         if self.errors:
             return 1
-        if self.warnings:
-            return 2
         return 0
 
 

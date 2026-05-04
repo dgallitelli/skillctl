@@ -72,6 +72,8 @@ class TestCLIEntryPoint:
         assert r.returncode == 0
         assert (tmp_path / "skill.yaml").exists()
         assert (tmp_path / "SKILL.md").exists()
+        assert (tmp_path / "evals" / "evals.json").exists()
+        assert (tmp_path / "evals" / "eval_queries.json").exists()
 
 
 class TestPluginHint:
@@ -144,3 +146,38 @@ class TestImportCLI:
         r = _run(["import", str(tmp_path / "nonexistent.tar.gz")])
         assert r.returncode != 0
         assert "not found" in r.stderr.lower() or "archive" in r.stderr.lower()
+
+
+class TestEvalValidate:
+    def test_eval_validate_valid(self):
+        r = _run(["eval", "validate", "examples/tdd-workflow"])
+        assert r.returncode == 0
+        assert "valid" in r.stdout.lower()
+
+    def test_eval_validate_no_evals(self, tmp_path):
+        skill_dir = tmp_path / "empty-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: test\ndescription: test\n---\n\nBody")
+        r = _run(["eval", "validate", str(skill_dir)])
+        assert r.returncode == 0
+        assert "not found" in r.stderr.lower() or "no eval files" in r.stdout.lower()
+
+    def test_eval_validate_invalid_json(self, tmp_path):
+        skill_dir = tmp_path / "bad-skill"
+        skill_dir.mkdir()
+        evals_dir = skill_dir / "evals"
+        evals_dir.mkdir()
+        (evals_dir / "evals.json").write_text("not valid json")
+        r = _run(["eval", "validate", str(skill_dir)])
+        assert r.returncode == 1
+        assert "invalid json" in r.stdout.lower()
+
+    def test_eval_validate_missing_fields(self, tmp_path):
+        skill_dir = tmp_path / "incomplete-skill"
+        skill_dir.mkdir()
+        evals_dir = skill_dir / "evals"
+        evals_dir.mkdir()
+        (evals_dir / "evals.json").write_text('[{"id": "test-1"}]')
+        r = _run(["eval", "validate", str(skill_dir)])
+        assert r.returncode == 1
+        assert "prompt" in r.stdout.lower()

@@ -343,20 +343,28 @@ class UninstallResult:
     message: str
 
 
+TARGET_ALIASES: dict[str, str] = {
+    "claude-code": "claude",
+}
+
+
 def _resolve_targets(targets: list[str], global_scope: bool) -> list[str]:
     resolved = []
     for t in targets:
         if t == "all":
             resolved.extend(detect_targets(global_scope))
-        elif t in TARGETS:
-            resolved.append(t)
         else:
-            raise SkillctlError(
-                code="E_TARGET_NOT_FOUND",
-                what=f"Unknown target: {t}",
-                why=f"Valid targets are: {', '.join(TARGETS.keys())}, all",
-                fix=f"Use one of: {', '.join(TARGETS.keys())}, all",
-            )
+            canonical = TARGET_ALIASES.get(t, t)
+            if canonical in TARGETS:
+                resolved.append(canonical)
+            else:
+                all_names = sorted(set(list(TARGETS.keys()) + list(TARGET_ALIASES.keys())))
+                raise SkillctlError(
+                    code="E_TARGET_NOT_FOUND",
+                    what=f"Unknown target: {t}",
+                    why=f"Valid targets are: {', '.join(all_names)}, all",
+                    fix=f"Use one of: {', '.join(all_names)}, all",
+                )
     return sorted(set(resolved))
 
 

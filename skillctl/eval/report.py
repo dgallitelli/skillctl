@@ -61,7 +61,9 @@ def format_text_report(
             continue
 
         if severity == Severity.INFO and not verbose:
-            print(f"  ℹ️  {len(items)} INFO finding{'s' if len(items) != 1 else ''} (use --verbose to see)", file=file)
+            codes = ", ".join(f.code for f in items)
+            noun = "finding" if len(items) == 1 else "findings"
+            print(f"  ℹ️  {len(items)} INFO {noun}: {codes} (use --verbose for details)", file=file)
             continue
 
         for finding in items:

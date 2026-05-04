@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## v0.1.0b3 (2026-05-04)
+
+### Added
+
+- **`eval validate` subcommand**: validates `evals/evals.json` and `evals/eval_queries.json` schemas without running LLM calls — catches structural errors before expensive evaluations
+- **Eval scaffolding in `create skill`**: `skillctl create skill` now generates `evals/evals.json` and `evals/eval_queries.json` templates alongside `skill.yaml` and `SKILL.md`
+- **Target alias `claude-code`**: `--target claude-code` is accepted as an alias for `--target claude` in install/uninstall commands
+- **Realistic example skills**: replaced placeholder examples with three real-world skills (tdd-workflow, api-design-reviewer, dependency-scanner) with full eval files
+
+### Fixed
+
+- **`validate` exit code**: warnings-only validation now exits 0 (was exit 2), matching standard CLI conventions; `--strict` still exits 1 for warnings
+- **`validate` output**: prints `"✓ Valid (with N warnings)"` instead of silently printing nothing when there are warnings but no errors
+- **Audit INFO findings**: `eval audit` now shows finding codes inline (e.g., `SEC-002`) even without `--verbose`, so users know what to look up
+- **Install help text**: `skillctl install --help` now documents the auto-apply behavior for local paths
+- **Target error message**: unknown target errors now list accepted aliases alongside primary target names
+
 ## v0.1.0b2 (2026-05-01)
 
 ### Added

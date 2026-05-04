@@ -323,7 +323,10 @@ def main():
     import_p.add_argument("archive", help="Path to archive file (tar.gz or zip)")
 
     # skillctl install <ref-or-path> --target <targets> [--global] [--force]
-    install_p = sub.add_parser("install", help="Install a skill to AI coding IDEs")
+    install_p = sub.add_parser(
+        "install",
+        help="Install a skill to AI coding IDEs (auto-applies if given a local path)",
+    )
     install_p.add_argument(
         "ref", nargs="?", default=None, help="Skill ref (namespace/name@version) or path to skill directory"
     )
@@ -594,9 +597,37 @@ def cmd_create_skill(args):
                 fix=f"Remove {fname} first, or run this command in an empty directory",
             )
 
+    short_name = name.split("/")[-1] if "/" in name else name
+
     Path("skill.yaml").write_text(skill_yaml)
     Path("SKILL.md").write_text(skill_md)
-    print("✓ Skill scaffolded: skill.yaml + SKILL.md")
+
+    evals_dir = Path("evals")
+    evals_dir.mkdir(exist_ok=True)
+
+    evals_json = evals_dir / "evals.json"
+    if not evals_json.exists():
+        evals_data = [
+            {
+                "id": f"{short_name}-eval-1",
+                "prompt": f"Use the {short_name} skill on a sample task",
+                "assertions": [
+                    "output is relevant to the skill's purpose",
+                    "does not contain errors",
+                ],
+            }
+        ]
+        evals_json.write_text(json.dumps(evals_data, indent=2) + "\n")
+
+    queries_json = evals_dir / "eval_queries.json"
+    if not queries_json.exists():
+        queries_data = [
+            {"query": f"Help me with {short_name}", "should_trigger": True},
+            {"query": "What is the weather today?", "should_trigger": False},
+        ]
+        queries_json.write_text(json.dumps(queries_data, indent=2) + "\n")
+
+    print("✓ Skill scaffolded: skill.yaml + SKILL.md + evals/")
 
 
 def cmd_get(args):
@@ -1166,14 +1197,14 @@ def cmd_validate(args):
             print(f"    Hint: {w.hint}")
         if result.valid and not all_warnings:
             print("✓ Valid")
+        elif result.valid and all_warnings:
+            print(f"✓ Valid (with {len(all_warnings)} warning{'s' if len(all_warnings) != 1 else ''})")
 
     # Determine exit code
     if result.errors:
         sys.exit(1)
     elif all_warnings and getattr(args, "strict", False):
         sys.exit(1)
-    elif all_warnings:
-        sys.exit(2)
     else:
         sys.exit(0)
 

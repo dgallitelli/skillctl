@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -143,6 +144,10 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser = subparsers.add_parser("init", help="Generate evaluation scaffold for a skill")
     init_parser.add_argument("skill_path", help="Path to the skill directory")
 
+    # validate command
+    validate_parser = subparsers.add_parser("validate", help="Validate eval file schemas without running evaluations")
+    validate_parser.add_argument("skill_path", help="Path to the skill directory")
+
     # snapshot command (Phase 2)
     snapshot_parser = subparsers.add_parser("snapshot", help="Save current audit results as a baseline")
     snapshot_parser.add_argument("skill_path", help="Path to the skill directory")
@@ -262,6 +267,73 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def _validate_eval_files(skill_path: str) -> int:
+    """Validate eval file schemas without running evaluations."""
+    path = Path(skill_path).resolve()
+    evals_dir = path / "evals"
+    errors = []
+    validated = []
+
+    # Check evals.json
+    evals_file = evals_dir / "evals.json"
+    if evals_file.exists():
+        try:
+            data = json.loads(evals_file.read_text())
+            if not isinstance(data, list):
+                errors.append(f"evals.json: expected JSON array, got {type(data).__name__}")
+            else:
+                for i, item in enumerate(data):
+                    if not isinstance(item, dict):
+                        errors.append(f"evals.json[{i}]: expected object, got {type(item).__name__}")
+                        continue
+                    if "id" not in item:
+                        errors.append(f"evals.json[{i}]: missing required field 'id'")
+                    if "prompt" not in item:
+                        errors.append(f"evals.json[{i}]: missing required field 'prompt'")
+                validated.append(f"evals.json: {len(data)} eval case(s)")
+        except json.JSONDecodeError as e:
+            errors.append(f"evals.json: invalid JSON — {e}")
+    else:
+        print("  ⚠ evals/evals.json not found", file=sys.stderr)
+
+    # Check eval_queries.json
+    queries_file = evals_dir / "eval_queries.json"
+    if queries_file.exists():
+        try:
+            data = json.loads(queries_file.read_text())
+            if not isinstance(data, list):
+                errors.append(f"eval_queries.json: expected JSON array, got {type(data).__name__}")
+            else:
+                for i, item in enumerate(data):
+                    if not isinstance(item, dict):
+                        errors.append(f"eval_queries.json[{i}]: expected object, got {type(item).__name__}")
+                        continue
+                    if "query" not in item:
+                        errors.append(f"eval_queries.json[{i}]: missing required field 'query'")
+                    if "should_trigger" not in item:
+                        errors.append(f"eval_queries.json[{i}]: missing required field 'should_trigger'")
+                validated.append(f"eval_queries.json: {len(data)} trigger query(ies)")
+        except json.JSONDecodeError as e:
+            errors.append(f"eval_queries.json: invalid JSON — {e}")
+    else:
+        print("  ⚠ evals/eval_queries.json not found", file=sys.stderr)
+
+    if errors:
+        print("Eval validation errors:")
+        for e in errors:
+            print(f"  ✗ {e}")
+        return 1
+
+    if validated:
+        for v in validated:
+            print(f"  ✓ {v}")
+        print("✓ Eval files valid")
+    else:
+        print("  ⚠ No eval files found")
+
+    return 0
+
+
 def _dispatch(args) -> int:
     """Dispatch to the appropriate command handler."""
     if args.command == "version":
@@ -347,6 +419,9 @@ def _dispatch(args) -> int:
         from skillctl.eval.init import generate_eval_scaffold
 
         return generate_eval_scaffold(args.skill_path)
+
+    elif args.command == "validate":
+        return _validate_eval_files(args.skill_path)
 
     elif args.command == "snapshot":
         from skillctl.eval.regression import save_snapshot

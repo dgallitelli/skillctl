@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skillsops"
-version = "0.1.0b2"
+version = "0.1.0b3"
 description = "SkillsOps — governance CLI for agent skills. Validate, evaluate, optimize, publish, and distribute skills across any IDE."
 readme = "README.md"
 license = {text = "MPL-2.0"}

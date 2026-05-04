@@ -247,6 +247,14 @@ class TestTargetRegistry:
         assert TARGETS["claude"].global_path is not None
 
 
+class TestResolveTargets:
+    def test_target_alias_claude_code(self):
+        """claude-code should resolve to claude."""
+        from skillctl.install import _resolve_targets
+        result = _resolve_targets(["claude-code"], global_scope=False)
+        assert result == ["claude"]
+
+
 class TestDetectTargets:
     def test_detects_claude(self, tmp_path, monkeypatch):
         (tmp_path / ".claude").mkdir()

@@ -226,7 +226,7 @@ def test_unknown_capability_warning(validator):
 
     # Should still be valid (warnings only)
     assert result.valid is True
-    assert result.exit_code == 2  # warnings only
+    assert result.exit_code == 0  # warnings only, still valid
     warning_codes = [w.code for w in result.warnings]
     assert "VAL-CAP-UNKNOWN" in warning_codes
 
