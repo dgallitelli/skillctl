@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Milestone 2 — Runtime Policy Enforcement & Observability
+
+Closes the runtime governance gap: skills are governed not just at publish time
+but on every invocation.
+
+- **Policy hook pipeline** (`skillctl/policy/`): pre/post hooks returning
+  structured decisions (ALLOW/DENY/WARN/REDACT). The `PolicyEngine` short-circuits
+  on the first DENY and chains REDACT modifications; the `SkillInterceptor`
+  wraps execution with policy evaluation, timing, tracing, and audit.
+- **Five built-in hooks**: rate-limit (SQLite sliding window), data-boundary,
+  time-window, pii-redaction, output-size — all pure-Python, no extra deps.
+- **External engines**: `OPAHook` (real HTTP to an OPA server, fail-open/closed)
+  and `CedarHook` (local `cedarpy`, graceful degradation).
+- **OpenTelemetry** (`skillctl/observability/`): `skill.invoke` spans with policy
+  events; no-op tracer when OTel isn't installed. Structured JSON logging
+  (stdlib, standalone).
+- **Audit integration**: every policy decision is a tamper-evident
+  `policy_decision` event in the HMAC chain (`make_audit_callback`).
+- **CLI**: `skillctl policy {list,validate,test,history}` and
+  `skillctl observe {status,test}`; config via `.skillctl/policies.yaml`.
+- **New extras**: `[observability]`, `[policy-opa]`, `[policy-cedar]`.
+- **Tests**: 20 policy-core unit tests + 6 e2e (`tests/e2e/test_milestone_2.py`)
+  using real SQLite counters, real HMAC audit, an in-memory OTel collector, and
+  a real in-process OPA server. See [docs/runtime-policy.md](docs/runtime-policy.md).
+
 ### Milestone 1 — Core Governance MVP (RBAC)
 
 Adds role-based access control to the registry. Every authorization decision is

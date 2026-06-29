@@ -32,6 +32,7 @@ htmlcov/
 .kiro/
 .planning/
 TODO.md
+milestones/
 
 # Project-specific
 CLAUDE.md
