@@ -28,6 +28,12 @@ from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.compliance_cli import dispatch_compliance, register_compliance_commands
 from skillctl.deploy_cli import dispatch_deploy, register_deploy_commands
+from skillctl.enterprise_cli import (
+    dispatch_ci,
+    dispatch_forensics,
+    dispatch_identity,
+    register_enterprise_commands,
+)
 from skillctl.manifest import ManifestLoader
 from skillctl.policy_cli import (
     dispatch_observe,
@@ -208,6 +214,9 @@ def main():
     # skillctl compliance / deploy (Milestone 3 — compliance + progressive deploy)
     register_compliance_commands(sub)
     register_deploy_commands(sub)
+
+    # skillctl ci / forensics / identity (Milestone 4 — enterprise scale)
+    register_enterprise_commands(sub)
 
     # skillctl serve
     serve_p = sub.add_parser("serve", help="Start the skill registry server")
@@ -428,6 +437,12 @@ def main():
             sys.exit(dispatch_compliance(args))
         elif args.command == "deploy":
             sys.exit(dispatch_deploy(args))
+        elif args.command == "ci":
+            sys.exit(dispatch_ci(args))
+        elif args.command == "forensics":
+            sys.exit(dispatch_forensics(args))
+        elif args.command == "identity":
+            sys.exit(dispatch_identity(args))
         elif args.command == "token":
             cmd_token(args)
         elif args.command == "config":

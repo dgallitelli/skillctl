@@ -1,0 +1,35 @@
+# SkillsOps governance gate for GitLab CI.
+# Drop this in .gitlab-ci.yml (or include it).
+stages: [validate, audit, compliance, publish]
+
+default:
+  image: python:3.12-slim
+  before_script:
+    - pip install skillsops
+
+validate:
+  stage: validate
+  script:
+    - for skill in skills/*/; do skillctl validate "$skill"; done
+
+security-audit:
+  stage: audit
+  script:
+    - for skill in skills/*/; do skillctl eval audit "$skill" --fail-on-warning; done
+
+compliance:
+  stage: compliance
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - for skill in skills/*/; do skillctl compliance report "$skill" --framework eu-ai-act --format md; done
+
+publish:
+  stage: publish
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  variables:
+    SKILLCTL_REGISTRY_URL: "$SKILLCTL_REGISTRY_URL"
+    SKILLCTL_REGISTRY_TOKEN: "$SKILLCTL_REGISTRY_TOKEN"
+  script:
+    - for skill in skills/*/; do skillctl publish "$skill"; done

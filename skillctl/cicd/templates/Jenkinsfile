@@ -1,0 +1,27 @@
+// SkillsOps governance gate for Jenkins (declarative pipeline).
+pipeline {
+  agent any
+  environment {
+    SKILLCTL_REGISTRY_URL = "${env.SKILLCTL_REGISTRY_URL}"
+    SKILLCTL_REGISTRY_TOKEN = credentials('skillctl-registry-token')
+  }
+  stages {
+    stage('Setup') {
+      steps { sh 'pip install skillsops' }
+    }
+    stage('Validate') {
+      steps { sh 'for s in skills/*/; do skillctl validate "$s"; done' }
+    }
+    stage('Security audit') {
+      steps { sh 'for s in skills/*/; do skillctl eval audit "$s" --fail-on-warning; done' }
+    }
+    stage('Compliance') {
+      when { branch 'main' }
+      steps { sh 'for s in skills/*/; do skillctl compliance report "$s" --framework eu-ai-act --format md; done' }
+    }
+    stage('Publish') {
+      when { branch 'main' }
+      steps { sh 'for s in skills/*/; do skillctl publish "$s"; done' }
+    }
+  }
+}
