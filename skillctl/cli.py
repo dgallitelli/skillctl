@@ -27,6 +27,11 @@ from skillctl.config import (
 from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
+from skillctl.policy_cli import (
+    dispatch_observe,
+    dispatch_policy,
+    register_policy_commands,
+)
 from skillctl.rbac_cli import (
     dispatch_auth,
     dispatch_namespace,
@@ -194,6 +199,9 @@ def main():
 
     # skillctl auth / rbac / namespace (Milestone 1 — RBAC)
     register_rbac_commands(sub)
+
+    # skillctl policy / observe (Milestone 2 — runtime policy + observability)
+    register_policy_commands(sub)
 
     # skillctl serve
     serve_p = sub.add_parser("serve", help="Start the skill registry server")
@@ -406,6 +414,10 @@ def main():
             sys.exit(dispatch_rbac(args))
         elif args.command == "namespace":
             sys.exit(dispatch_namespace(args))
+        elif args.command == "policy":
+            sys.exit(dispatch_policy(args))
+        elif args.command == "observe":
+            sys.exit(dispatch_observe(args))
         elif args.command == "token":
             cmd_token(args)
         elif args.command == "config":
