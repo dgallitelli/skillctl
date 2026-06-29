@@ -1,0 +1,60 @@
+# SkillsOps governance gate for GitHub Actions.
+# Drop this in .github/workflows/skillsops.yml
+name: SkillsOps Governance
+
+on:
+  pull_request:
+    paths: ["skills/**"]
+  push:
+    branches: [main]
+    paths: ["skills/**"]
+
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install skillsops
+
+      # 1. Schema validation — block malformed manifests.
+      - name: Validate
+        run: |
+          for skill in skills/*/; do
+            skillctl validate "$skill"
+          done
+
+      # 2. Security audit — block CRITICAL findings, surface as PR annotations.
+      - name: Security audit
+        run: |
+          for skill in skills/*/; do
+            skillctl eval audit "$skill" --format=github --fail-on-warning
+          done
+
+      # 3. Deterministic governance score (80% audit + 20% schema contract).
+      - name: Evaluation report
+        run: |
+          for skill in skills/*/; do
+            skillctl eval report "$skill" --format json
+          done
+
+      # 4. Compliance gate (PRs into main): non-zero exit on NON_COMPLIANT controls.
+      - name: Compliance report (EU AI Act)
+        if: github.event_name == 'push'
+        run: |
+          for skill in skills/*/; do
+            skillctl compliance report "$skill" --framework eu-ai-act --format md
+          done
+
+      # 5. Publish approved skills on merge to main (requires a scoped token).
+      - name: Publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SKILLCTL_REGISTRY_URL: ${{ vars.SKILLCTL_REGISTRY_URL }}
+          SKILLCTL_REGISTRY_TOKEN: ${{ secrets.SKILLCTL_REGISTRY_TOKEN }}
+        run: |
+          for skill in skills/*/; do
+            skillctl publish "$skill"
+          done

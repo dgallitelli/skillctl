@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Milestone 4 — Enterprise Scale & Ecosystem
+
+- **Identity federation** (`skillctl/identity/`): dependency-free OIDC (HS256
+  JWT) validation, group→role mapping, TTL cache, and `to_rbac_identity` so
+  federated users flow through the M1 RBAC engine. CLI: `skillctl identity inspect`.
+- **ABAC** (`skillctl/abac/`): attribute-based permit/deny policy engine
+  (subject/resource/action/environment), explicit-deny-wins, safe operator set,
+  pluggable into the M2 interceptor via `ABACPolicyHook`.
+- **Data lineage** (`skillctl/lineage/`): SQLite read/write tracking with
+  transitive `trace_provenance`, `downstream_consumers`, and `who_accessed`.
+- **Incident forensics** (`skillctl/forensics/`): investigative queries over
+  lineage + audit. CLI: `skillctl forensics {provenance,who-accessed,invocations}`.
+- **Multi-registry federation** (`skillctl/federation/`): `promote_skill` across
+  registries with RBAC role gate + compliance gate (dev → staging → prod).
+- **CI/CD templates** (`skillctl/cicd/`): GitHub Actions, GitLab CI, Jenkins
+  governance pipelines. CLI: `skillctl ci {list,init}`.
+- **Tests**: 42 unit tests (identity/ABAC/lineage) + 5 e2e
+  (`tests/e2e/test_milestone_4.py`) with real JWTs, real ABAC through the
+  interceptor, real lineage, and in-process RBAC registries for federation.
+  See [docs/enterprise.md](docs/enterprise.md).
+
 ### Milestone 3 — Compliance Mapping & Progressive Deployment
 
 **Part A — Compliance** (`skillctl/compliance/`):

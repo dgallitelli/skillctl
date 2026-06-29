@@ -57,6 +57,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "skillctl.compliance.frameworks_data" = ["*.yaml"]
+"skillctl.cicd.templates" = ["*.yml", "Jenkinsfile"]
 
 [tool.setuptools.dynamic]
 version = {attr = "skillctl.version.__version__"}
