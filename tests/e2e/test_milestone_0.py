@@ -206,7 +206,8 @@ def test_e2e_registry_roundtrip(registry):
     assert pull.content == content
 
     # An audit entry exists and the HMAC chain verifies.
-    events = app.state.audit.read(action="skill.published")
+    # M1: POST /skills records "skill.created" (create/publish split).
+    events = app.state.audit.read(action="skill.created")
     assert len(events) == 1
     assert "e2e-org/roundtrip" in events[0].resource
 

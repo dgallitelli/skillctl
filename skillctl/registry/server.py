@@ -138,10 +138,42 @@ async def _lifespan(app: FastAPI):
     hmac_key = _resolve_hmac_key(config, data_dir)
     audit = AuditLogger(data_dir / "audit.jsonl", hmac_key=hmac_key)
 
+    # RBAC (Milestone 1): shares the registry SQLite connection.
+    from skillctl.registry.rbac.engine import RBACEngine
+    from skillctl.registry.rbac.store import RBACStore
+
+    rbac_store = RBACStore(db.conn)
+    rbac_store.initialize()
+    rbac_engine = RBACEngine(rbac_store)
+
+    # First-run bootstrap: create an initial admin and print credentials once.
+    bootstrap = rbac_store.bootstrap_admin()
+    if bootstrap is not None:
+        print(
+            "\n".join(
+                [
+                    "",
+                    "=" * 64,
+                    "  No users found — created the initial admin.",
+                    f"  Username: {bootstrap['username']}",
+                    f"  Password: {bootstrap['password']}",
+                    f"  Token:    {bootstrap['token']}",
+                    "  Save these credentials — they won't be shown again.",
+                    "  Change the password: skillctl auth change-password",
+                    "=" * 64,
+                    "",
+                ]
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+
     app.state.db = db
     app.state.storage = storage
     app.state.auth_manager = auth_manager
     app.state.audit = audit
+    app.state.rbac_store = rbac_store
+    app.state.rbac_engine = rbac_engine
     app.state.registry_config = config
 
     yield

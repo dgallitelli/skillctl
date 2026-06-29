@@ -34,6 +34,7 @@ class SkillRecord:
     license: str | None = None
     eval_grade: str | None = None  # A-F or None
     eval_score: float | None = None  # 0-100 or None
+    status: str = "published"  # "draft" | "published" (RBAC create/publish split)
     created_at: str = ""  # ISO 8601
     updated_at: str = ""
     manifest_json: str = "{}"
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS skills (
     license TEXT,
     eval_grade TEXT,
     eval_score REAL,
+    status TEXT NOT NULL DEFAULT 'published',
     manifest_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -146,7 +148,14 @@ class MetadataDB:
         )
         for idx_sql in _CREATE_INDEXES:
             self._conn.execute(idx_sql)
+        self._migrate_columns()
         self._conn.commit()
+
+    def _migrate_columns(self) -> None:
+        """Idempotent column migrations for pre-existing on-disk databases."""
+        cols = {row["name"] for row in self._conn.execute("PRAGMA table_info(skills)").fetchall()}
+        if "status" not in cols:
+            self._conn.execute("ALTER TABLE skills ADD COLUMN status TEXT NOT NULL DEFAULT 'published'")
 
     def close(self) -> None:
         if self._conn:
@@ -175,6 +184,7 @@ class MetadataDB:
             license=row["license"],
             eval_grade=row["eval_grade"],
             eval_score=row["eval_score"],
+            status=row["status"] if "status" in row.keys() else "published",
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             manifest_json=row["manifest_json"],
@@ -199,9 +209,9 @@ class MetadataDB:
             """INSERT INTO skills
                (name, namespace, skill_name, version, description,
                 content_hash, tags, authors, license,
-                eval_grade, eval_score, manifest_json,
+                eval_grade, eval_score, status, manifest_json,
                 created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 skill.name,
                 skill.namespace,
@@ -214,6 +224,7 @@ class MetadataDB:
                 skill.license,
                 skill.eval_grade,
                 skill.eval_score,
+                skill.status,
                 skill.manifest_json,
                 created,
                 updated,
@@ -221,6 +232,15 @@ class MetadataDB:
         )
         self.conn.commit()
         return cur.lastrowid  # type: ignore[return-value]
+
+    def set_skill_status(self, name: str, version: str, status: str) -> bool:
+        """Set a skill version's status ('draft' | 'published'). Returns True if updated."""
+        cur = self.conn.execute(
+            "UPDATE skills SET status = ?, updated_at = ? WHERE name = ? AND version = ?",
+            (status, self._now_iso(), name, version),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
 
     def get_skill(self, name: str, version: str) -> SkillRecord | None:
         """Fetch a single skill by full name and version."""

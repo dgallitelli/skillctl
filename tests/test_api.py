@@ -175,8 +175,10 @@ class TestPublish:
         assert resp.status_code == 400
 
     def test_publish_creates_audit_entry(self, app, client: TestClient):
+        # M1: POST /skills now records a "skill.created" event (the
+        # create/publish split moves "skill.published" to /skills/publish).
         _publish(client)
-        events = app.state.audit.read(action="skill.published")
+        events = app.state.audit.read(action="skill.created")
         assert len(events) == 1
         assert events[0].resource == "my-org/code-reviewer@1.0.0"
 
