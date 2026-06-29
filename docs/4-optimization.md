@@ -1,6 +1,25 @@
 # Optimization Loop
 
-The `skillctl optimize` command runs an iterative improvement loop that evaluates a skill, diagnoses weaknesses, generates improved variants, and promotes the best one — repeating until the skill plateaus, the budget runs out, or the iteration cap is reached.
+> **Moved in Milestone 0.** The optimizer was extracted from the
+> governance core into a separate package, `skillsops-optimize`
+> (`packages/skillsops-optimize/`), and is no longer part of the
+> `skillctl` CLI. Governance gatekeeping must be deterministic;
+> LLM-driven optimization is an authoring aid and a different concern.
+>
+> Install and run it separately:
+>
+> ```bash
+> pip install skillsops-optimize
+> skillsops-optimize ./my-skill --variants 3 --budget 10
+> ```
+>
+> Note: the optimizer evaluates against the governance core's evaluator,
+> which is now the deterministic `80% security audit + 20% schema
+> contract` score. The diagrams below describing a 40/40/20 audit +
+> functional + trigger loop are retained for historical context and do
+> not reflect the current scoring.
+
+The `skillsops-optimize` command runs an iterative improvement loop that evaluates a skill, diagnoses weaknesses, generates improved variants, and promotes the best one — repeating until the skill plateaus, the budget runs out, or the iteration cap is reached.
 
 ## How It Works
 

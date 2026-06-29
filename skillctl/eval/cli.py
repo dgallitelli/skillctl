@@ -211,38 +211,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     regression_parser.add_argument("--format", choices=["text", "json"], default="text")
 
-    # functional command (Phase 3)
-    functional_parser = subparsers.add_parser("functional", help="Run functional quality evaluation")
-    functional_parser.add_argument("skill_path", help="Path to the skill directory")
-    functional_parser.add_argument(
-        "--evals", type=str, default=None, help="Path to evals.json (default: <skill>/evals/evals.json)"
+    # report command (deterministic: security audit + schema contract)
+    report_parser = subparsers.add_parser(
+        "report", help="Run the deterministic evaluation report (80%% security audit + 20%% schema contract)"
     )
-    functional_parser.add_argument("--runs", type=int, default=1, help="Number of runs per eval case (default: 1)")
-    functional_parser.add_argument("--format", choices=["text", "json"], default="text")
-    functional_parser.add_argument("--output", type=str, default=None, help="Path to write benchmark.json")
-    functional_parser.add_argument("--dry-run", action="store_true", help="Load and validate evals without executing")
-    functional_parser.add_argument(
-        "--timeout", type=int, default=120, help="Timeout per claude invocation in seconds (default: 120)"
-    )
-    functional_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
-
-    # trigger command (Phase 3)
-    trigger_parser = subparsers.add_parser("trigger", help="Run trigger reliability evaluation")
-    trigger_parser.add_argument("skill_path", help="Path to the skill directory")
-    trigger_parser.add_argument(
-        "--queries", type=str, default=None, help="Path to eval_queries.json (default: <skill>/evals/eval_queries.json)"
-    )
-    trigger_parser.add_argument("--runs", type=int, default=3, help="Number of runs per query (default: 3)")
-    trigger_parser.add_argument("--format", choices=["text", "json"], default="text")
-    trigger_parser.add_argument("--output", type=str, default=None, help="Path to write trigger report")
-    trigger_parser.add_argument(
-        "--timeout", type=int, default=60, help="Timeout per claude invocation in seconds (default: 60)"
-    )
-    trigger_parser.add_argument("--dry-run", action="store_true", help="Load and validate queries without executing")
-    trigger_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
-
-    # report command (unified report)
-    report_parser = subparsers.add_parser("report", help="Run unified evaluation report (audit + functional + trigger)")
     report_parser.add_argument("skill_path", help="Path to the skill directory")
     report_parser.add_argument(
         "--format", choices=["text", "json", "html"], default="text", help="Output format (default: text)"
@@ -250,35 +222,13 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument(
         "--output", type=str, default=None, help="Path to write report file (default: <skill>/evals/report.json)"
     )
-    report_parser.add_argument("--skip-audit", action="store_true", help="Skip audit phase")
-    report_parser.add_argument("--skip-functional", action="store_true", help="Skip functional evaluation phase")
-    report_parser.add_argument("--skip-trigger", action="store_true", help="Skip trigger evaluation phase")
-    report_parser.add_argument("--dry-run", action="store_true", help="Validate inputs without executing agent calls")
-    report_parser.add_argument(
-        "--timeout", type=int, default=120, help="Timeout per agent invocation in seconds (default: 120)"
-    )
-    report_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
+    report_parser.add_argument("--skip-audit", action="store_true", help="Skip the security audit phase")
+    report_parser.add_argument("--skip-contract", action="store_true", help="Skip the schema-contract phase")
     report_parser.add_argument(
         "--include-all",
         action="store_true",
         help="Audit scans entire directory tree instead of just skill-standard directories",
     )
-
-    # compare command
-    compare_parser = subparsers.add_parser("compare", help="Side-by-side skill comparison")
-    compare_parser.add_argument("skill_a", help="Path to skill A directory")
-    compare_parser.add_argument("skill_b", help="Path to skill B directory")
-    compare_parser.add_argument(
-        "--evals", type=str, default=None, help="Path to evals.json (default: skill_a's evals/evals.json)"
-    )
-    compare_parser.add_argument("--runs", type=int, default=1, help="Number of runs per eval case (default: 1)")
-    compare_parser.add_argument("--format", choices=["text", "json"], default="text")
-    compare_parser.add_argument("--output", type=str, default=None, help="Path to write comparison report")
-    compare_parser.add_argument("--dry-run", action="store_true", help="Load and validate evals without executing")
-    compare_parser.add_argument(
-        "--timeout", type=int, default=120, help="Timeout per claude invocation in seconds (default: 120)"
-    )
-    compare_parser.add_argument("--agent", type=str, default="claude", help="Agent runner to use (default: claude)")
 
     # lifecycle command
     lifecycle_parser = subparsers.add_parser("lifecycle", help="Check skill version and detect changes")
@@ -506,34 +456,6 @@ def _dispatch(args) -> int:
 
         return check_regression(args.skill_path, baseline_path=args.baseline, format=args.format)
 
-    elif args.command == "functional":
-        from skillctl.eval.functional import run_functional_eval
-
-        return run_functional_eval(
-            args.skill_path,
-            evals_path=args.evals,
-            runs_per_eval=args.runs,
-            format=args.format,
-            output_path=args.output,
-            dry_run=args.dry_run,
-            timeout=args.timeout,
-            agent=args.agent,
-        )
-
-    elif args.command == "trigger":
-        from skillctl.eval.trigger import run_trigger_eval
-
-        return run_trigger_eval(
-            args.skill_path,
-            queries_path=args.queries,
-            runs_per_query=args.runs,
-            format=args.format,
-            output_path=args.output,
-            timeout=args.timeout,
-            dry_run=args.dry_run,
-            agent=args.agent,
-        )
-
     elif args.command == "report":
         from skillctl.eval.unified_report import run_unified_report
 
@@ -542,27 +464,8 @@ def _dispatch(args) -> int:
             format=args.format,
             output_path=args.output,
             include_audit=not args.skip_audit,
-            include_functional=not args.skip_functional,
-            include_trigger=not args.skip_trigger,
-            dry_run=args.dry_run,
-            timeout=args.timeout,
-            agent=args.agent,
+            include_contract=not args.skip_contract,
             include_all=args.include_all,
-        )
-
-    elif args.command == "compare":
-        from skillctl.eval.compare import run_compare
-
-        return run_compare(
-            args.skill_a,
-            args.skill_b,
-            evals_path=args.evals,
-            runs_per_eval=args.runs,
-            format=args.format,
-            output_path=args.output,
-            dry_run=args.dry_run,
-            timeout=args.timeout,
-            agent=args.agent,
         )
 
     elif args.command == "lifecycle":

@@ -6,8 +6,8 @@ import difflib
 import json
 import sys
 from pathlib import Path
-from skillctl.optimize.provenance import ProvenanceStore
-from skillctl.optimize.types import OptimizeConfig
+from skillctl_optimize.provenance import ProvenanceStore
+from skillctl_optimize.types import OptimizeConfig
 
 
 def register_optimize_commands(subparsers):
@@ -41,6 +41,27 @@ def _build_run_parser():
     return p
 
 
+def main(argv=None):
+    """Standalone entry point for the ``skillsops-optimize`` command.
+
+    Extracted from the governance core in Milestone 0. Usage:
+
+        skillsops-optimize <skill-path> [--variants N] [--budget USD] ...
+        skillsops-optimize history [--skill NAME]
+        skillsops-optimize diff <run-id>
+    """
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "history":
+        _handle_history(argv[1:])
+    elif argv and argv[0] == "diff":
+        _handle_diff(argv[1:])
+    else:
+        run_parser = _build_run_parser()
+        run_args = run_parser.parse_args(argv)
+        _handle_optimize_run(run_args)
+    return 0
+
+
 def handle_optimize(args, remaining=None):
     """Dispatch to the appropriate optimize subcommand."""
     remaining = remaining or []
@@ -57,7 +78,7 @@ def handle_optimize(args, remaining=None):
 def _handle_optimize_run(args):
     """Run the optimization loop."""
     from skillctl.config import load_config
-    from skillctl.optimize.loop import run_optimization
+    from skillctl_optimize.loop import run_optimization
 
     skillctl_cfg = load_config()
     model = args.model or skillctl_cfg.optimize.model
@@ -187,3 +208,7 @@ def _print_optimize_summary(run):
             print("  Promoted: {}".format(run.promoted_variant_id))
     else:
         print("  Promoted: none")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

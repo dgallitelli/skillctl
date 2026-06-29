@@ -1,13 +1,18 @@
-"""Plugin structure validation — catches broken plugin before it reaches users."""
+"""Plugin structure validation — catches broken plugin before it reaches users.
+
+Milestone 0 trimmed the MCP plugin to exactly 5 governance tools
+(validate, audit, bump, diff, publish) and removed the bundled authoring
+skills.
+"""
 
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-import yaml
-
 PLUGIN_ROOT = Path(__file__).parent.parent / "plugin"
+
+EXPECTED_TOOLS = {"validate", "audit", "bump", "diff", "publish"}
 
 
 class TestPluginManifest:
@@ -23,30 +28,6 @@ class TestPluginManifest:
     def test_plugin_json_has_version(self):
         data = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text())
         assert "version" in data
-
-
-class TestPluginSkills:
-    def _skill_dirs(self):
-        skills_dir = PLUGIN_ROOT / "skills"
-        return [d for d in skills_dir.iterdir() if d.is_dir()]
-
-    def test_skills_directory_exists(self):
-        assert (PLUGIN_ROOT / "skills").is_dir()
-
-    def test_each_skill_has_skill_md(self):
-        for skill_dir in self._skill_dirs():
-            assert (skill_dir / "SKILL.md").exists(), f"{skill_dir.name} missing SKILL.md"
-
-    def test_each_skill_has_frontmatter(self):
-        for skill_dir in self._skill_dirs():
-            content = (skill_dir / "SKILL.md").read_text()
-            assert content.startswith("---"), f"{skill_dir.name} SKILL.md missing frontmatter"
-            end = content.index("---", 3)
-            fm = yaml.safe_load(content[3:end])
-            assert "description" in fm, f"{skill_dir.name} frontmatter missing description"
-
-    def test_skill_count(self):
-        assert len(self._skill_dirs()) >= 3
 
 
 class TestPluginMCP:
@@ -89,8 +70,8 @@ class TestPluginMCP:
         response = json.loads(r.stdout.strip().split("\n")[0])
         assert response["result"]["serverInfo"]["name"] == "skillctl"
 
-    def test_mcp_server_lists_all_tools(self):
-        """Verify tool count via direct Python import (avoids stdio race in CI)."""
+    def test_mcp_server_exposes_exactly_five_tools(self):
+        """Verify the plugin exposes exactly the 5 core governance tools."""
         r = subprocess.run(
             [
                 sys.executable,
@@ -108,8 +89,6 @@ class TestPluginMCP:
             env={**__import__("os").environ, "PYTHONPATH": str(PLUGIN_ROOT.parent)},
         )
         lines = r.stdout.strip().split("\n")
-        assert int(lines[0]) == 14
-        tool_names = lines[1:]
-        assert "skillctl_validate" in tool_names
-        assert "skillctl_optimize" in tool_names
-        assert "skillctl_install" in tool_names
+        assert int(lines[0]) == 5, f"expected 5 tools, stdout={r.stdout!r} stderr={r.stderr!r}"
+        tool_names = set(lines[1:])
+        assert tool_names == EXPECTED_TOOLS, f"unexpected tools: {tool_names}"

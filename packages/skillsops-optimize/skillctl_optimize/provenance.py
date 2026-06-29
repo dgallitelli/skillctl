@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from skillctl.optimize.types import (
+from skillctl_optimize.types import (
     EvalResult,
     FailureAnalysis,
     OptimizationRun,

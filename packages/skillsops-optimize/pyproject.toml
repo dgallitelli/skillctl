@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skillsops-optimize"
+version = "0.1.0"
+description = "Authoring-time skill optimizer for SkillsOps — LLM-driven iterative skill improvement. Separate from the governance core."
+readme = "README.md"
+license = {text = "MPL-2.0"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+]
+dependencies = [
+    # Governance core provides the deterministic evaluator and shared utils.
+    "skillsops",
+    "litellm>=1.83.14",
+]
+
+[project.scripts]
+skillsops-optimize = "skillctl_optimize.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["skillctl_optimize*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that call real providers (e.g. Bedrock); need credentials",
+]

@@ -82,8 +82,11 @@ def generate_html_report(report_data: dict) -> str:
 
     # Build section HTML
     audit_html = _render_audit(sections.get("audit", {}))
-    functional_html = _render_functional(sections.get("functional", {}))
-    trigger_html = _render_trigger(sections.get("trigger", {}))
+    contract_html = _render_contract(sections.get("contract", {}))
+    # Legacy sections (functional/trigger) are only rendered if a caller
+    # supplies them; the governance evaluator no longer produces them.
+    functional_html = _render_functional(sections["functional"]) if "functional" in sections else ""
+    trigger_html = _render_trigger(sections["trigger"]) if "trigger" in sections else ""
 
     grade_color = _grade_color(overall_grade)
     status_text = "PASSED" if passed else "FAILED"
@@ -213,6 +216,7 @@ def generate_html_report(report_data: dict) -> str:
 </div>
 
 {audit_html}
+{contract_html}
 {functional_html}
 {trigger_html}
 
@@ -278,6 +282,41 @@ def _render_audit(audit: dict) -> str:
     <span class="metric-value">{info}</span>
   </div>
   {findings_html}
+</div>"""
+
+
+def _render_contract(contract: dict) -> str:
+    """Render the deterministic schema-contract validation section HTML."""
+    if not contract:
+        return ""
+    if "error" in contract:
+        err = _esc(contract.get("error", "Not run"))
+        return f'<h2>📋 Schema Contract</h2><div class="card error">Error: {err}</div>'
+
+    score = contract.get("score", 0)
+    grade = contract.get("grade", "?")
+    passed = contract.get("passed", False)
+    gc = _grade_color(grade)
+    checks = contract.get("checks", [])
+
+    rows = ""
+    for c in checks:
+        ok = c.get("passed", False)
+        badge = '<span class="badge badge-pass">PASS</span>' if ok else '<span class="badge badge-fail">FAIL</span>'
+        name = _esc(c.get("name", ""))
+        detail = _esc(c.get("detail", ""))
+        rows += f"<tr><td>{badge}</td><td>{name}</td><td>{detail}</td></tr>"
+
+    table = f"""<table><tr><th>Result</th><th>Check</th><th>Detail</th></tr>{rows}</table>""" if rows else ""
+
+    status = "PASSED" if passed else "FAILED"
+    return f"""<h2>📋 Schema Contract</h2>
+<div class="card">
+  <div class="card-title">
+    <span class="badge" style="background:{gc};color:#0f172a">{grade}</span>
+    Contract Validation — {_pct(score)} ({status})
+  </div>
+  {table}
 </div>"""
 
 

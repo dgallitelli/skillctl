@@ -13,7 +13,7 @@ from typing import Optional
 
 from skillctl.eval.unified_report import run_unified_report
 
-from skillctl.optimize.types import EvalResult
+from skillctl_optimize.types import EvalResult
 
 
 def evaluate_skill(
@@ -44,12 +44,13 @@ def evaluate_skill(
             skill_md.write_text(content)
 
         # --- Run unified report ---
+        # NOTE: the governance core's evaluator is now deterministic
+        # (80% security audit + 20% schema contract). The legacy
+        # functional/trigger kwargs were removed in Milestone 0.
         try:
             run_unified_report(
                 str(path),
                 format="json",
-                timeout=timeout,
-                agent=agent,
             )
         except Exception:
             return _failure_result()

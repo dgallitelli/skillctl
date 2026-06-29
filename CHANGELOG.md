@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Milestone 0 — Cleanup & Simplify (breaking)
+
+The guiding principle is **Minimum Viable Governance**: keep only the
+governance controls that are deterministic, auditable, and reproducible.
+
+- **Removed LLM-as-judge evaluation.** `skillctl eval functional`,
+  `skillctl eval trigger`, and `skillctl eval compare` are gone, along
+  with the agent runner and grading modules. Non-deterministic scoring
+  is unsuitable for governance decisions.
+- **New deterministic scoring.** `skillctl eval report` now produces
+  `80% security audit + 20% schema contract`. Both inputs are pure
+  functions of the skill's files — the same skill always scores the
+  same. Added `skillctl/eval/contract.py` with deterministic checks
+  (manifest parseable, required fields, valid semver, capabilities is a
+  list, no conflicting metadata).
+- **Extracted the optimizer.** The LiteLLM-based optimizer moved to a
+  separate package, `packages/skillsops-optimize/` (`skillsops-optimize`
+  on PyPI). It is no longer importable as `skillctl.optimize`, the
+  `skillctl optimize` command is removed, and `litellm` is no longer a
+  core dependency. The `[optimize]` extra was removed.
+- **Trimmed the MCP plugin from 14 tools to 5.** The plugin now exposes
+  exactly `validate`, `audit`, `bump`, `diff`, `publish`. The 3 bundled
+  authoring skills were removed; scaffolding/browsing remain in the CLI.
+- **Added end-to-end tests** (`tests/e2e/`, marked `integration`) that
+  exercise the real filesystem, the real registry server, and real
+  crypto (SHA-256 content addressing, HMAC audit chain) — no mocks.
+
 ### Added
 - `eval audit` now runs 19 authoring-quality checks (`QLT-001` … `QLT-019`)
   ported from [`dgallitelli/skill-reviewer`](https://github.com/dgallitelli/skill-reviewer).

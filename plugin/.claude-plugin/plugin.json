@@ -1,11 +1,11 @@
 {
   "name": "skillctl",
-  "description": "SkillsOps governance toolkit — validate, evaluate, optimize, and distribute agent skills from Claude Code",
-  "version": "0.1.0",
+  "description": "SkillsOps governance toolkit — validate, audit, bump, diff, and publish agent skills from Claude Code",
+  "version": "0.2.0",
   "author": {
     "name": "skillsops contributors"
   },
   "repository": "https://github.com/dgallitelli/skillsops",
   "license": "MPL-2.0",
-  "keywords": ["skills", "governance", "evaluation", "security", "optimization"]
+  "keywords": ["skills", "governance", "validation", "security", "audit"]
 }

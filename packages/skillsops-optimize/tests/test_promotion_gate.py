@@ -1,11 +1,11 @@
-"""Tests for skillctl.optimize.promotion_gate."""
+"""Tests for skillctl_optimize.promotion_gate."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from skillctl.optimize.promotion_gate import check_promotion
-from skillctl.optimize.types import EvalResult, TokenUsage, Variant
+from skillctl_optimize.promotion_gate import check_promotion
+from skillctl_optimize.types import EvalResult, TokenUsage, Variant
 
 
 def _variant(vid: str = "abc123") -> Variant:

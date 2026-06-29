@@ -10,8 +10,8 @@ import hashlib
 import re
 
 from skillctl.eval.cost import estimate_cost
-from skillctl.optimize.llm_client import LLMClient
-from skillctl.optimize.types import FailureAnalysis, TokenUsage, Variant
+from skillctl_optimize.llm_client import LLMClient
+from skillctl_optimize.types import FailureAnalysis, TokenUsage, Variant
 
 VARIANT_SYSTEM_PROMPT = """\
 You are a skill rewriter. Given an existing SKILL.md and a specific weakness \
