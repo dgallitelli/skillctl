@@ -1,0 +1,72 @@
+# NIST AI Risk Management Framework 1.0 (voluntary US guidance)
+# Condensed control set across the four functions: Govern, Map, Measure, Manage.
+id: nist-ai-rmf
+name: "NIST AI RMF"
+version: "1.0"
+effective_date: ""
+jurisdiction: "United States (voluntary)"
+
+categories:
+  - id: govern
+    name: "GOVERN"
+    requirements:
+      - id: nist-gov-1
+        name: "Accountability structures"
+        controls:
+          - id: gov-1-1
+            name: "Roles and access controls"
+            description: "Accountability via defined roles and enforced access control"
+            evidence_types: [rbac, audit_log]
+            automated: true
+          - id: gov-1-2
+            name: "Policies enforced"
+            description: "Organizational policies are enforced at runtime"
+            evidence_types: [policy]
+            automated: true
+
+  - id: map
+    name: "MAP"
+    requirements:
+      - id: nist-map-1
+        name: "Context and risk mapping"
+        controls:
+          - id: map-1-1
+            name: "Risk classification"
+            description: "AI system risk is classified and documented"
+            evidence_types: [metadata, manual]
+            automated: false
+            human_review_required: true
+
+  - id: measure
+    name: "MEASURE"
+    requirements:
+      - id: nist-measure-1
+        name: "Security & robustness measurement"
+        controls:
+          - id: measure-1-1
+            name: "Security assessment"
+            description: "System is assessed for security weaknesses"
+            evidence_types: [security_scan]
+            automated: true
+          - id: measure-1-2
+            name: "Operational telemetry"
+            description: "System behaviour is measured in operation"
+            evidence_types: [otel_trace, policy]
+            automated: true
+
+  - id: manage
+    name: "MANAGE"
+    requirements:
+      - id: nist-manage-1
+        name: "Risk response & recovery"
+        controls:
+          - id: manage-1-1
+            name: "Reversible deployment"
+            description: "Risks are managed via controlled, reversible deployment"
+            evidence_types: [deployment]
+            automated: true
+          - id: manage-1-2
+            name: "Incident traceability"
+            description: "Incidents can be traced through tamper-evident logs"
+            evidence_types: [audit_log]
+            automated: true

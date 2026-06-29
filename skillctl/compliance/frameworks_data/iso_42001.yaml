@@ -1,0 +1,66 @@
+# ISO/IEC 42001 — AI Management System (certifiable standard)
+# Condensed control set mapped to SkillsOps evidence sources.
+id: iso-42001
+name: "ISO/IEC 42001"
+version: "2023"
+effective_date: ""
+jurisdiction: "International"
+
+categories:
+  - id: leadership-policies
+    name: "AI Policies & Controls (Annex A.2/A.3)"
+    requirements:
+      - id: iso-a2
+        name: "AI policy and roles"
+        controls:
+          - id: iso-a2-1
+            name: "Defined roles and responsibilities"
+            description: "Roles for AI governance are defined and access is controlled"
+            evidence_types: [rbac]
+            evidence_query: "rbac_assignments WHERE skill={skill}"
+            automated: true
+          - id: iso-a2-2
+            name: "Documented AI system"
+            description: "AI system is documented with purpose and metadata"
+            evidence_types: [metadata]
+            automated: true
+
+  - id: lifecycle
+    name: "AI System Life Cycle (Annex A.6)"
+    requirements:
+      - id: iso-a6
+        name: "Responsible development & deployment"
+        controls:
+          - id: iso-a6-1
+            name: "Pre-deployment verification"
+            description: "Security and quality verified before deployment"
+            evidence_types: [security_scan, version]
+            automated: true
+          - id: iso-a6-2
+            name: "Controlled deployment"
+            description: "Changes deployed through a controlled, reversible process"
+            evidence_types: [deployment]
+            automated: true
+          - id: iso-a6-3
+            name: "Runtime controls"
+            description: "Operational controls constrain system behaviour at runtime"
+            evidence_types: [policy]
+            automated: true
+
+  - id: operations
+    name: "Operations & Monitoring (Annex A.6.2)"
+    requirements:
+      - id: iso-a62
+        name: "Logging and monitoring"
+        controls:
+          - id: iso-a62-1
+            name: "Event logging"
+            description: "Operational events are logged in a tamper-evident manner"
+            evidence_types: [audit_log]
+            automated: true
+          - id: iso-a62-2
+            name: "Performance & incident review"
+            description: "Operation is monitored and periodically reviewed"
+            evidence_types: [otel_trace, manual]
+            automated: false
+            human_review_required: true
