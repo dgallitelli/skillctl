@@ -134,7 +134,11 @@ class EvidenceCollector:
             return []
         integrity = self._audit_integrity()
         return [
-            {"entry_count": len(entries), "actions": sorted({e.get("action") for e in entries}), "integrity": integrity}
+            {
+                "entry_count": len(entries),
+                "actions": sorted({a for e in entries if (a := e.get("action")) is not None}),
+                "integrity": integrity,
+            }
         ]
 
     def _policy(self, skill_name: str) -> list[dict]:
