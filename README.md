@@ -60,6 +60,7 @@ vendor lock-in, no requirement to host skills off-site.
 | `install` / `uninstall` — multi-IDE deploy (Claude Code, Cursor, Windsurf, Copilot, Kiro) | stable | One source SKILL.md, native frontmatter on every IDE. |
 | `serve` — self-hosted FastAPI registry with token auth, hash-chained audit log | stable | Run governance on infra you control.  See [SECURITY.md](SECURITY.md) for the threat model. |
 | `auth` / `rbac` / `namespace` — role-based access control | stable | Users, 4 roles, hierarchical namespaces, scoped tokens; every decision audited.  See [docs/rbac.md](docs/rbac.md). |
+| `policy` / `observe` — runtime policy hooks + OpenTelemetry | stable | Rate-limit, data-boundary, PII redaction, time-window, output-size; OPA/Cedar; traced + audited.  See [docs/runtime-policy.md](docs/runtime-policy.md). |
 | `eval report` — deterministic governance score (80% security audit + 20% schema contract) | stable | Reproducible: same inputs always yield the same score. |
 | Claude Code MCP plugin (5 core tools: validate, audit, bump, diff, publish) | stable | Use SkillsOps from inside an agentic IDE. |
 | `export` / `import` — portable archives | stable | Backup, share, migrate between hosts. |
@@ -160,6 +161,8 @@ skillctl uninstall ./my-skill --target all
 pip install skillsops                  # core CLI
 pip install "skillsops[server]"        # + the registry server
 pip install "skillsops[plugin]"        # + MCP server for Claude Code plugin
+pip install "skillsops[observability]" # + OpenTelemetry tracing
+pip install "skillsops[policy-opa]"    # + OPA policy integration
 pip install "skillsops[all]"           # everything
 
 # The LLM-driven optimizer is now a separate, optional package:
@@ -230,6 +233,7 @@ shared lifecycle.
 | [docs/1-skill-format.md](docs/1-skill-format.md) | Full CLI reference, skill format, registry server, eval suite, optimizer flags, API endpoints |
 | [docs/3-security-audit.md](docs/3-security-audit.md) | Audit categories, severities, suppression workflow |
 | [docs/rbac.md](docs/rbac.md) | RBAC: roles, permissions, namespaces, CLI, bootstrap, audit |
+| [docs/runtime-policy.md](docs/runtime-policy.md) | Runtime policy hooks, built-ins, OPA/Cedar, OpenTelemetry |
 | [SECURITY.md](SECURITY.md) | Threat model, controls, and how to report vulnerabilities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up a dev environment and send a PR |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
