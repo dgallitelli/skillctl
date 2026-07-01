@@ -153,9 +153,9 @@ class MetadataDB:
 
     def _migrate_columns(self) -> None:
         """Idempotent column migrations for pre-existing on-disk databases."""
-        cols = {row["name"] for row in self._conn.execute("PRAGMA table_info(skills)").fetchall()}
+        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(skills)").fetchall()}
         if "status" not in cols:
-            self._conn.execute("ALTER TABLE skills ADD COLUMN status TEXT NOT NULL DEFAULT 'published'")
+            self.conn.execute("ALTER TABLE skills ADD COLUMN status TEXT NOT NULL DEFAULT 'published'")
 
     def close(self) -> None:
         if self._conn:

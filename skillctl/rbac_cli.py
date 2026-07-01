@@ -12,7 +12,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from skillctl import credentials
 from skillctl.errors import SkillctlError
@@ -66,6 +66,12 @@ def _detail_message(body: dict) -> str:
     if isinstance(detail, dict):
         return detail.get("why") or detail.get("what") or json.dumps(detail)
     return str(detail)
+
+
+@overload
+def _resolve_registry(args, *, required: Literal[True] = True) -> str: ...
+@overload
+def _resolve_registry(args, *, required: Literal[False]) -> Optional[str]: ...
 
 
 def _resolve_registry(args, *, required: bool = True) -> Optional[str]:
