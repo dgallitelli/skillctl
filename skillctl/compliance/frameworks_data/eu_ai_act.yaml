@@ -1,0 +1,163 @@
+# EU AI Act Compliance Framework
+# Effective: August 2026 (high-risk obligations)
+# Reference: Regulation (EU) 2024/1689
+id: eu-ai-act
+name: "EU Artificial Intelligence Act"
+version: "2024/1689"
+effective_date: "2026-08-02"
+jurisdiction: "European Union"
+
+categories:
+  - id: risk-management
+    name: "Risk Management System (Article 9)"
+    requirements:
+      - id: art-9-1
+        name: "Establish Risk Management System"
+        description: "A risk management system shall be established, implemented, documented and maintained"
+        controls:
+          - id: art-9-1-a
+            name: "Risk identification and analysis"
+            description: "Identification and analysis of known and reasonably foreseeable risks"
+            evidence_types: [security_scan, policy]
+            evidence_query: "security_findings AND policy_evaluations WHERE skill={skill}"
+            automated: true
+          - id: art-9-1-b
+            name: "Risk estimation and evaluation"
+            description: "Estimation and evaluation of risks when the AI system is used"
+            evidence_types: [policy]
+            evidence_query: "policy_denials AND anomaly_detections WHERE skill={skill}"
+            automated: true
+          - id: art-9-1-c
+            name: "Risk mitigation measures"
+            description: "Adoption of appropriate and targeted risk management measures"
+            evidence_types: [policy, rbac, metadata]
+            evidence_query: "active_policies AND rbac_constraints WHERE skill={skill}"
+            automated: true
+      - id: art-9-2
+        name: "Testing and Risk Mitigation"
+        description: "Testing shall be performed at appropriate times throughout development"
+        controls:
+          - id: art-9-2-a
+            name: "Pre-deployment testing"
+            description: "Testing prior to placing on market or putting into service"
+            evidence_types: [security_scan, metadata]
+            evidence_query: "scan_results WHERE skill={skill} AND phase=pre_publish"
+            automated: true
+          - id: art-9-2-b
+            name: "Residual risk acceptability"
+            description: "Residual risks are judged acceptable"
+            evidence_types: [manual]
+            evidence_query: "risk_acceptance_attestation WHERE skill={skill}"
+            automated: false
+            human_review_required: true
+
+  - id: data-governance
+    name: "Data and Data Governance (Article 10)"
+    requirements:
+      - id: art-10-2
+        name: "Data Governance Practices"
+        description: "Training, validation and testing data sets shall be subject to data governance"
+        controls:
+          - id: art-10-2-a
+            name: "Data collection documentation"
+            description: "Design choices and data collection processes documented"
+            evidence_types: [metadata, version]
+            evidence_query: "skill_metadata WHERE fields CONTAINS data_sources"
+            automated: true
+          - id: art-10-2-b
+            name: "Data boundary enforcement"
+            description: "Data access restricted to authorized boundaries"
+            evidence_types: [policy]
+            evidence_query: "data_boundary_policy_results WHERE skill={skill}"
+            automated: true
+
+  - id: record-keeping
+    name: "Record-Keeping (Article 12)"
+    requirements:
+      - id: art-12-1
+        name: "Automatic Logging"
+        description: "Automatic recording of events (logs) throughout lifetime"
+        controls:
+          - id: art-12-1-a
+            name: "Tamper-evident logging"
+            description: "Logs that enable tracing of AI system operation"
+            evidence_types: [audit_log]
+            evidence_query: "audit_chain_integrity_check WHERE skill={skill}"
+            automated: true
+          - id: art-12-1-b
+            name: "Log retention"
+            description: "Logs retained for appropriate period"
+            evidence_types: [audit_log]
+            evidence_query: "audit_log_entries WHERE skill={skill} AND age < retention_period"
+            automated: true
+
+  - id: transparency
+    name: "Transparency and Information (Article 13)"
+    requirements:
+      - id: art-13-1
+        name: "Transparency of Operation"
+        description: "High-risk AI systems shall be designed to ensure their operation is sufficiently transparent"
+        controls:
+          - id: art-13-1-a
+            name: "Interpretable operation"
+            description: "Users can interpret system output and use it appropriately"
+            evidence_types: [metadata, otel_trace]
+            evidence_query: "skill_metadata WHERE description IS NOT EMPTY AND otel_spans EXIST"
+            automated: true
+          - id: art-13-1-b
+            name: "Instructions for use"
+            description: "Accompanied by instructions for use in appropriate digital format"
+            evidence_types: [metadata]
+            evidence_query: "skill_metadata WHERE fields CONTAINS description AND allowed_tools"
+            automated: true
+
+  - id: human-oversight
+    name: "Human Oversight (Article 14)"
+    requirements:
+      - id: art-14-1
+        name: "Human Oversight Measures"
+        description: "Designed to be effectively overseen by natural persons"
+        controls:
+          - id: art-14-1-a
+            name: "Oversight capability"
+            description: "Humans can monitor and intervene in AI system operation"
+            evidence_types: [rbac, audit_log, policy]
+            evidence_query: "rbac_admin_assignments AND audit_log_access AND policy_overrides"
+            automated: true
+          - id: art-14-1-b
+            name: "Intervention mechanism"
+            description: "Ability to interrupt or override AI system decisions"
+            evidence_types: [policy, deployment]
+            evidence_query: "kill_switch_policy AND rollback_capability WHERE skill={skill}"
+            automated: true
+
+  - id: accuracy-robustness
+    name: "Accuracy, Robustness and Cybersecurity (Article 15)"
+    requirements:
+      - id: art-15-1
+        name: "Appropriate Accuracy"
+        description: "Designed to achieve appropriate level of accuracy"
+        controls:
+          - id: art-15-1-a
+            name: "Accuracy metrics documented"
+            description: "Accuracy levels declared in instructions for use"
+            evidence_types: [metadata, manual]
+            evidence_query: "skill_metadata WHERE fields CONTAINS accuracy_metrics"
+            automated: false
+            human_review_required: true
+      - id: art-15-4
+        name: "Cybersecurity Resilience"
+        description: "Resilient against unauthorized third-party attempts"
+        controls:
+          - id: art-15-4-a
+            name: "Security scanning"
+            description: "Regular security assessment of AI system"
+            evidence_types: [security_scan]
+            evidence_query: "latest_scan_results WHERE skill={skill} AND severity != critical"
+            automated: true
+          - id: art-15-4-b
+            name: "Access control"
+            description: "Unauthorized access prevented"
+            evidence_types: [rbac, audit_log]
+            evidence_query: "rbac_enforcement AND auth_denials WHERE skill={skill}"
+            automated: true

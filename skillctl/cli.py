@@ -26,6 +26,8 @@ from skillctl.config import (
 )
 from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
+from skillctl.compliance_cli import dispatch_compliance, register_compliance_commands
+from skillctl.deploy_cli import dispatch_deploy, register_deploy_commands
 from skillctl.manifest import ManifestLoader
 from skillctl.policy_cli import (
     dispatch_observe,
@@ -202,6 +204,10 @@ def main():
 
     # skillctl policy / observe (Milestone 2 — runtime policy + observability)
     register_policy_commands(sub)
+
+    # skillctl compliance / deploy (Milestone 3 — compliance + progressive deploy)
+    register_compliance_commands(sub)
+    register_deploy_commands(sub)
 
     # skillctl serve
     serve_p = sub.add_parser("serve", help="Start the skill registry server")
@@ -418,6 +424,10 @@ def main():
             sys.exit(dispatch_policy(args))
         elif args.command == "observe":
             sys.exit(dispatch_observe(args))
+        elif args.command == "compliance":
+            sys.exit(dispatch_compliance(args))
+        elif args.command == "deploy":
+            sys.exit(dispatch_deploy(args))
         elif args.command == "token":
             cmd_token(args)
         elif args.command == "config":

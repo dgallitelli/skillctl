@@ -61,6 +61,8 @@ vendor lock-in, no requirement to host skills off-site.
 | `serve` — self-hosted FastAPI registry with token auth, hash-chained audit log | stable | Run governance on infra you control.  See [SECURITY.md](SECURITY.md) for the threat model. |
 | `auth` / `rbac` / `namespace` — role-based access control | stable | Users, 4 roles, hierarchical namespaces, scoped tokens; every decision audited.  See [docs/rbac.md](docs/rbac.md). |
 | `policy` / `observe` — runtime policy hooks + OpenTelemetry | stable | Rate-limit, data-boundary, PII redaction, time-window, output-size; OPA/Cedar; traced + audited.  See [docs/runtime-policy.md](docs/runtime-policy.md). |
+| `compliance` — EU AI Act / ISO 42001 / NIST AI RMF evidence reports | stable | Maps governance to controls; risk classification; attestations.  See [docs/compliance.md](docs/compliance.md). |
+| `deploy` — canary / blue-green / staged rollouts | stable | Consistent-hash routing, health checks, auto-rollback, audited.  See [docs/deployment.md](docs/deployment.md). |
 | `eval report` — deterministic governance score (80% security audit + 20% schema contract) | stable | Reproducible: same inputs always yield the same score. |
 | Claude Code MCP plugin (5 core tools: validate, audit, bump, diff, publish) | stable | Use SkillsOps from inside an agentic IDE. |
 | `export` / `import` — portable archives | stable | Backup, share, migrate between hosts. |
@@ -234,6 +236,8 @@ shared lifecycle.
 | [docs/3-security-audit.md](docs/3-security-audit.md) | Audit categories, severities, suppression workflow |
 | [docs/rbac.md](docs/rbac.md) | RBAC: roles, permissions, namespaces, CLI, bootstrap, audit |
 | [docs/runtime-policy.md](docs/runtime-policy.md) | Runtime policy hooks, built-ins, OPA/Cedar, OpenTelemetry |
+| [docs/compliance.md](docs/compliance.md) | Compliance frameworks, evidence, risk classification, attestations |
+| [docs/deployment.md](docs/deployment.md) | Progressive deployment: canary/blue-green/staged, health, rollback |
 | [SECURITY.md](SECURITY.md) | Threat model, controls, and how to report vulnerabilities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up a dev environment and send a PR |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |

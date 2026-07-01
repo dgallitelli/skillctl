@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Milestone 3 — Compliance Mapping & Progressive Deployment
+
+**Part A — Compliance** (`skillctl/compliance/`):
+- Framework model (Framework → Category → Requirement → Control) loaded from
+  YAML; ships EU AI Act, ISO/IEC 42001, and NIST AI RMF. Add a framework with a
+  YAML file, no code change.
+- Deterministic `EvidenceCollector` gathers evidence from existing sources
+  (security scan, HMAC audit log, RBAC, policy decisions, metadata, deployment
+  records, attestations); each record carries a SHA-256 integrity hash.
+- `RiskClassifier` (EU AI Act Annex III) classifies skills; `AttestationStore`
+  records time-bounded, version-scoped human sign-offs.
+- `ComplianceReportGenerator` produces JSON/Markdown reports with per-control
+  status, score, gaps, and recommendations.
+- CLI: `skillctl compliance {frameworks,classify,report,gaps,attest}`.
+
+**Part B — Progressive Deployment** (`skillctl/deployment/`):
+- `DeploymentEngine` with canary, blue-green, staged, and immediate strategies;
+  `TrafficRouter` does consistent-hash routing; `HealthMonitor` computes
+  error/denial/success rates and p99 latency with caller-driven (deterministic)
+  health checks and `auto_rollback`.
+- Every deployment transition is recorded in the HMAC audit chain. Deployment
+  records feed the compliance `deployment` evidence type (EU AI Act Art 14-1-b).
+- CLI: `skillctl deploy {canary,blue-green,staged,status,promote,rollback,history}`.
+
+- **Tests**: 22 compliance/deployment unit tests + 8 e2e
+  (`tests/e2e/test_milestone_3.py`) using real frameworks, real evidence,
+  real deployment engine + router + health monitor. See
+  [docs/compliance.md](docs/compliance.md) and [docs/deployment.md](docs/deployment.md).
+
 ### Milestone 2 — Runtime Policy Enforcement & Observability
 
 Closes the runtime governance gap: skills are governed not just at publish time
