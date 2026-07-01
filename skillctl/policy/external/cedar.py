@@ -74,7 +74,9 @@ class CedarHook(PolicyHook):
                 },
             }
             result = cedarpy.is_authorized(request, policies, entities=[])
-            allowed = getattr(result, "decision", None) == getattr(cedarpy, "Decision", object).Allow
+            decision_cls = getattr(cedarpy, "Decision", None)
+            allow_value = getattr(decision_cls, "Allow", None)
+            allowed = getattr(result, "decision", None) == allow_value
             if allowed:
                 return PolicyResult(decision=PolicyDecision.ALLOW, reason="Cedar permitted", hook_name=self.name)
             return PolicyResult(decision=PolicyDecision.DENY, reason="Cedar denied", hook_name=self.name)

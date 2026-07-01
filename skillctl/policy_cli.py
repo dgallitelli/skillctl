@@ -182,7 +182,7 @@ def cmd_observe_status(args) -> int:
         pass
 
     try:
-        import opentelemetry  # noqa: F401
+        import opentelemetry  # type: ignore[import-not-found]  # noqa: F401
 
         installed = True
     except ImportError:

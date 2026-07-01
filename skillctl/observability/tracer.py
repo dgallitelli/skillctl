@@ -9,7 +9,7 @@ Install with: ``pip install 'skillsops[observability]'``.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any, Optional
 
 
 def configure_telemetry(
@@ -23,10 +23,10 @@ def configure_telemetry(
     exporter: "otlp" (production), "console" (debug), or "none".
     """
     try:
-        from opentelemetry import trace
-        from opentelemetry.sdk.resources import Resource
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+        from opentelemetry import trace  # type: ignore[import-not-found]
+        from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found]
+        from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter  # type: ignore[import-not-found]
 
         resource = Resource.create({"service.name": service_name, **(resource_attributes or {})})
         provider = TracerProvider(resource=resource)
@@ -34,7 +34,7 @@ def configure_telemetry(
         if exporter == "console":
             provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
         elif exporter == "otlp":
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter  # type: ignore[import-not-found]
 
             provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
 
@@ -54,8 +54,8 @@ def tracer_from_provider(provider) -> "SkillsOpsTracer":
 class SkillsOpsTracer:
     """Wrapper around an OTel tracer with SkillsOps convenience methods."""
 
-    def __init__(self, tracer=None, enabled: bool = False, provider=None):
-        self._tracer = tracer
+    def __init__(self, tracer: Any = None, enabled: bool = False, provider: Any = None):
+        self._tracer: Any = tracer
         self._enabled = enabled
         self._provider = provider
 
@@ -105,7 +105,7 @@ class OTelSpan:
         )
 
     def set_error(self, error: Exception):
-        from opentelemetry.trace import Status, StatusCode
+        from opentelemetry.trace import Status, StatusCode  # type: ignore[import-not-found]
 
         self._span.set_status(Status(StatusCode.ERROR, str(error)))
         self._span.record_exception(error)
