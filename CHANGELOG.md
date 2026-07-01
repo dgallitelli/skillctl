@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.1.0b7 (2026-07-01)
+
+Milestones 0–4 land on `main`: registry RBAC, runtime policy enforcement &
+observability, compliance mapping & progressive deployment, and enterprise
+scale (identity federation, ABAC, lineage, forensics, multi-registry
+federation, CI/CD templates). Includes type-checking fixes across the RBAC
+CLI, registry DB, observability tracer, Cedar hook, compliance evidence, and
+OIDC identity resolver (which now requires a signing secret).
+
 ### Milestone 4 — Enterprise Scale & Ecosystem
 
 - **Identity federation** (`skillctl/identity/`): dependency-free OIDC (HS256

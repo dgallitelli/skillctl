@@ -1,6 +1,6 @@
 """Version information for skillctl."""
 
-__version__ = "0.1.0b6"
+__version__ = "0.1.0b7"
 
 
 def version_info() -> str:
