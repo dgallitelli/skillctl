@@ -27,7 +27,6 @@ from skillctl.config import (
 from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
-from skillctl.optimize.cli import register_optimize_commands, handle_optimize
 from skillctl.store import ContentStore
 from skillctl.utils import parse_ref as _parse_ref
 from skillctl.validator import SchemaValidator
@@ -176,7 +175,9 @@ def main():
     sub.add_parser("doctor", help="Diagnose environment issues")
 
     # skillctl eval <subcommand>
-    sub.add_parser("eval", help="Evaluate skills (subcommands: audit, functional, trigger, report, init, compare)")
+    sub.add_parser(
+        "eval", help="Evaluate skills (subcommands: audit, report, init, validate, snapshot, regression, lifecycle)"
+    )
 
     # skillctl bump
     bump_p = sub.add_parser("bump", help="Bump skill version (in skill.yaml)")
@@ -184,9 +185,6 @@ def main():
     bump_p.add_argument("--major", action="store_true", help="Bump major version")
     bump_p.add_argument("--minor", action="store_true", help="Bump minor version")
     bump_p.add_argument("--patch", action="store_true", help="Bump patch version (default)")
-
-    # skillctl optimize (and subcommands: history, diff)
-    register_optimize_commands(sub)
 
     # skillctl serve
     serve_p = sub.add_parser("serve", help="Start the skill registry server")
@@ -391,8 +389,6 @@ def main():
             cmd_eval_passthrough(remaining)
         elif args.command == "bump":
             cmd_bump(args)
-        elif args.command == "optimize":
-            handle_optimize(args, remaining)
         elif args.command == "serve":
             cmd_serve(args)
         elif args.command == "token":
@@ -1405,7 +1401,7 @@ def cmd_doctor(args):
 
     optional_available = []
     optional_missing = []
-    for pkg, group in [("fastapi", "server"), ("uvicorn", "server"), ("litellm", "optimize"), ("mcp", "plugin")]:
+    for pkg, group in [("fastapi", "server"), ("uvicorn", "server"), ("mcp", "plugin")]:
         try:
             __import__(pkg)
             optional_available.append(f"{pkg} [{group}]")

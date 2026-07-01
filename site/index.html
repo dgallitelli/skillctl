@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>SkillsOps — Governance for Agent Skills</title>
-<meta name="description" content="The governed lifecycle for SKILL.md. Author with a typed scaffold, audit with static + functional checks, version in a content-addressed registry, and consume across every IDE — with one chain of custody across all four stages." />
+<meta name="description" content="The governed lifecycle for SKILL.md. Author with a typed scaffold, audit with a deterministic security + schema-contract score, version in a content-addressed registry, and consume across every IDE — with one chain of custody across all four stages." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -84,7 +84,7 @@
   <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
     <a href="#top" class="flex items-baseline gap-1.5">
       <span class="display font-semibold text-[15px] tracking-tight text-ink">skillctl</span>
-      <span class="mono text-[11px] text-subtle tnum">v0.1.0b1</span>
+      <span class="mono text-[11px] text-subtle tnum">v0.2.0</span>
     </a>
     <div class="hidden md:flex items-center gap-7 text-[13.5px] text-muted">
       <a href="#problem" class="hover:text-ink transition-colors">Why</a>
@@ -107,7 +107,7 @@
     <div class="reveal">
       <a href="https://github.com/dgallitelli/skillsops/releases" class="inline-flex items-center gap-2 mono text-[11px] text-muted hover:text-ink transition-colors">
         <span class="inline-block h-1.5 w-1.5 rounded-full bg-accent"></span>
-        v0.1.0b1 — public beta
+        v0.2.0 — public beta
         <span class="text-line-strong">·</span>
         <span class="underline decoration-line-strong underline-offset-2 hover:decoration-ink">read the changelog</span>
       </a>
@@ -121,7 +121,7 @@
     <p class="reveal stagger-2 mt-7 max-w-2xl text-[18px] md:text-[19px] leading-[1.55] text-muted">
       One chain of custody from the moment a skill is written to the moment an agent runs it.
       <span class="text-ink">Author</span> with a typed scaffold,
-      <span class="text-ink">audit</span> with static + functional checks,
+      <span class="text-ink">audit</span> with a deterministic security + schema score,
       <span class="text-ink">register</span> in a content-addressed store, and
       <span class="text-ink">consume</span> across every IDE — without losing the trail.
     </p>
@@ -177,10 +177,10 @@
               <span class="mono text-[10.5px] text-subtle tnum tracking-widest">02</span>
               <span class="mono text-[10.5px] text-ink uppercase tracking-widest font-medium">Audit</span>
             </div>
-            <p class="mt-4 text-[13.5px] text-muted leading-[1.55]">Static checks for prompt injection, secrets, unsafe tools. Functional checks via LLM-as-judge. Grade gates the next step.</p>
+            <p class="mt-4 text-[13.5px] text-muted leading-[1.55]">Static checks for prompt injection, secrets, unsafe tools, plus deterministic schema-contract validation. The score gates the next step — and is fully reproducible.</p>
             <div class="mt-5 space-y-1.5">
               <code class="mono text-[11px] text-ink bg-paper hairline border rounded px-2 py-1 block break-all">eval audit · 9·35·70</code>
-              <code class="mono text-[11px] text-ink bg-paper hairline border rounded px-2 py-1 block break-all">eval functional</code>
+              <code class="mono text-[11px] text-ink bg-paper hairline border rounded px-2 py-1 block break-all">eval report · 80/20</code>
             </div>
             <p class="mt-5 mono text-[10.5px] text-subtle">Output: grade · findings</p>
           </div>
@@ -325,7 +325,7 @@
         </div>
         <h3 class="display font-semibold text-[18px] mt-5">Graded before it ships.</h3>
         <p class="mt-2.5 text-[13px] leading-[1.6] text-muted">
-          9 categories · 35 codes · 70 patterns of static checks, plus LLM-as-judge functional eval. Grade gates the registry push.
+          9 categories · 35 codes · 70 patterns of static checks, plus deterministic schema-contract validation. A reproducible 80/20 score gates the registry push.
         </p>
         <p class="mt-5 mono text-[10.5px] text-accent">→ grade · findings report</p>
       </div>
@@ -349,7 +349,7 @@
         </div>
         <h3 class="display font-semibold text-[18px] mt-5">Pinned, never copied.</h3>
         <p class="mt-2.5 text-[13px] leading-[1.6] text-muted">
-          Developers, agents (via 14 MCP tools), and CI all install by digest. Rollback is one command. Every install lands in the audit log.
+          Developers, agents (via 5 core MCP tools), and CI all install by digest. Rollback is one command. Every install lands in the audit log.
         </p>
         <p class="mt-5 mono text-[10.5px] text-accent">→ install --target all</p>
       </div>
@@ -438,10 +438,10 @@
         <div class="p-5 border-r border-b md:border-b-0 hairline">
           <div class="flex items-center justify-between">
             <span class="mono text-[10.5px] text-subtle tnum tracking-wider">04</span>
-            <span class="mono text-[10.5px] text-subtle">beta</span>
+            <span class="mono text-[10.5px] text-subtle">stable</span>
           </div>
-          <div class="mt-6 mono text-[13.5px] text-ink font-medium">eval functional</div>
-          <p class="mt-1.5 text-[12px] leading-[1.5] text-muted">LLM-as-judge behavioural eval.</p>
+          <div class="mt-6 mono text-[13.5px] text-ink font-medium">eval report</div>
+          <p class="mt-1.5 text-[12px] leading-[1.5] text-muted">Deterministic 80% audit + 20% schema.</p>
         </div>
         <div class="p-5 border-r border-b md:border-b-0 hairline">
           <div class="flex items-center justify-between">
@@ -546,7 +546,7 @@
         </div>
         <h3 class="display font-semibold text-[18px] mt-5">Claude Code MCP plugin</h3>
         <p class="mt-2.5 text-[13.5px] leading-[1.6] text-muted">
-          14 MCP tools and 3 first-class skills give Claude Code a direct line into the registry — list, validate, install, audit.
+          5 core governance tools — <span class="mono text-[12.5px] text-ink bg-white hairline border px-1 rounded">validate</span>, <span class="mono text-[12.5px] text-ink bg-white hairline border px-1 rounded">audit</span>, <span class="mono text-[12.5px] text-ink bg-white hairline border px-1 rounded">bump</span>, <span class="mono text-[12.5px] text-ink bg-white hairline border px-1 rounded">diff</span>, <span class="mono text-[12.5px] text-ink bg-white hairline border px-1 rounded">publish</span> — give Claude Code a direct line into the registry.
         </p>
       </div>
     </div>
@@ -674,7 +674,7 @@ skillctl install my-org/code-reviewer@0.1.0 --target all" class="copy-btn inline
       <span class="mono text-[11px] text-subtle">·</span>
       <span class="mono text-[11px] text-muted">MPL-2.0</span>
       <span class="mono text-[11px] text-subtle">·</span>
-      <span class="mono text-[11px] text-muted">v0.1.0b1</span>
+      <span class="mono text-[11px] text-muted">v0.2.0</span>
     </div>
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-muted">
       <a href="https://pypi.org/project/skillsops/" class="hover:text-ink transition-colors">PyPI ↗</a>

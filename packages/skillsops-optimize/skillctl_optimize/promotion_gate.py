@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from skillctl.optimize.types import EvalResult, PromotionDecision, Variant
+from skillctl_optimize.types import EvalResult, PromotionDecision, Variant
 
 
 def check_promotion(

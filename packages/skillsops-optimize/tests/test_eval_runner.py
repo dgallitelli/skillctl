@@ -1,4 +1,4 @@
-"""Unit tests for skillctl.optimize.eval_runner."""
+"""Unit tests for skillctl_optimize.eval_runner."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from skillctl.optimize.eval_runner import evaluate_skill, _parse_report, _failure_result
+from skillctl_optimize.eval_runner import evaluate_skill, _parse_report, _failure_result
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ class TestEvaluateSkill:
             _write_report(Path(skill_path), SAMPLE_REPORT)
             return 0
 
-        with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=mock_run):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", side_effect=mock_run):
             result = evaluate_skill(str(skill_dir))
 
         assert result.overall_score == 0.72
@@ -159,7 +159,7 @@ class TestEvaluateSkill:
             _write_report(Path(skill_path), SAMPLE_REPORT)
             return 0
 
-        with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=mock_run):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", side_effect=mock_run):
             evaluate_skill(str(skill_dir), content="# Variant\nNew content.")
 
         # During eval, the variant content was active
@@ -171,7 +171,7 @@ class TestEvaluateSkill:
         """Original SKILL.md is restored even when run_unified_report raises."""
         original = (skill_dir / "SKILL.md").read_text()
 
-        with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=RuntimeError("boom")):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", side_effect=RuntimeError("boom")):
             result = evaluate_skill(str(skill_dir), content="# Bad variant")
 
         # Original restored
@@ -181,7 +181,7 @@ class TestEvaluateSkill:
 
     def test_returns_failure_on_missing_report(self, skill_dir: Path):
         """If report.json is not written, returns failure result."""
-        with patch("skillctl.optimize.eval_runner.run_unified_report", return_value=1):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", return_value=1):
             result = evaluate_skill(str(skill_dir))
 
         assert result.overall_score is None
@@ -194,7 +194,7 @@ class TestEvaluateSkill:
             report_file.write_text("not valid json {{{")
             return 0
 
-        with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=mock_run):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", side_effect=mock_run):
             result = evaluate_skill(str(skill_dir))
 
         assert result.overall_score is None
@@ -207,7 +207,7 @@ class TestEvaluateSkill:
             _write_report(Path(skill_path), SAMPLE_REPORT)
             return 0
 
-        with patch("skillctl.optimize.eval_runner.run_unified_report", side_effect=mock_run):
+        with patch("skillctl_optimize.eval_runner.run_unified_report", side_effect=mock_run):
             result = evaluate_skill(str(skill_dir))
 
         assert (skill_dir / "SKILL.md").read_text() == original

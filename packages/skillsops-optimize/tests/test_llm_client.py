@@ -1,4 +1,4 @@
-"""Tests for skillctl.optimize.llm_client.
+"""Tests for skillctl_optimize.llm_client.
 
 Unit tests mock litellm.completion for fast CI.
 Integration tests (marked @pytest.mark.integration) call real providers.
@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from skillctl.optimize.llm_client import LLMClient, DEFAULT_MODEL, _MAX_RETRIES
-from skillctl.optimize.types import LLMResponse
+from skillctl_optimize.llm_client import LLMClient, DEFAULT_MODEL, _MAX_RETRIES
+from skillctl_optimize.types import LLMResponse
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ class TestLLMClientCall:
 
 
 class TestLLMClientRetry:
-    @patch("skillctl.optimize.llm_client.time.sleep")
+    @patch("skillctl_optimize.llm_client.time.sleep")
     @patch("litellm.completion")
     def test_retries_on_failure_then_succeeds(self, mock_completion, mock_sleep):
         mock_completion.side_effect = [
@@ -95,7 +95,7 @@ class TestLLMClientRetry:
         assert resp.content == "ok"
         mock_sleep.assert_called_once_with(1)
 
-    @patch("skillctl.optimize.llm_client.time.sleep")
+    @patch("skillctl_optimize.llm_client.time.sleep")
     @patch("litellm.completion")
     def test_raises_after_max_retries(self, mock_completion, mock_sleep):
         mock_completion.side_effect = RuntimeError("persistent error")
@@ -106,7 +106,7 @@ class TestLLMClientRetry:
 
         assert mock_sleep.call_count == _MAX_RETRIES
 
-    @patch("skillctl.optimize.llm_client.time.sleep")
+    @patch("skillctl_optimize.llm_client.time.sleep")
     @patch("litellm.completion")
     def test_retry_backoff_delays(self, mock_completion, mock_sleep):
         mock_completion.side_effect = [

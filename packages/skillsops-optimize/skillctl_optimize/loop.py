@@ -13,19 +13,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from skillctl.optimize.budget import BudgetTracker
-from skillctl.optimize.eval_runner import evaluate_skill
-from skillctl.optimize.failure_analyzer import analyze_failures
-from skillctl.optimize.llm_client import LLMClient
-from skillctl.optimize.promotion_gate import check_promotion
-from skillctl.optimize.provenance import ProvenanceStore
-from skillctl.optimize.types import (
+from skillctl_optimize.budget import BudgetTracker
+from skillctl_optimize.eval_runner import evaluate_skill
+from skillctl_optimize.failure_analyzer import analyze_failures
+from skillctl_optimize.llm_client import LLMClient
+from skillctl_optimize.promotion_gate import check_promotion
+from skillctl_optimize.provenance import ProvenanceStore
+from skillctl_optimize.types import (
     CycleRecord,
     OptimizationRun,
     OptimizeConfig,
     VariantRecord,
 )
-from skillctl.optimize.variant_generator import generate_variants
+from skillctl_optimize.variant_generator import generate_variants
 from skillctl.utils import read_skill_name_from_manifest
 
 

@@ -1,17 +1,17 @@
-"""Tests for skillctl.optimize.variant_generator."""
+"""Tests for skillctl_optimize.variant_generator."""
 
 from __future__ import annotations
 
 import hashlib
 from unittest.mock import MagicMock
 
-from skillctl.optimize.types import (
+from skillctl_optimize.types import (
     FailureAnalysis,
     LLMResponse,
     TokenUsage,
     Weakness,
 )
-from skillctl.optimize.variant_generator import (
+from skillctl_optimize.variant_generator import (
     _build_variant_prompt,
     _extract_skill_content,
     generate_variants,

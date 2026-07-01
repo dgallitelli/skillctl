@@ -56,7 +56,7 @@ class TestCLIEntryPoint:
         assert r.returncode == 0
 
     def test_eval_audit(self):
-        r = _run(["eval", "audit", "plugin/skills/skill-lifecycle"])
+        r = _run(["eval", "audit", "examples/api-design-reviewer"])
         assert r.returncode == 0
 
     def test_eval_help(self):

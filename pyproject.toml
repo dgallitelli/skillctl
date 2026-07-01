@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "skillsops"
 dynamic = ["version"]
-description = "SkillsOps — governance CLI for agent skills. Validate, evaluate, optimize, publish, and distribute skills across any IDE."
+description = "SkillsOps — governance CLI for agent skills. Validate, audit, version, publish, and distribute skills across any IDE."
 readme = "README.md"
 license = {text = "MPL-2.0"}
 requires-python = ">=3.10"
@@ -23,9 +23,6 @@ server = [
     "python-multipart>=0.0.9",
     "slowapi>=0.1.9",
 ]
-optimize = [
-    "litellm>=1.83.14",
-]
 plugin = [
     "mcp>=1.0",
 ]
@@ -38,7 +35,7 @@ dev = [
     "uvicorn[standard]>=0.29",
 ]
 all = [
-    "skillsops[server,optimize,plugin]",
+    "skillsops[server,plugin]",
 ]
 
 [project.scripts]
@@ -53,6 +50,14 @@ version = {attr = "skillctl.version.__version__"}
 [tool.setuptools.packages.find]
 include = ["skillctl*"]
 
+[tool.pytest.ini_options]
+# Core governance test suite. The extracted optimizer
+# (packages/skillsops-optimize) has its own suite and is not collected here.
+testpaths = ["tests"]
+markers = [
+    "integration: end-to-end tests that spin up real servers / crypto",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 120
@@ -65,19 +70,10 @@ per-file-ignores = {"skillctl/**/cli.py" = ["E402"], "skillctl/eval/*.py" = ["E4
 [tool.coverage.run]
 source = ["skillctl"]
 omit = [
-    "skillctl/eval/agent_runner.py",
-    "skillctl/eval/functional.py",
-    "skillctl/eval/grading.py",
-    "skillctl/eval/trigger.py",
-    "skillctl/eval/compare.py",
-    "skillctl/eval/lifecycle.py",
-    "skillctl/eval/regression.py",
-    "skillctl/eval/init.py",
     "skillctl/github_auth.py",
     "skillctl/registry/github_backend.py",
     "skillctl/registry/server.py",
     "skillctl/registry/config.py",
     "skillctl/cli.py",
     "skillctl/eval/cli.py",
-    "skillctl/optimize/cli.py",
 ]

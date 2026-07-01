@@ -1,4 +1,4 @@
-"""Tests for skillctl.optimize.loop — the main optimization loop."""
+"""Tests for skillctl_optimize.loop — the main optimization loop."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
-from skillctl.optimize.loop import run_optimization, _content_hash
+from skillctl_optimize.loop import run_optimization, _content_hash
 from skillctl.utils import read_skill_name_from_manifest as _read_skill_name
-from skillctl.optimize.types import (
+from skillctl_optimize.types import (
     EvalResult,
     FailureAnalysis,
     OptimizeConfig,
@@ -88,11 +88,11 @@ def _variant(content: str = "# Improved Skill", vid: str | None = None) -> Varia
 class TestRunOptimization:
     """Unit tests for run_optimization()."""
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_basic_promotion_cycle(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """A single cycle that promotes a variant writes SKILL.md and returns correctly."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -145,7 +145,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -158,11 +158,11 @@ class TestRunOptimization:
         # SKILL.md should be updated on disk
         assert (skill_dir / "SKILL.md").read_text() == improved
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_dry_run_does_not_write_skill(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """In dry-run mode, SKILL.md on disk is never modified."""
         original = "# Original Skill"
@@ -191,7 +191,7 @@ class TestRunOptimization:
             dry_run=True,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -200,11 +200,11 @@ class TestRunOptimization:
         assert (skill_dir / "SKILL.md").read_text() == original
         assert run.promoted_variant_id == variant.id
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_plateau_termination(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'plateau' after plateau_limit non-promotions."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -230,7 +230,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -238,11 +238,11 @@ class TestRunOptimization:
         assert run.status == "plateau"
         assert len(run.cycles) == 3
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_max_iterations_cap(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'completed' when max_iterations is reached."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -269,7 +269,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -277,9 +277,9 @@ class TestRunOptimization:
         assert run.status == "completed"
         assert len(run.cycles) == 3
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
     def test_failure_analysis_error_skips_cycle(self, mock_analyze, mock_eval, mock_llm, tmp_path):
         """When failure analysis raises, the cycle is skipped."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -295,7 +295,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -304,11 +304,11 @@ class TestRunOptimization:
         assert run.status == "completed"
         assert len(run.cycles) == 0
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_budget_exhaustion_terminates(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Loop terminates with 'budget_exhausted' when budget runs out."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -337,18 +337,18 @@ class TestRunOptimization:
             budget_usd=10.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
 
         assert run.status == "budget_exhausted"
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_variant_generation_failure_continues(
         self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
     ):
@@ -367,7 +367,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -376,11 +376,11 @@ class TestRunOptimization:
         assert run.status == "completed"
         assert len(run.cycles) == 0
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_promotion_resets_plateau_counter(
         self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path
     ):
@@ -439,7 +439,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)
@@ -447,11 +447,11 @@ class TestRunOptimization:
         assert run.status == "plateau"
         assert len(run.cycles) == 4
 
-    @patch("skillctl.optimize.loop.LLMClient")
-    @patch("skillctl.optimize.loop.evaluate_skill")
-    @patch("skillctl.optimize.loop.analyze_failures")
-    @patch("skillctl.optimize.loop.generate_variants")
-    @patch("skillctl.optimize.loop.check_promotion")
+    @patch("skillctl_optimize.loop.LLMClient")
+    @patch("skillctl_optimize.loop.evaluate_skill")
+    @patch("skillctl_optimize.loop.analyze_failures")
+    @patch("skillctl_optimize.loop.generate_variants")
+    @patch("skillctl_optimize.loop.check_promotion")
     def test_monotonic_score_improvement(self, mock_promote, mock_gen, mock_analyze, mock_eval, mock_llm, tmp_path):
         """Final score is always >= initial score."""
         skill_dir = _make_skill_dir(tmp_path)
@@ -477,7 +477,7 @@ class TestRunOptimization:
             budget_usd=100.0,
         )
 
-        with patch("skillctl.optimize.loop.ProvenanceStore") as mock_store_cls:
+        with patch("skillctl_optimize.loop.ProvenanceStore") as mock_store_cls:
             mock_store = MagicMock()
             mock_store_cls.return_value = mock_store
             run = run_optimization(config)

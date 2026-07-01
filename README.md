@@ -59,9 +59,8 @@ vendor lock-in, no requirement to host skills off-site.
 | `bump` — semver version edits in `skill.yaml` | stable | `--major` / `--minor` / `--patch` with breaking-change detection. |
 | `install` / `uninstall` — multi-IDE deploy (Claude Code, Cursor, Windsurf, Copilot, Kiro) | stable | One source SKILL.md, native frontmatter on every IDE. |
 | `serve` — self-hosted FastAPI registry with token auth, hash-chained audit log | stable | Run governance on infra you control.  See [SECURITY.md](SECURITY.md) for the threat model. |
-| `eval functional` / `eval trigger` — LLM-as-judge behavioural eval | beta | Measure whether the skill actually helps and triggers when it should. |
-| `optimize` — automated improvement loop (eval → LLM critique → variants → promote) | experimental | Cost-capped, plateau-detecting; no published case study yet. |
-| Claude Code MCP plugin (14 tools + 3 skills) | stable | Use SkillsOps from inside an agentic IDE. |
+| `eval report` — deterministic governance score (80% security audit + 20% schema contract) | stable | Reproducible: same inputs always yield the same score. |
+| Claude Code MCP plugin (5 core tools: validate, audit, bump, diff, publish) | stable | Use SkillsOps from inside an agentic IDE. |
 | `export` / `import` — portable archives | stable | Backup, share, migrate between hosts. |
 
 ---
@@ -124,7 +123,8 @@ quiet noisy categories with `.skilleval.yaml` if you hit it.  Tune per-skill
 suppressions with a `.skilleval.yaml` ([docs](docs/3-security-audit.md)).
 The audit is *static* — an A grade means "no obvious issues against
 ~35 finding codes / ~70 regex patterns", not "safe to run untrusted".
-Pair it with the LLM-as-judge functional eval for a fuller picture.
+`skillctl eval report` combines it with deterministic schema-contract
+validation (80% audit + 20% contract) for a reproducible governance score.
 
 ---
 
@@ -158,13 +158,17 @@ skillctl uninstall ./my-skill --target all
 ```bash
 pip install skillsops                  # core CLI
 pip install "skillsops[server]"        # + the registry server
-pip install "skillsops[optimize]"      # + LLM-driven optimizer
 pip install "skillsops[plugin]"        # + MCP server for Claude Code plugin
 pip install "skillsops[all]"           # everything
+
+# The LLM-driven optimizer is now a separate, optional package:
+pip install skillsops-optimize         # authoring-time optimizer (pulls in litellm)
 ```
 
 Python 3.10+.  The core CLI has only one dependency (`pyyaml`); the
-server, optimizer, and plugin are optional extras.
+server and plugin are optional extras.  The optimizer ships separately
+(`skillsops-optimize`) because authoring assistance is a different
+concern from governance gatekeeping.
 
 ---
 
@@ -208,8 +212,7 @@ pipeline:
 | `gitleaks` + a list of "things people said agents shouldn't do" + a CI script | `skillctl eval audit --fail-on-warning` |
 | `bumpversion` config + a `git tag` script + ad-hoc changelog | `skillctl bump`, `skillctl diff`, `skillctl logs` |
 | Skills shipped to a vendor, or no central store at all | `skillctl serve` on your own host |
-| `promptfoo` config + custom harness | `skillctl eval functional` (beta — promptfoo / inspect-ai are more mature today) |
-| LLM eval loop someone wrote one weekend | `skillctl optimize` (experimental — research preview) |
+| Ad-hoc "does the schema look right?" review before merging | `skillctl eval report` (deterministic 80% audit + 20% contract) |
 
 The wedge is the **integration**: one resource model, one error model,
 one config, one CLI, one audit trail.  Each individual capability has
@@ -244,9 +247,9 @@ skillctl version   # current version
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,optimize,plugin]"
+pip install -e ".[dev,plugin]"
 pytest -m "not integration"      # unit tests
-pytest -m integration            # real Bedrock tests (needs AWS creds)
+pytest -m integration            # e2e + real Bedrock tests
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions.
@@ -255,12 +258,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions.
 
 ## Status
 
-Beta (`0.1.x`).  The core CLI surface (`apply`, `install`, `validate`,
-`eval audit`, `bump`, `diff`, `get`, `describe`, `delete`, `serve`,
-`logs`) is stable and covered by 600+ unit tests plus a
-real-Bedrock integration suite.  The optimizer, the registry's REST API
-shape, and the `skillctl:` frontmatter block may change before `1.0.0`
-based on user feedback.
+Beta (`0.2.x`).  The core CLI surface (`apply`, `install`, `validate`,
+`eval audit`, `eval report`, `bump`, `diff`, `get`, `describe`, `delete`,
+`serve`, `logs`) is stable and covered by 640+ unit tests plus an
+end-to-end and real-Bedrock integration suite.  The registry's REST API
+shape and the `skillctl:` frontmatter block may change before `1.0.0`
+based on user feedback.  The optimizer now lives in the separate
+`skillsops-optimize` package.
 
 ## License
 

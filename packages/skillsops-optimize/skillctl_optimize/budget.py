@@ -6,7 +6,7 @@ Wraps BudgetState and uses skillctl.eval.cost.estimate_cost() for token pricing.
 from __future__ import annotations
 
 from skillctl.eval.cost import estimate_cost
-from skillctl.optimize.types import BudgetState, TokenUsage
+from skillctl_optimize.types import BudgetState, TokenUsage
 
 
 class BudgetTracker:

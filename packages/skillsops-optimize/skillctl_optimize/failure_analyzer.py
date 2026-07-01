@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 
 from skillctl.eval.cost import estimate_cost
-from skillctl.optimize.llm_client import LLMClient
-from skillctl.optimize.types import EvalResult, FailureAnalysis, TokenUsage, Weakness
+from skillctl_optimize.llm_client import LLMClient
+from skillctl_optimize.types import EvalResult, FailureAnalysis, TokenUsage, Weakness
 
 ANALYSIS_SYSTEM_PROMPT = """\
 You are a skill evaluation analyst. Given a skill's content and evidence of \

@@ -1,17 +1,17 @@
-"""Tests for skillctl.optimize.failure_analyzer."""
+"""Tests for skillctl_optimize.failure_analyzer."""
 
 from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock
 
-from skillctl.optimize.failure_analyzer import (
+from skillctl_optimize.failure_analyzer import (
     _build_analysis_prompt,
     _extract_evidence,
     _parse_weaknesses,
     analyze_failures,
 )
-from skillctl.optimize.types import EvalResult, LLMResponse
+from skillctl_optimize.types import EvalResult, LLMResponse
 
 
 def _make_eval_result(**overrides) -> EvalResult:

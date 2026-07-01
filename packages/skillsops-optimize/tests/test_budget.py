@@ -1,7 +1,7 @@
 """Unit tests for BudgetTracker."""
 
-from skillctl.optimize.budget import BudgetTracker
-from skillctl.optimize.types import TokenUsage
+from skillctl_optimize.budget import BudgetTracker
+from skillctl_optimize.types import TokenUsage
 
 
 def test_initial_state():

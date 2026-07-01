@@ -1,4 +1,4 @@
-"""Tests for skillctl.optimize.provenance.ProvenanceStore."""
+"""Tests for skillctl_optimize.provenance.ProvenanceStore."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from skillctl.optimize.provenance import ProvenanceStore, _content_hash
-from skillctl.optimize.types import (
+from skillctl_optimize.provenance import ProvenanceStore, _content_hash
+from skillctl_optimize.types import (
     EvalResult,
     FailureAnalysis,
     OptimizationRun,
