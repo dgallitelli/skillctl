@@ -27,6 +27,12 @@ from skillctl.config import (
 from skillctl.diff import diff_skills, format_diff
 from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
+from skillctl.rbac_cli import (
+    dispatch_auth,
+    dispatch_namespace,
+    dispatch_rbac,
+    register_rbac_commands,
+)
 from skillctl.store import ContentStore
 from skillctl.utils import parse_ref as _parse_ref
 from skillctl.validator import SchemaValidator
@@ -185,6 +191,9 @@ def main():
     bump_p.add_argument("--major", action="store_true", help="Bump major version")
     bump_p.add_argument("--minor", action="store_true", help="Bump minor version")
     bump_p.add_argument("--patch", action="store_true", help="Bump patch version (default)")
+
+    # skillctl auth / rbac / namespace (Milestone 1 — RBAC)
+    register_rbac_commands(sub)
 
     # skillctl serve
     serve_p = sub.add_parser("serve", help="Start the skill registry server")
@@ -391,6 +400,12 @@ def main():
             cmd_bump(args)
         elif args.command == "serve":
             cmd_serve(args)
+        elif args.command == "auth":
+            sys.exit(dispatch_auth(args))
+        elif args.command == "rbac":
+            sys.exit(dispatch_rbac(args))
+        elif args.command == "namespace":
+            sys.exit(dispatch_namespace(args))
         elif args.command == "token":
             cmd_token(args)
         elif args.command == "config":
@@ -947,7 +962,7 @@ def cmd_logs(args):
     registry_url = _require_registry_url(args)
     token = _get_registry_token(args)
 
-    url = f"{registry_url}/api/v1/audit?action=skill.published&limit=50"
+    url = f"{registry_url}/api/v1/audit?limit=100"
 
     raw = _registry_request("GET", url, token=token, timeout=10)
     try:

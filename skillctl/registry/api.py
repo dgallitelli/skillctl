@@ -16,8 +16,11 @@ from fastapi.responses import Response  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field  # type: ignore[import-untyped]
 
 from skillctl.manifest import ManifestLoader
-from skillctl.registry.auth import AuthManager, TokenInfo, get_current_token
+from skillctl.registry.auth import AuthManager
 from skillctl.registry.db import MetadataDB, SkillRecord
+from skillctl.registry.rbac.middleware import authorize, resolve_identity
+from skillctl.registry.rbac.models import Identity, Permission, role_from_str
+from skillctl.registry.rbac.store import RBACStore
 from skillctl.validator import SchemaValidator
 from skillctl.version import __version__
 
@@ -158,12 +161,12 @@ async def publish_skill(
     request: Request,
     manifest: str = Form(...),
     content: UploadFile = File(...),  # type: ignore[assignment]
-    token: TokenInfo = Depends(get_current_token),
+    namespace: str | None = Form(None),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
     storage = request.app.state.storage
     audit = request.app.state.audit
-    auth_manager: AuthManager = request.app.state.auth_manager
 
     # Parse manifest JSON
     try:
@@ -198,16 +201,19 @@ async def publish_skill(
             400, "E_VALIDATION", "Manifest validation failed", json.dumps(errors), "Fix the validation errors and retry"
         )
 
-    # Check auth: token needs write:<namespace> or admin
-    namespace = parsed.metadata.name.split("/")[0]
-    if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            f"Insufficient permissions for namespace '{namespace}'",
-            "Token lacks write scope for this namespace",
-            f"Use a token with 'write:{namespace}' or 'admin' permission",
-        )
+    # Authorize: creating/uploading a skill requires SKILL_CREATE in its
+    # RBAC namespace. The RBAC namespace is an explicit operation parameter
+    # (hierarchical, e.g. "org/acme/team-ml"); it defaults to the skill name's
+    # first segment for backward compatibility when not supplied.
+    skill_segment = parsed.metadata.name.split("/")[0]
+    rbac_namespace = namespace or skill_segment
+    authorize(
+        request,
+        identity,
+        Permission.SKILL_CREATE,
+        rbac_namespace,
+        resource=f"{parsed.metadata.name}@{parsed.metadata.version}",
+    )
 
     # Check duplicate
     existing = db.get_skill(parsed.metadata.name, parsed.metadata.version)
@@ -257,13 +263,14 @@ async def publish_skill(
     record = SkillRecord(
         id=None,
         name=parsed.metadata.name,
-        namespace=namespace,
+        namespace=skill_segment,
         version=parsed.metadata.version,
         description=parsed.metadata.description,
         content_hash=content_hash,
         tags=parsed.metadata.tags,
         authors=[{"name": a.name, "email": a.email} for a in parsed.metadata.authors],
         license=parsed.metadata.license,
+        status="draft",
         manifest_json=json.dumps(manifest_dict),
     )
     try:
@@ -287,10 +294,15 @@ async def publish_skill(
 
     # Audit log
     audit.log(
-        action="skill.published",
-        actor=token.name,
+        action="skill.created",
+        actor=identity.username,
         resource=f"{parsed.metadata.name}@{parsed.metadata.version}",
-        details={"content_hash": content_hash, "size": len(content_bytes)},
+        details={
+            "content_hash": content_hash,
+            "size": len(content_bytes),
+            "status": "draft",
+            "token_id": identity.token_id,
+        },
     )
 
     # Return detail
@@ -318,40 +330,12 @@ async def list_skills(
     tag: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
 
-    allowed = AuthManager.allowed_namespaces(token)
-    if allowed is None:
-        # Unscoped read / admin — full access.
-        pass
-    elif not allowed:
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Insufficient permissions",
-            "Token has no read scope",
-            "Use a token with 'read', 'read:<ns>', 'write:<ns>', or 'admin'",
-        )
-    else:
-        # Scoped token: namespace must be explicit and inside the allowed set.
-        if namespace is None:
-            _error_response(
-                403,
-                "E_FORBIDDEN",
-                "Namespace filter required",
-                f"Token only grants read on {sorted(allowed)}",
-                "Pass ?namespace=<ns> to list skills in a namespace you can read",
-            )
-        if namespace not in allowed:
-            _error_response(
-                403,
-                "E_FORBIDDEN",
-                f"No read access to namespace '{namespace}'",
-                f"Token grants read on {sorted(allowed)}",
-                "Request a token with the correct scope",
-            )
+    # Authorize read on the requested namespace (or globally when unfiltered).
+    authorize(request, identity, Permission.SKILL_READ, namespace or "*")
 
     results = db.search(query=q, namespace=namespace, tag=tag, limit=limit, offset=offset)
     total = db.count_search(query=q, namespace=namespace, tag=tag)
@@ -372,19 +356,11 @@ async def get_skill(
     request: Request,
     namespace: str,
     name: str,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
-    auth_manager: AuthManager = request.app.state.auth_manager
 
-    if not auth_manager.check_permission(token, "read", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Insufficient permissions",
-            "Token lacks read scope",
-            "Use a token with 'read' permission",
-        )
+    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}")
 
     full_name = f"{namespace}/{name}"
     versions_list = db.get_versions(full_name)
@@ -409,19 +385,11 @@ async def get_skill_version(
     namespace: str,
     name: str,
     version: str,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
-    auth_manager: AuthManager = request.app.state.auth_manager
 
-    if not auth_manager.check_permission(token, "read", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Insufficient permissions",
-            "Token lacks read scope",
-            "Use a token with 'read' permission",
-        )
+    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}@{version}")
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
@@ -447,20 +415,12 @@ async def download_content(
     namespace: str,
     name: str,
     version: str,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
     storage = request.app.state.storage
-    auth_manager: AuthManager = request.app.state.auth_manager
 
-    if not auth_manager.check_permission(token, "read", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Insufficient permissions",
-            "Token lacks read scope",
-            "Use a token with 'read' permission",
-        )
+    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}@{version}")
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
@@ -513,21 +473,13 @@ async def delete_skill(
     namespace: str,
     name: str,
     version: str,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
     storage = request.app.state.storage
     audit = request.app.state.audit
-    auth_manager: AuthManager = request.app.state.auth_manager
 
-    if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            f"Insufficient permissions for namespace '{namespace}'",
-            "Token lacks write scope for this namespace",
-            f"Use a token with 'write:{namespace}' or 'admin' permission",
-        )
+    authorize(request, identity, Permission.SKILL_DELETE, namespace, resource=f"{namespace}/{name}@{version}")
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
@@ -565,9 +517,9 @@ async def delete_skill(
     # Audit log
     audit.log(
         action="skill.deleted",
-        actor=token.name,
+        actor=identity.username,
         resource=f"{full_name}@{version}",
-        details={"content_hash": record.content_hash},
+        details={"content_hash": record.content_hash, "token_id": identity.token_id},
     )
 
     return Response(status_code=204)
@@ -583,20 +535,12 @@ async def attach_eval(
     name: str,
     version: str,
     body: EvalAttachment,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     db: MetadataDB = request.app.state.db
     audit = request.app.state.audit
-    auth_manager: AuthManager = request.app.state.auth_manager
 
-    if not auth_manager.check_permission(token, "write", namespace):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            f"Insufficient permissions for namespace '{namespace}'",
-            "Token lacks write scope for this namespace",
-            f"Use a token with 'write:{namespace}' or 'admin' permission",
-        )
+    authorize(request, identity, Permission.SKILL_UPDATE, namespace, resource=f"{namespace}/{name}@{version}")
 
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
@@ -632,9 +576,9 @@ async def attach_eval(
     # Audit log
     audit.log(
         action="eval.attached",
-        actor=token.name,
+        actor=identity.username,
         resource=f"{full_name}@{version}",
-        details={"grade": body.grade, "score": body.score},
+        details={"grade": body.grade, "score": body.score, "token_id": identity.token_id},
     )
 
     updated = db.get_skill(full_name, version)
@@ -657,19 +601,12 @@ async def attach_eval(
 async def create_token(
     request: Request,
     body: TokenCreateRequest,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     auth_manager: AuthManager = request.app.state.auth_manager
     audit = request.app.state.audit
 
-    if not auth_manager.check_permission(token, "admin"):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Admin permission required",
-            "Token lacks admin scope",
-            "Use a token with 'admin' permission",
-        )
+    authorize(request, identity, Permission.TOKEN_CREATE, "*", resource=f"token:{body.name}")
 
     try:
         raw_token = auth_manager.create_token(
@@ -697,9 +634,9 @@ async def create_token(
     # Audit log
     audit.log(
         action="token.created",
-        actor=token.name,
+        actor=identity.username,
         resource=f"token:{body.name}",
-        details={"permissions": body.permissions},
+        details={"permissions": body.permissions, "token_id": identity.token_id},
     )
 
     return TokenCreateResponse(
@@ -736,20 +673,12 @@ async def read_audit(
     until: str | None = None,
     action: str | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
-    """Return recent audit events.  Admin permission required."""
-    auth_manager: AuthManager = request.app.state.auth_manager
+    """Return recent audit events.  Requires audit:read."""
     audit = request.app.state.audit
 
-    if not auth_manager.check_permission(token, "admin"):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Admin permission required",
-            "Token lacks admin scope",
-            "Use a token with 'admin' permission",
-        )
+    authorize(request, identity, Permission.AUDIT_READ, "*")
 
     events = audit.read(since=since, until=until, action=action, limit=limit)
     valid, invalid, parse_errors = audit.verify_integrity()
@@ -774,19 +703,35 @@ async def read_audit(
 async def revoke_token(
     request: Request,
     token_id: str,
-    token: TokenInfo = Depends(get_current_token),
+    identity: Identity = Depends(resolve_identity),
 ):
     auth_manager: AuthManager = request.app.state.auth_manager
     audit = request.app.state.audit
 
-    if not auth_manager.check_permission(token, "admin"):
-        _error_response(
-            403,
-            "E_FORBIDDEN",
-            "Admin permission required",
-            "Token lacks admin scope",
-            "Use a token with 'admin' permission",
+    # Self-revocation (a user revoking their own token) is always allowed;
+    # revoking someone else's token requires token:revoke.
+    owner_id = None
+    try:
+        row = request.app.state.db.conn.execute("SELECT user_id FROM tokens WHERE id = ?", (token_id,)).fetchone()
+        owner_id = row["user_id"] if row else None
+    except Exception:
+        owner_id = None  # legacy schema without user_id column
+
+    if owner_id is not None and owner_id == identity.user_id:
+        audit.log(
+            action="auth_decision",
+            actor=identity.username,
+            resource=f"token:{token_id}",
+            details={
+                "permission": Permission.TOKEN_REVOKE.value,
+                "namespace": "*",
+                "decision": "allowed",
+                "reason": "self-revocation",
+                "token_id": identity.token_id,
+            },
         )
+    else:
+        authorize(request, identity, Permission.TOKEN_REVOKE, "*", resource=f"token:{token_id}")
 
     revoked = auth_manager.revoke_token(token_id)
     if not revoked:
@@ -801,9 +746,481 @@ async def revoke_token(
     # Audit log
     audit.log(
         action="token.revoked",
-        actor=token.name,
+        actor=identity.username,
         resource=f"token:{token_id}",
-        details={},
+        details={"token_id": identity.token_id},
     )
 
     return Response(status_code=204)
+
+
+# ===========================================================================
+# Milestone 1 — RBAC: publish/unpublish, auth, users, roles, namespaces
+# ===========================================================================
+
+
+def _require_store(request: Request) -> RBACStore:
+    store = getattr(request.app.state, "rbac_store", None)
+    if store is None:
+        _error_response(
+            501,
+            "E_RBAC_DISABLED",
+            "RBAC is not enabled on this registry",
+            "No rbac_store is configured on the server",
+            "Start the server with RBAC enabled (default) to use this endpoint",
+        )
+    return store
+
+
+def _identity_payload(request: Request, identity: Identity) -> dict:
+    store = getattr(request.app.state, "rbac_store", None)
+    expires_at = None
+    if store is not None and identity.token_id:
+        row = request.app.state.db.conn.execute(
+            "SELECT expires_at FROM tokens WHERE id = ?", (identity.token_id,)
+        ).fetchone()
+        if row:
+            expires_at = row["expires_at"]
+    return {
+        "username": identity.username,
+        "user_id": identity.user_id,
+        "roles": [r.value for r in identity.roles],
+        "namespaces": identity.namespaces,
+        "token_id": identity.token_id,
+        "token_expires_at": expires_at,
+        "is_anonymous": identity.is_anonymous,
+    }
+
+
+# -- skill publish / unpublish (RBAC create/publish split) ------------------
+
+
+class PublishRequest(BaseModel):
+    name: str
+    version: str
+    namespace: str | None = None
+
+
+@api_router.post("/skills/publish")
+async def publish_skill_version(
+    request: Request,
+    body: PublishRequest,
+    identity: Identity = Depends(resolve_identity),
+):
+    """Mark an existing (draft) skill version as published. Requires skill:publish."""
+    db: MetadataDB = request.app.state.db
+    audit = request.app.state.audit
+
+    rbac_namespace = body.namespace or body.name.split("/")[0]
+    authorize(request, identity, Permission.SKILL_PUBLISH, rbac_namespace, resource=f"{body.name}@{body.version}")
+
+    record = db.get_skill(body.name, body.version)
+    if record is None:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{body.name}@{body.version}' not found",
+            "No skill with this name and version exists",
+            "Create it first via POST /skills",
+        )
+
+    db.set_skill_status(body.name, body.version, "published")
+    audit.log(
+        action="skill.published",
+        actor=identity.username,
+        resource=f"{body.name}@{body.version}",
+        details={"namespace": rbac_namespace, "token_id": identity.token_id},
+    )
+    return {"name": body.name, "version": body.version, "status": "published"}
+
+
+@api_router.post("/skills/unpublish")
+async def unpublish_skill_version(
+    request: Request,
+    body: PublishRequest,
+    identity: Identity = Depends(resolve_identity),
+):
+    """Revert a published skill version to draft. Requires skill:unpublish."""
+    db: MetadataDB = request.app.state.db
+    audit = request.app.state.audit
+
+    rbac_namespace = body.namespace or body.name.split("/")[0]
+    authorize(request, identity, Permission.SKILL_UNPUBLISH, rbac_namespace, resource=f"{body.name}@{body.version}")
+
+    record = db.get_skill(body.name, body.version)
+    if record is None:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{body.name}@{body.version}' not found",
+            "No skill with this name and version exists",
+            "Check the name and version",
+        )
+
+    db.set_skill_status(body.name, body.version, "draft")
+    audit.log(
+        action="skill.unpublished",
+        actor=identity.username,
+        resource=f"{body.name}@{body.version}",
+        details={"namespace": rbac_namespace, "token_id": identity.token_id},
+    )
+    return {"name": body.name, "version": body.version, "status": "draft"}
+
+
+# -- authentication ---------------------------------------------------------
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    token_name: str = "login"
+    expires_in_days: int | None = 30
+
+
+@api_router.post("/auth/login")
+async def auth_login(request: Request, body: LoginRequest):
+    """Authenticate with username+password; mint an identity-bound token."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+
+    user = store.verify_user(body.username, body.password)
+    if user is None:
+        audit.log(action="auth.login_failed", actor=body.username, resource="auth", details={})
+        _error_response(
+            401,
+            "E_AUTH_FAILED",
+            "Invalid username or password",
+            "Credentials did not match an active user",
+            "Check your username and password",
+        )
+
+    raw_token, token_id = store.create_token(
+        user["user_id"], name=body.token_name, scopes=["*"], expires_in_days=body.expires_in_days
+    )
+    assignments = store.get_assignments(user["user_id"])
+    row = request.app.state.db.conn.execute("SELECT expires_at FROM tokens WHERE id = ?", (token_id,)).fetchone()
+    audit.log(action="auth.login", actor=body.username, resource="auth", details={"token_id": token_id})
+    return {
+        "token": raw_token,
+        "token_id": token_id,
+        "user_id": user["user_id"],
+        "username": user["username"],
+        "roles": sorted({a.role.value for a in assignments}),
+        "namespaces": sorted({a.namespace for a in assignments}),
+        "expires_at": row["expires_at"] if row else None,
+    }
+
+
+@api_router.get("/auth/whoami")
+async def auth_whoami(request: Request, identity: Identity = Depends(resolve_identity)):
+    """Return the caller's resolved identity."""
+    return _identity_payload(request, identity)
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@api_router.post("/auth/change-password")
+async def auth_change_password(
+    request: Request,
+    body: ChangePasswordRequest,
+    identity: Identity = Depends(resolve_identity),
+):
+    """Change the authenticated user's password (verifies the current one)."""
+    from skillctl.registry.rbac.store import verify_password
+
+    store = _require_store(request)
+    audit = request.app.state.audit
+    if identity.is_anonymous or identity.user_id == "anonymous":
+        _error_response(
+            400,
+            "E_NO_USER",
+            "No user bound to this session",
+            "Auth is disabled or the principal is anonymous",
+            "Authenticate as a real user first",
+        )
+    user = store.get_user(identity.user_id)
+    if user is None or not verify_password(body.old_password, user["password_hash"]):
+        _error_response(
+            401,
+            "E_AUTH_FAILED",
+            "Current password is incorrect",
+            "The old_password did not match",
+            "Re-enter your current password",
+        )
+    if not body.new_password:
+        _error_response(
+            400,
+            "E_BAD_PASSWORD",
+            "New password must not be empty",
+            "Empty passwords are not allowed",
+            "Choose a non-empty password",
+        )
+    store.set_password(identity.user_id, body.new_password)
+    audit.log(action="auth.password_changed", actor=identity.username, resource="auth", details={})
+    return {"changed": True}
+
+
+class AuthTokenCreateRequest(BaseModel):
+    name: str
+    scopes: list[str] = Field(default_factory=lambda: ["*"])
+    expires_in_days: int | None = None
+    expires_in_seconds: int | None = None  # fine-grained expiry (CI / tests)
+
+
+@api_router.post("/auth/tokens", status_code=201)
+async def auth_create_token(
+    request: Request,
+    body: AuthTokenCreateRequest,
+    identity: Identity = Depends(resolve_identity),
+):
+    """Create a scoped, identity-bound token for the current user."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+
+    if identity.is_anonymous or identity.user_id == "anonymous":
+        _error_response(
+            400,
+            "E_NO_USER",
+            "Cannot mint a user token for an anonymous principal",
+            "Auth is disabled or no user is bound",
+            "Authenticate as a real user first",
+        )
+    # A self-minted token can only NARROW the user's privileges (the engine
+    # re-checks roles at use time), so minting requires TOKEN_CREATE in any
+    # namespace the user already holds — not global.
+    engine = request.app.state.rbac_engine
+    candidate_ns = identity.namespaces or ["*"]
+    grant_ns = next((ns for ns in candidate_ns if engine.check(identity, Permission.TOKEN_CREATE, ns)), None)
+    authorize(request, identity, Permission.TOKEN_CREATE, grant_ns or candidate_ns[0])
+
+    if body.expires_in_seconds is not None:
+        from datetime import datetime, timedelta, timezone as _tz
+
+        expires_at = (datetime.now(_tz.utc) + timedelta(seconds=body.expires_in_seconds)).isoformat()
+        raw_token, token_id = store.create_token_with_expiry_iso(
+            identity.user_id, name=body.name, scopes=body.scopes, expires_at=expires_at
+        )
+    else:
+        raw_token, token_id = store.create_token(
+            identity.user_id, name=body.name, scopes=body.scopes, expires_in_days=body.expires_in_days
+        )
+    row = request.app.state.db.conn.execute("SELECT expires_at FROM tokens WHERE id = ?", (token_id,)).fetchone()
+    audit.log(
+        action="token.created",
+        actor=identity.username,
+        resource=f"token:{body.name}",
+        details={"scopes": body.scopes, "token_id": token_id},
+    )
+    return {
+        "token": raw_token,
+        "token_id": token_id,
+        "name": body.name,
+        "scopes": body.scopes,
+        "expires_at": row["expires_at"] if row else None,
+    }
+
+
+@api_router.get("/auth/tokens")
+async def auth_list_tokens(request: Request, identity: Identity = Depends(resolve_identity)):
+    """List the current user's tokens (no secrets)."""
+    store = _require_store(request)
+    if identity.is_anonymous:
+        return {"tokens": []}
+    toks = store.list_tokens(identity.user_id)
+    return {
+        "tokens": [
+            {
+                "token_id": t.token_id,
+                "name": t.name,
+                "scopes": t.scopes,
+                "created_at": t.created_at,
+                "expires_at": t.expires_at,
+                "last_used_at": t.last_used_at,
+                "revoked": t.revoked,
+            }
+            for t in toks
+        ]
+    }
+
+
+# -- user + role + namespace administration ---------------------------------
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+
+
+@api_router.post("/users", status_code=201)
+async def create_user(request: Request, body: UserCreateRequest, identity: Identity = Depends(resolve_identity)):
+    """Create a user. Requires rbac:assign (admin)."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+    authorize(request, identity, Permission.RBAC_ASSIGN, "*", resource=f"user:{body.username}")
+
+    if store.get_user_by_username(body.username) is not None:
+        _error_response(
+            409,
+            "E_USER_EXISTS",
+            f"User '{body.username}' already exists",
+            "A user with this username is already registered",
+            "Choose a different username",
+        )
+    uid = store.create_user(body.username, body.password)
+    audit.log(action="user.created", actor=identity.username, resource=f"user:{body.username}", details={})
+    return {"user_id": uid, "username": body.username}
+
+
+class AssignRequest(BaseModel):
+    username: str
+    role: str
+    namespace: str
+    expires_at: str | None = None
+
+
+@api_router.post("/rbac/assign", status_code=201)
+async def rbac_assign(request: Request, body: AssignRequest, identity: Identity = Depends(resolve_identity)):
+    """Assign a role to a user within a namespace. Requires rbac:assign."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+    authorize(request, identity, Permission.RBAC_ASSIGN, body.namespace, resource=f"user:{body.username}")
+
+    user = store.get_user_by_username(body.username)
+    if user is None:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"User '{body.username}' not found",
+            "No such user",
+            "Create the user first",
+        )
+    try:
+        role = role_from_str(body.role)
+    except ValueError as exc:
+        _error_response(400, "E_INVALID_ROLE", "Invalid role", str(exc), "Use viewer, author, publisher, or admin")
+
+    store.add_assignment(
+        user["user_id"], role, body.namespace, assigned_by=identity.username, expires_at=body.expires_at
+    )
+    audit.log(
+        action="rbac.assigned",
+        actor=identity.username,
+        resource=f"user:{body.username}",
+        details={"role": body.role, "namespace": body.namespace},
+    )
+    return {"username": body.username, "role": body.role, "namespace": body.namespace}
+
+
+@api_router.post("/rbac/revoke")
+async def rbac_revoke(request: Request, body: AssignRequest, identity: Identity = Depends(resolve_identity)):
+    """Revoke a role assignment. Requires rbac:revoke."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+    authorize(request, identity, Permission.RBAC_REVOKE, body.namespace, resource=f"user:{body.username}")
+
+    user = store.get_user_by_username(body.username)
+    if user is None:
+        _error_response(404, "E_NOT_FOUND", f"User '{body.username}' not found", "No such user", "Check the username")
+    try:
+        role = role_from_str(body.role)
+    except ValueError as exc:
+        _error_response(400, "E_INVALID_ROLE", "Invalid role", str(exc), "Use a valid role")
+
+    removed = store.remove_assignment(user["user_id"], role, body.namespace)
+    audit.log(
+        action="rbac.revoked",
+        actor=identity.username,
+        resource=f"user:{body.username}",
+        details={"role": body.role, "namespace": body.namespace, "removed": removed},
+    )
+    return {"username": body.username, "role": body.role, "namespace": body.namespace, "removed": removed}
+
+
+@api_router.get("/rbac/assignments")
+async def rbac_list(request: Request, username: str, identity: Identity = Depends(resolve_identity)):
+    """List a user's role assignments. Requires rbac:assign."""
+    store = _require_store(request)
+    authorize(request, identity, Permission.RBAC_ASSIGN, "*", resource=f"user:{username}")
+    user = store.get_user_by_username(username)
+    if user is None:
+        _error_response(404, "E_NOT_FOUND", f"User '{username}' not found", "No such user", "Check the username")
+    assignments = store.get_assignments(user["user_id"])
+    return {
+        "username": username,
+        "assignments": [
+            {"role": a.role.value, "namespace": a.namespace, "assigned_by": a.assigned_by, "expires_at": a.expires_at}
+            for a in assignments
+        ],
+    }
+
+
+class CheckRequest(BaseModel):
+    username: str
+    permission: str
+    namespace: str
+
+
+@api_router.post("/rbac/check")
+async def rbac_check(request: Request, body: CheckRequest, identity: Identity = Depends(resolve_identity)):
+    """Dry-run a permission check for a user (debugging). Requires rbac:assign."""
+    from skillctl.registry.rbac.engine import RBACEngine
+    from skillctl.registry.rbac.models import Identity as _Id, permission_from_str
+
+    store = _require_store(request)
+    authorize(request, identity, Permission.RBAC_ASSIGN, "*", resource=f"user:{body.username}")
+
+    user = store.get_user_by_username(body.username)
+    if user is None:
+        _error_response(404, "E_NOT_FOUND", f"User '{body.username}' not found", "No such user", "Check the username")
+    try:
+        perm = permission_from_str(body.permission)
+    except ValueError as exc:
+        _error_response(400, "E_INVALID_PERMISSION", "Invalid permission", str(exc), "Use e.g. 'skill:publish'")
+
+    engine: RBACEngine = request.app.state.rbac_engine
+    decision = engine.check(_Id(user_id=user["user_id"], username=body.username), perm, body.namespace)
+    return {"allowed": bool(decision), "reason": decision.reason}
+
+
+class NamespaceCreateRequest(BaseModel):
+    path: str
+    description: str = ""
+
+
+@api_router.post("/namespaces", status_code=201)
+async def create_namespace(
+    request: Request, body: NamespaceCreateRequest, identity: Identity = Depends(resolve_identity)
+):
+    """Create a namespace. Requires namespace:create on the parent (or global)."""
+    store = _require_store(request)
+    audit = request.app.state.audit
+    parent = body.path.rsplit("/", 1)[0] if "/" in body.path else "*"
+    authorize(request, identity, Permission.NAMESPACE_CREATE, parent, resource=f"namespace:{body.path}")
+
+    if store.get_namespace(body.path) is not None:
+        _error_response(
+            409,
+            "E_EXISTS",
+            f"Namespace '{body.path}' already exists",
+            "Already created",
+            "Use a different path",
+        )
+    ns = store.create_namespace(body.path, owner_id=identity.user_id, description=body.description)
+    audit.log(action="namespace.created", actor=identity.username, resource=f"namespace:{body.path}", details={})
+    return {"path": ns.path, "parent": ns.parent, "description": ns.description}
+
+
+@api_router.get("/namespaces")
+async def list_namespaces(request: Request, identity: Identity = Depends(resolve_identity)):
+    """List namespaces the caller can read."""
+    store = _require_store(request)
+    namespaces = store.list_namespaces()
+    out = []
+    for ns in namespaces:
+        decision = request.app.state.rbac_engine.check(identity, Permission.SKILL_READ, ns.path)
+        if decision:
+            out.append({"path": ns.path, "parent": ns.parent, "description": ns.description})
+    return {"namespaces": out}

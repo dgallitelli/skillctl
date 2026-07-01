@@ -59,6 +59,7 @@ vendor lock-in, no requirement to host skills off-site.
 | `bump` — semver version edits in `skill.yaml` | stable | `--major` / `--minor` / `--patch` with breaking-change detection. |
 | `install` / `uninstall` — multi-IDE deploy (Claude Code, Cursor, Windsurf, Copilot, Kiro) | stable | One source SKILL.md, native frontmatter on every IDE. |
 | `serve` — self-hosted FastAPI registry with token auth, hash-chained audit log | stable | Run governance on infra you control.  See [SECURITY.md](SECURITY.md) for the threat model. |
+| `auth` / `rbac` / `namespace` — role-based access control | stable | Users, 4 roles, hierarchical namespaces, scoped tokens; every decision audited.  See [docs/rbac.md](docs/rbac.md). |
 | `eval report` — deterministic governance score (80% security audit + 20% schema contract) | stable | Reproducible: same inputs always yield the same score. |
 | Claude Code MCP plugin (5 core tools: validate, audit, bump, diff, publish) | stable | Use SkillsOps from inside an agentic IDE. |
 | `export` / `import` — portable archives | stable | Backup, share, migrate between hosts. |
@@ -228,6 +229,7 @@ shared lifecycle.
 | [docs/0-architecture.md](docs/0-architecture.md) | System overview, module map, data flow diagrams |
 | [docs/1-skill-format.md](docs/1-skill-format.md) | Full CLI reference, skill format, registry server, eval suite, optimizer flags, API endpoints |
 | [docs/3-security-audit.md](docs/3-security-audit.md) | Audit categories, severities, suppression workflow |
+| [docs/rbac.md](docs/rbac.md) | RBAC: roles, permissions, namespaces, CLI, bootstrap, audit |
 | [SECURITY.md](SECURITY.md) | Threat model, controls, and how to report vulnerabilities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up a dev environment and send a PR |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |

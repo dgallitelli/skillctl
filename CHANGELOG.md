@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Milestone 1 — Core Governance MVP (RBAC)
+
+Adds role-based access control to the registry. Every authorization decision is
+auditable, and the decision path is unified across new and legacy principals.
+
+- **Permission model** (`skillctl/registry/rbac/`): 15 fine-grained permissions,
+  4 nested roles (viewer < author < publisher < admin), and hierarchical,
+  inherited namespaces (`org/acme` covers `org/acme/team-ml/...`).
+- **Single decision engine** (`RBACEngine.check`): pure, deterministic, with a
+  token-scope gate (scoped tokens only ever narrow privileges) and a
+  human-readable reason on every decision.
+- **SQLite store**: `users`, `role_assignments`, `namespaces`, `auth_decisions`
+  tables sharing the registry DB; the `tokens` table gains `user_id`/`scopes`
+  via idempotent migration. Passwords hashed with stdlib PBKDF2-HMAC-SHA256
+  (no new dependency).
+- **Dual audit**: every decision is written to the `auth_decisions` table AND
+  the HMAC hash-chained log (`auth_decision` events); mutating events now carry
+  `actor` and `token_id`.
+- **Create/publish split**: `POST /skills` creates a draft (`skill:create`);
+  `POST /skills/publish` publishes (`skill:publish`). New `skill.created` /
+  `skill.published` / `skill.unpublished` audit actions.
+- **Auth + admin endpoints**: `/auth/login`, `/auth/whoami`,
+  `/auth/change-password`, scoped `/auth/tokens`, `/users`, `/rbac/assign|revoke|
+  assignments|check`, `/namespaces`.
+- **CLI**: `skillctl auth` (login/logout/whoami/change-password/token),
+  `skillctl rbac` (assign/revoke/list/check), `skillctl namespace`
+  (create/list/grant). Credentials stored at `~/.skillctl/credentials.json`
+  (mode 0600).
+- **First-run bootstrap**: an empty database provisions an initial `admin` and
+  prints its credentials once.
+- **Backward compatible**: `--auth-disabled` still works (actor `anonymous`);
+  legacy permission-string tokens are bridged into role assignments; a missing
+  token under enabled auth returns 401.
+- **Tests**: 29 RBAC core unit tests + 13 end-to-end tests
+  (`tests/e2e/test_milestone_1.py`) using a real server subprocess, real SQLite,
+  real tokens, and real HMAC verification. See [docs/rbac.md](docs/rbac.md).
+
 ### Milestone 0 — Cleanup & Simplify (breaking)
 
 The guiding principle is **Minimum Viable Governance**: keep only the
