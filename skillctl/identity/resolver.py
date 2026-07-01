@@ -103,7 +103,12 @@ class IdentityResolver:
     def __init__(self, config: IdentityProviderConfig, secret: Optional[str] = None, audit_logger=None):
         self.config = config
         self.audit_logger = audit_logger
-        self._adapter = OIDCAdapter(config, secret) if config.type == IdentityProviderType.OIDC else None
+        if config.type == IdentityProviderType.OIDC:
+            if secret is None:
+                raise IdentityError("OIDC identity provider requires a signing secret")
+            self._adapter = OIDCAdapter(config, secret)
+        else:
+            self._adapter = None
         self._cache: dict[str, tuple[IdentityToken, float]] = {}
 
     def resolve(self, token_str: str) -> IdentityToken:
