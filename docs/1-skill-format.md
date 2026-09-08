@@ -1,6 +1,7 @@
 # SkillsOps Reference
 
-Complete CLI reference, skill format specification, registry server setup, eval suite details, optimizer configuration, and API endpoints.
+Complete CLI reference, skill format specification, registry server setup,
+deterministic evaluation details, and API endpoints.
 
 ---
 
@@ -122,7 +123,7 @@ All commands follow kubectl-style verb patterns: `skillctl <verb> [resource] [ar
 
 | Command | Description |
 |---------|-------------|
-| `skillctl configure` | Interactive setup wizard (registry backend, LLM model, budget) |
+| `skillctl configure` | Interactive setup wizard for registry and authentication settings |
 | `skillctl apply [path]` | Validate + security scan + push to local store; publish to remote if configured |
 | `skillctl create skill <name>` | Scaffold a new skill (skill.yaml + SKILL.md) |
 | `skillctl get skills` | List skills from local store (or remote with `--remote`) |
@@ -175,8 +176,8 @@ All commands follow kubectl-style verb patterns: `skillctl <verb> [resource] [ar
 | `registry.local.token` | Registry auth token |
 | `registry.agent_registry.registry_id` | AWS Agent Registry ARN |
 | `registry.agent_registry.region` | AWS region |
-| `optimize.model` | LiteLLM model ID |
-| `optimize.budget_usd` | Optimizer budget in USD |
+| `optimize.model` | Compatibility setting consumed by the separate `skillsops-optimize` package |
+| `optimize.budget_usd` | Compatibility budget setting for `skillsops-optimize` |
 | `github.token` | GitHub access token |
 | `github.client_id` | GitHub OAuth App client ID |
 
@@ -198,12 +199,11 @@ Backward-compatible aliases: `registry.url` maps to `registry.local.url`, `regis
 | Command | Description |
 |---------|-------------|
 | `skillctl eval audit <path>` | Security and structure audit with A-F grading |
-| `skillctl eval functional <path>` | Baseline comparison (with/without skill) |
-| `skillctl eval trigger <path>` | Activation reliability testing |
-| `skillctl eval report <path>` | Unified report (40% audit, 40% functional, 20% trigger) |
+| `skillctl eval report <path>` | Deterministic report (80% audit, 20% schema contract) |
+| `skillctl eval init <path>` | Generate evaluation scaffold files |
+| `skillctl eval validate <path>` | Validate evaluation file schemas |
 | `skillctl eval snapshot <path>` | Save current results as regression baseline |
 | `skillctl eval regression <path>` | Detect score drops vs baseline |
-| `skillctl eval compare <a> <b>` | Side-by-side skill comparison |
 | `skillctl eval lifecycle <path>` | Version tracking and change detection |
 
 ### Install commands
@@ -245,33 +245,21 @@ Backward-compatible aliases: `registry.url` maps to `registry.local.url`, `regis
 
 Frontmatter is automatically translated to each IDE's native format. Fields that don't map (e.g., `allowed-tools` for Cursor) are dropped with a warning to stderr.
 
-### Optimizer commands
+Complete artifact support files are installed beside the primary file for
+Claude Code. For Cursor, Windsurf, Copilot, and Kiro they are retained in a
+versioned `.skillctl-artifacts/{name}/{version}/` sidecar under the target
+directory.
 
-| Command | Description |
-|---------|-------------|
-| `skillctl optimize [path]` | Run automated improvement loop |
-| `skillctl optimize history` | List past optimization runs |
-| `skillctl optimize diff <run-id>` | Show original vs promoted diff |
+### Optimizer
 
-### Optimizer flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--variants` | 3 | Number of candidate variants per cycle |
-| `--threshold` | 0.05 | Minimum improvement to promote (5%) |
-| `--max-iterations` | 50 | Hard cap on optimization cycles |
-| `--plateau` | 3 | Stop after N cycles with no improvement |
-| `--budget` | 10.0 | Maximum spend in USD |
-| `--timeout` | 120 | Evaluation timeout in seconds |
-| `--agent` | claude | Agent to use for evaluation |
-| `--model` | bedrock/us.anthropic.claude-opus-4-6-v1 | LiteLLM model ID (any provider) |
-| `--approve` | false | Auto-approve promotions without confirmation |
-| `--dry-run` | false | Run the loop without writing changes |
+The LLM-driven optimizer is not a core `skillctl` command. Install and run the
+separate `skillsops-optimize` distribution; see
+[`docs/4-optimization.md`](4-optimization.md).
 
 ### Common flags
 
 - `--json` — JSON output (available on validate, list, diff, and eval commands)
-- `--dry-run` — Preview without mutating state (push, optimize)
+- `--dry-run` — Preview without mutating state (apply, install)
 - `--strict` — Treat warnings as errors (validate)
 - `--verbose` / `-v` — Show additional detail (eval audit)
 
@@ -287,12 +275,14 @@ The registry server is a self-hostable FastAPI application backed by SQLite and 
 docker compose up
 ```
 
-Starts the registry at `http://localhost:8080` with persistent data in `./registry-data/`.
+Starts the registry at `http://localhost:8080` with persistent data in a
+named Docker volume. The image persists a generated audit HMAC key for local
+use. Set `SKILLCTL_HMAC_KEY` from a secrets manager in production.
 
 ### Start from CLI
 
 ```bash
-skillctl serve --port 8080
+SKILLCTL_HMAC_KEY="replace-with-secret" skillctl serve --port 8080
 ```
 
 Data is stored at `~/.skillctl/registry/` by default. Use `--data-dir` to override.
@@ -329,7 +319,10 @@ GET    /api/v1/skills                              # List/search skills
 GET    /api/v1/skills/{namespace}/{name}            # Skill detail (latest version)
 GET    /api/v1/skills/{namespace}/{name}/{version}  # Specific version
 GET    /api/v1/skills/{namespace}/{name}/{version}/content  # Download content
-POST   /api/v1/skills                              # Publish skill
+GET    /api/v1/skills/{namespace}/{name}/{version}/artifact # Complete bundle
+POST   /api/v1/skills                              # Create draft
+POST   /api/v1/skills/publish                      # Publish draft
+POST   /api/v1/skills/unpublish                    # Return to draft
 DELETE /api/v1/skills/{namespace}/{name}/{version}  # Delete version
 PUT    /api/v1/skills/{namespace}/{name}/{version}/eval  # Attach eval grade
 POST   /api/v1/tokens                              # Create token
@@ -378,12 +371,6 @@ severity_overrides:
   SEC-002: INFO          # Downgrade a finding severity
 ```
 
-### Provenance
-
-Every optimization run is stored at `~/.skillctl/optimize/<run-id>/` with: original content, each variant, failure analyses, eval reports, and promotion decisions.
-
----
-
 ## Examples
 
 The `examples/` directory contains three skill examples:
@@ -418,13 +405,15 @@ skillctl eval audit examples/dependency-scanner
 |---------|-------|-----------------|
 | Core CLI | (none) | pyyaml |
 | Registry server | `[server]` | fastapi, uvicorn |
-| Optimizer | `[optimize]` | litellm (>=1.83.14) |
-| Claude Code plugin | `[plugin]` | mcp |
-| All features | `[all]` | All of the above |
+| Claude Code plugin runtime | `[plugin]` | mcp 1.x (the plugin bundle is distributed separately) |
+| Observability | `[observability]` | OpenTelemetry |
+| OPA policy adapter | `[policy-opa]` | httpx |
+| All core features | `[all]` | Server, plugin, observability, OPA |
 | Development | `[dev]` | pytest, hypothesis, httpx |
 
 ```bash
 pip install skillsops              # core only
-pip install "skillsops[optimize]"  # + optimizer
+pip install "skillsops[server]"    # + registry server
 pip install "skillsops[all]"       # everything
+pip install skillsops-optimize     # separate authoring optimizer
 ```

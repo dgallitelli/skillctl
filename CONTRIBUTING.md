@@ -9,10 +9,11 @@ focused PRs are easier to review and merge than large refactors.
 git clone https://github.com/dgallitelli/skillsops.git
 cd skillsops
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,plugin,optimize]"
+pip install -e ".[dev,server,plugin,observability]"
 
-# Run the test suite (excludes integration tests that need AWS Bedrock).
-pytest -m "not integration" -q
+# Run deterministic tests, then real local end-to-end tests.
+pytest tests/ -m "not integration" -q
+pytest tests/e2e -q
 
 # Lint, format check, and type check (all blocking in CI).
 ruff check skillctl tests
@@ -20,8 +21,9 @@ ruff format --check skillctl tests
 pyright skillctl
 ```
 
-The full integration suite (`pytest -m integration`) hits real Bedrock and
-needs AWS credentials in your environment.
+The extracted optimizer has a separate environment and suite under
+`packages/skillsops-optimize/`. Core SkillsOps tests do not require AWS
+credentials or external network calls.
 
 ## Project conventions
 
@@ -52,8 +54,8 @@ and data flows.
 3. Update `CHANGELOG.md` under `## Unreleased`.  If the change is
    user-facing, also touch the relevant section of `README.md` or
    `docs/`.
-4. Make sure `pytest -m "not integration" -q`, `ruff check`,
-   `ruff format --check`, and `pyright skillctl` all pass locally.
+4. Make sure both test commands above, `ruff check`, `ruff format --check`,
+   and `pyright skillctl` all pass locally.
 5. Open the PR; describe what you changed and why.  Link the issue if
    one exists.
 

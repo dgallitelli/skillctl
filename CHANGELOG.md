@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## v0.1.0b8 (2026-09-08)
+
+### Stabilization
+
+- Closed legacy-token privilege escalation and bound skill versions to an
+  immutable RBAC namespace with draft-aware read authorization.
+- Made evaluation, control-mapping evidence, attestations, and
+  compliance-gated promotion fail closed when evidence is missing,
+  unverified, or errored. Compliance output is explicitly non-certifying.
+- Added deterministic complete-skill artifact bundles with per-file hashes,
+  provenance, local/registry/Git storage, export/import, federation, pull,
+  and multi-IDE installation support.
+- Repaired the registry Docker image and Compose boot path, added package and
+  container smoke checks, and made the 39-test local E2E suite blocking in CI.
+- Added explicit transactional registry/RBAC migrations, atomic idempotent
+  lifecycle transitions, startup blob-consistency reporting, and corruption
+  repair on re-publish.
+- Hardened portable archive import against traversal, links, duplicate paths,
+  malformed indexes, and oversized archives.
+- Marked policy, observability, compliance, deployment, identity, lineage,
+  forensics, federation, and generated CI surfaces as experimental or preview
+  where their trust boundaries are not integrated.
+- Removed the obsolete core Bedrock integration test left behind when the
+  optimizer moved to `skillsops-optimize`.
+
 ## v0.1.0b7 (2026-07-01)
 
 Milestones 0–4 land on `main`: registry RBAC, runtime policy enforcement &

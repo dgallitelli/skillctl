@@ -1,8 +1,15 @@
-# Runtime Policy & Observability (Milestone 2)
+# Runtime Policy & Observability (Experimental)
 
-M0/M1 govern skills at **publish time**. M2 closes the **runtime** gap: every
-skill invocation passes through a policy pipeline ("the air marshal"), and every
-invocation can be traced with OpenTelemetry.
+> **Trust boundary:** this package supplies opt-in libraries and diagnostic CLI
+> commands. The SkillsOps registry, installer, and supported IDEs do not route
+> invocations through `SkillInterceptor`. Policies and traces apply only when an
+> execution host explicitly integrates that class. Installing or configuring a
+> policy does not create runtime enforcement by itself.
+
+The policy package can wrap a host-controlled skill invocation in a policy
+pipeline and OpenTelemetry span. It is experimental until a supported runtime
+integration makes that wrapper mandatory and end-to-end tests prove it cannot
+be bypassed.
 
 ## Where it lives
 
@@ -28,7 +35,7 @@ A hook returns a `PolicyResult` with one of four decisions:
 | WARN | proceed, flag | pass through, flag |
 | REDACT | — | replace output (chained across hooks) |
 
-Pipeline rules:
+When a host uses the interceptor, pipeline rules are:
 - Pre-hooks run in registration order; the **first DENY short-circuits**.
 - Post-hooks run in registration order; **REDACT results chain** (each hook sees
   the previous hook's modified output).
@@ -75,8 +82,8 @@ except PolicyViolation as v:
 
 ## Wiring the audit chain
 
-Policy decisions become tamper-evident `policy_decision` events in the HMAC
-audit chain:
+Policy decisions become tamper-evident `policy_decision` events only when the
+host provides the audit callback:
 
 ```python
 from skillctl.policy.config import make_audit_callback
@@ -95,7 +102,8 @@ tracer = configure_telemetry(service_name="skillsops-prod", exporter="otlp",
 interceptor = SkillInterceptor(policy_engine=engine, tracer=tracer)
 ```
 
-Each invocation produces a `skill.invoke` span with `skill.*`, `actor.*`,
+Each invocation routed through the configured interceptor produces a
+`skill.invoke` span with `skill.*`, `actor.*`,
 `environment`, `invocation.id`, `execution.success`, and `execution.duration_ms`
 attributes, plus `policy.pre.evaluated` / `policy.post.evaluated` events. If the
 OpenTelemetry packages are not installed, the tracer is a no-op (graceful

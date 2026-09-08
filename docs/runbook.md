@@ -119,9 +119,13 @@ curl -s "$REG/api/v1/audit?limit=20" -H "Authorization: Bearer <admin-token>"
 
 ---
 
-## 5. Runtime policy enforcement (M2)
+## 5. Experimental runtime policy hooks
 
-Governance doesn't stop at publish — every *invocation* is checked.
+> These hooks are not wired into the registry or any installed IDE. The checks
+> below are a dry run until your execution host explicitly wraps every
+> invocation with `SkillInterceptor`.
+
+Create and dry-run an opt-in policy configuration:
 
 ```bash
 mkdir -p .skillctl && cat > .skillctl/policies.yaml <<'YAML'
@@ -148,7 +152,7 @@ skillctl policy test --as alice --roles author --namespace org/acme/team-ml
 skillctl observe status      # OpenTelemetry config/status
 ```
 
-An agent runtime wraps skill execution with the interceptor (rate limits, data
+An integrating agent runtime can wrap skill execution with the interceptor (rate limits, data
 boundaries, PII redaction, OPA/Cedar), traced via OpenTelemetry and recorded as
 `policy_decision` events in the audit chain:
 
@@ -165,7 +169,11 @@ out = await SkillInterceptor(engine).invoke(my_skill_fn,
 
 ---
 
-## 6. Compliance evidence (M3)
+## 6. Experimental compliance mapping preview
+
+> This is non-certifying local gap analysis. CLI attestations have unverified
+> identities and remain pending; the output cannot authorize a promotion or
+> establish legal compliance.
 
 ```bash
 skillctl compliance frameworks
@@ -175,10 +183,10 @@ skillctl compliance classify .
 # → risk level (e.g. MINIMAL, or HIGH if the description implies hiring/biometrics)
 
 skillctl compliance report . --framework eu-ai-act --format md
-# → per-control COMPLIANT / PARTIAL / NON-COMPLIANT / PENDING, an overall score,
+# → per-control COMPLIANT / PARTIAL / NON-COMPLIANT / PENDING, a preview score,
 #   evidence references (SHA-256 hashed), and remediation recommendations
 
-# Some controls require human sign-off:
+# A local note can be recorded, but it is not a verified sign-off:
 skillctl compliance attest --control art-9-2-b --skill . \
     --statement "Residual risks reviewed and accepted per assessment v3"
 
@@ -187,7 +195,11 @@ skillctl compliance gaps . --framework eu-ai-act   # only what still needs work
 
 ---
 
-## 7. Progressive deployment (M3)
+## 7. Experimental deployment state model
+
+> These commands modify `~/.skillctl/deployments.db`; they do not route live
+> registry or agent traffic, collect metrics, schedule health checks, or
+> trigger rollback without an integrating application.
 
 ```bash
 skillctl deploy canary my-org/hello --version 0.2.0 --namespace org/acme/team-ml \
@@ -198,25 +210,28 @@ skillctl deploy rollback <deployment-id> --reason "elevated error rate"
 skillctl deploy history --skill my-org/hello
 ```
 
-Traffic is split by consistent hash (a given user stays on one version); health
-checks (error/denial/latency/success) drive auto-rollback. Deployment records
-also serve as compliance evidence (EU AI Act Art 14-1-b, intervention mechanism).
+The library can model consistent-hash routing and caller-driven health
+evaluation. Local deployment records may appear in a control-mapping preview,
+but do not prove a production rollback mechanism exists.
 
 ---
 
-## 8. Enterprise: identity, forensics, CI/CD (M4)
+## 8. Experimental enterprise utilities
 
-**Federated identity (OIDC → RBAC):**
+**Local HS256 token inspection:**
 
 ```bash
-# Mint a demo HS256 token (an IdP would issue this in production):
+# Mint a demo-only HS256 token:
 TOKEN=$(python -c "from skillctl.identity import jwt; print(jwt.encode({'sub':'alice','email':'alice@acme.com','groups':['ml-team'],'aud':'skillsops','iss':'https://idp'},'shared-secret'))")
 skillctl identity inspect --token "$TOKEN" --secret shared-secret \
     --issuer https://idp --audience skillsops --group-map "ml-team=publisher:org/acme"
 # → Roles: publisher:org/acme  (IdP group mapped to a SkillsOps role)
 ```
 
-**Incident forensics (over data lineage):**
+This identity is not accepted by the registry. Production OIDC discovery,
+JWKS validation, and authentication middleware are not implemented.
+
+**Lineage queries (over caller-recorded local data):**
 
 ```bash
 skillctl forensics invocations --skill org/risky --label pii \
@@ -230,7 +245,7 @@ skillctl forensics provenance --data s3:predictions   # trace output → sources
 ```bash
 skillctl ci list
 skillctl ci init --system github      # writes .github/workflows/skillsops.yml
-# The pipeline runs validate → audit → compliance → publish on every PR/merge.
+# Review the starter pipeline, pin dependencies, and configure approvals/secrets.
 ```
 
 ABAC and multi-registry federation are available as libraries
@@ -244,13 +259,15 @@ ABAC and multi-registry federation are available as libraries
 |-------|-----------|-----------|
 | Supply chain | schema + security gate, deterministic score | M0 |
 | Access control | RBAC, scoped tokens, audited decisions | M1 |
-| Runtime | policy hooks, OpenTelemetry, redaction | M2 |
-| Compliance | EU AI Act / ISO 42001 / NIST evidence | M3 |
-| Safe rollout | canary / blue-green / staged + rollback | M3 |
-| Enterprise | OIDC→RBAC, ABAC, lineage, forensics, CI/CD | M4 |
+| Experimental runtime library | opt-in policy hooks, OpenTelemetry, redaction | M2 |
+| Experimental mapping | EU AI Act / ISO 42001 / NIST previews | M3 |
+| Experimental rollout model | canary / blue-green / staged state machine | M3 |
+| Experimental utilities | HS256 inspection, ABAC, lineage, forensics | M4 |
 
-Every governance action — publish, auth decision, policy decision, deployment
-transition — is recorded in the tamper-evident HMAC audit chain. Verify it:
+Registry mutations and authorization decisions are recorded in its
+tamper-evident HMAC audit chain. Policy and deployment libraries emit events
+only when an integrating application supplies the registry audit logger. Verify
+the registry chain:
 
 ```bash
 curl -s "$REG/api/v1/audit?limit=100" -H "Authorization: Bearer <admin-token>" \
