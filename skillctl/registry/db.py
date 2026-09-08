@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from skillctl.registry.migrations import Migration, apply_migrations, has_column
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -29,6 +31,7 @@ class SkillRecord:
     version: str
     description: str
     content_hash: str
+    artifact_hash: str | None = None
     tags: list[str] = field(default_factory=list)
     authors: list[dict] = field(default_factory=list)
     license: str | None = None
@@ -53,6 +56,7 @@ CREATE TABLE IF NOT EXISTS skills (
     version TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     content_hash TEXT NOT NULL,
+    artifact_hash TEXT,
     tags TEXT NOT NULL DEFAULT '[]',
     authors TEXT NOT NULL DEFAULT '[]',
     license TEXT,
@@ -117,6 +121,27 @@ _CREATE_INDEXES = [
 ]
 
 
+def _add_status_column(conn: sqlite3.Connection) -> None:
+    if not has_column(conn, "skills", "status"):
+        conn.execute("ALTER TABLE skills ADD COLUMN status TEXT NOT NULL DEFAULT 'published'")
+
+
+def _add_artifact_hash_column(conn: sqlite3.Connection) -> None:
+    if not has_column(conn, "skills", "artifact_hash"):
+        conn.execute("ALTER TABLE skills ADD COLUMN artifact_hash TEXT")
+
+
+def _rebuild_fts_index(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO skills_fts(skills_fts) VALUES ('rebuild')")
+
+
+_MIGRATIONS = (
+    Migration(1, "add-skill-lifecycle-status", _add_status_column),
+    Migration(2, "add-complete-artifact-hash", _add_artifact_hash_column),
+    Migration(3, "rebuild-existing-skill-search-index", _rebuild_fts_index),
+)
+
+
 # ---------------------------------------------------------------------------
 # MetadataDB
 # ---------------------------------------------------------------------------
@@ -132,35 +157,36 @@ class MetadataDB:
             self._db_path = str(db_path)
         self._check_same_thread = check_same_thread
         self._conn: sqlite3.Connection | None = None
+        self._lock = threading.RLock()
 
     # -- lifecycle -----------------------------------------------------------
 
     def initialize(self) -> None:
         """Create tables, FTS5 index, triggers, and indexes.  Idempotent."""
-        self._conn = sqlite3.connect(self._db_path, check_same_thread=self._check_same_thread)
-        self._conn.row_factory = sqlite3.Row
-        # WAL mode for concurrent read performance
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute("PRAGMA foreign_keys=ON;")
+        with self._lock:
+            if self._conn is not None:
+                self._conn.close()
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=self._check_same_thread)
+            self._conn.row_factory = sqlite3.Row
+            # WAL mode for concurrent read performance and a bounded wait for
+            # another writer instead of immediate "database is locked" errors.
+            self._conn.execute("PRAGMA journal_mode=WAL;")
+            self._conn.execute("PRAGMA foreign_keys=ON;")
+            self._conn.execute("PRAGMA busy_timeout=5000;")
 
-        self._conn.executescript(
-            _CREATE_SKILLS + _CREATE_FTS + _TRIGGER_AI + _TRIGGER_AD + _TRIGGER_AU + _CREATE_TOKENS
-        )
-        for idx_sql in _CREATE_INDEXES:
-            self._conn.execute(idx_sql)
-        self._migrate_columns()
-        self._conn.commit()
-
-    def _migrate_columns(self) -> None:
-        """Idempotent column migrations for pre-existing on-disk databases."""
-        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(skills)").fetchall()}
-        if "status" not in cols:
-            self.conn.execute("ALTER TABLE skills ADD COLUMN status TEXT NOT NULL DEFAULT 'published'")
+            self._conn.executescript(
+                _CREATE_SKILLS + _CREATE_FTS + _TRIGGER_AI + _TRIGGER_AD + _TRIGGER_AU + _CREATE_TOKENS
+            )
+            for idx_sql in _CREATE_INDEXES:
+                self._conn.execute(idx_sql)
+            apply_migrations(self._conn, "registry", _MIGRATIONS)
+            self._conn.commit()
 
     def close(self) -> None:
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+        with self._lock:
+            if self._conn:
+                self._conn.close()
+                self._conn = None
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -179,6 +205,7 @@ class MetadataDB:
             version=row["version"],
             description=row["description"],
             content_hash=row["content_hash"],
+            artifact_hash=row["artifact_hash"] if "artifact_hash" in row.keys() else None,
             tags=json.loads(row["tags"]),
             authors=json.loads(row["authors"]),
             license=row["license"],
@@ -205,42 +232,88 @@ class MetadataDB:
         parts = skill.name.split("/", 1)
         skill_name = parts[1] if len(parts) == 2 else skill.name
 
-        cur = self.conn.execute(
-            """INSERT INTO skills
-               (name, namespace, skill_name, version, description,
-                content_hash, tags, authors, license,
-                eval_grade, eval_score, status, manifest_json,
-                created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                skill.name,
-                skill.namespace,
-                skill_name,
-                skill.version,
-                skill.description,
-                skill.content_hash,
-                json.dumps(skill.tags),
-                json.dumps(skill.authors),
-                skill.license,
-                skill.eval_grade,
-                skill.eval_score,
-                skill.status,
-                skill.manifest_json,
-                created,
-                updated,
-            ),
-        )
-        self.conn.commit()
-        return cur.lastrowid  # type: ignore[return-value]
+        with self._lock:
+            try:
+                cur = self.conn.execute(
+                    """INSERT INTO skills
+                       (name, namespace, skill_name, version, description,
+                        content_hash, artifact_hash, tags, authors, license,
+                        eval_grade, eval_score, status, manifest_json,
+                        created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        skill.name,
+                        skill.namespace,
+                        skill_name,
+                        skill.version,
+                        skill.description,
+                        skill.content_hash,
+                        skill.artifact_hash,
+                        json.dumps(skill.tags),
+                        json.dumps(skill.authors),
+                        skill.license,
+                        skill.eval_grade,
+                        skill.eval_score,
+                        skill.status,
+                        skill.manifest_json,
+                        created,
+                        updated,
+                    ),
+                )
+                self.conn.commit()
+                return cur.lastrowid  # type: ignore[return-value]
+            except BaseException:
+                self.conn.rollback()
+                raise
 
     def set_skill_status(self, name: str, version: str, status: str) -> bool:
-        """Set a skill version's status ('draft' | 'published'). Returns True if updated."""
-        cur = self.conn.execute(
-            "UPDATE skills SET status = ?, updated_at = ? WHERE name = ? AND version = ?",
-            (status, self._now_iso(), name, version),
-        )
-        self.conn.commit()
-        return cur.rowcount > 0
+        """Compatibility setter. Prefer :meth:`transition_skill_status`."""
+        if status not in {"draft", "published"}:
+            raise ValueError(f"Invalid skill status: {status}")
+        with self._lock:
+            cur = self.conn.execute(
+                "UPDATE skills SET status = ?, updated_at = ? WHERE name = ? AND version = ?",
+                (status, self._now_iso(), name, version),
+            )
+            self.conn.commit()
+            return cur.rowcount > 0
+
+    def transition_skill_status(
+        self,
+        name: str,
+        version: str,
+        *,
+        expected: str,
+        target: str,
+    ) -> str:
+        """Atomically compare-and-set lifecycle status.
+
+        Returns ``"transitioned"``, ``"already"``, ``"conflict"``, or
+        ``"missing"``.
+        """
+        valid = {"draft", "published"}
+        if expected not in valid or target not in valid or expected == target:
+            raise ValueError(f"Invalid lifecycle transition: {expected!r} -> {target!r}")
+        with self._lock:
+            cur = self.conn.execute(
+                """UPDATE skills
+                   SET status = ?, updated_at = ?
+                   WHERE name = ? AND version = ? AND status = ?""",
+                (target, self._now_iso(), name, version, expected),
+            )
+            if cur.rowcount == 1:
+                self.conn.commit()
+                return "transitioned"
+            row = self.conn.execute(
+                "SELECT status FROM skills WHERE name = ? AND version = ?",
+                (name, version),
+            ).fetchone()
+            self.conn.commit()
+        if row is None:
+            return "missing"
+        if row["status"] == target:
+            return "already"
+        return "conflict"
 
     def get_skill(self, name: str, version: str) -> SkillRecord | None:
         """Fetch a single skill by full name and version."""
@@ -260,24 +333,31 @@ class MetadataDB:
 
     def delete_skill(self, name: str, version: str) -> bool:
         """Delete a skill version.  Returns True if a row was deleted."""
-        cur = self.conn.execute(
-            "DELETE FROM skills WHERE name = ? AND version = ?",
-            (name, version),
-        )
-        self.conn.commit()
-        return cur.rowcount > 0
+        with self._lock:
+            cur = self.conn.execute(
+                "DELETE FROM skills WHERE name = ? AND version = ?",
+                (name, version),
+            )
+            self.conn.commit()
+            return cur.rowcount > 0
 
     def update_eval(self, name: str, version: str, grade: str, score: float) -> bool:
         """Attach eval grade/score to a skill version.  Returns True if updated."""
         now = self._now_iso()
-        cur = self.conn.execute(
-            """UPDATE skills
-               SET eval_grade = ?, eval_score = ?, updated_at = ?
-               WHERE name = ? AND version = ?""",
-            (grade, score, now, name, version),
-        )
-        self.conn.commit()
-        return cur.rowcount > 0
+        with self._lock:
+            cur = self.conn.execute(
+                """UPDATE skills
+                   SET eval_grade = ?, eval_score = ?, updated_at = ?
+                   WHERE name = ? AND version = ?""",
+                (grade, score, now, name, version),
+            )
+            self.conn.commit()
+            return cur.rowcount > 0
+
+    def referenced_blob_hashes(self) -> set[str]:
+        """Return all content and artifact digests referenced by metadata."""
+        rows = self.conn.execute("SELECT content_hash, artifact_hash FROM skills").fetchall()
+        return {digest for row in rows for digest in (row["content_hash"], row["artifact_hash"]) if digest}
 
     # -- search --------------------------------------------------------------
 
@@ -286,6 +366,7 @@ class MetadataDB:
         query: str | None = None,
         namespace: str | None = None,
         tag: str | None = None,
+        status: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[SkillRecord]:
@@ -295,7 +376,7 @@ class MetadataDB:
         offset = max(0, min(offset, 100_000))
         # Treat empty string as no query
         q = query if query and query.strip() else None
-        result = self._build_search(q, namespace, tag, limit, offset, count_only=False)
+        result = self._build_search(q, namespace, tag, status, limit, offset, count_only=False)
         assert isinstance(result, list)
         return result
 
@@ -304,10 +385,11 @@ class MetadataDB:
         query: str | None = None,
         namespace: str | None = None,
         tag: str | None = None,
+        status: str | None = None,
     ) -> int:
         """Return total count matching the same filters (for pagination)."""
         q = query if query and query.strip() else None
-        result = self._build_search(q, namespace, tag, limit=0, offset=0, count_only=True)
+        result = self._build_search(q, namespace, tag, status, limit=0, offset=0, count_only=True)
         assert isinstance(result, int)
         return result
 
@@ -327,6 +409,7 @@ class MetadataDB:
         query: str | None,
         namespace: str | None,
         tag: str | None,
+        status: str | None,
         limit: int,
         offset: int,
         count_only: bool,
@@ -350,6 +433,10 @@ class MetadataDB:
             escaped_tag = tag.replace("%", "\\%").replace("_", "\\_")
             where_clauses.append("skills.tags LIKE ? ESCAPE '\\'")
             params.append(f'%"{escaped_tag}"%')
+
+        if status:
+            where_clauses.append("skills.status = ?")
+            params.append(status)
 
         where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 

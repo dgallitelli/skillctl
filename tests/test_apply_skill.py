@@ -134,7 +134,8 @@ class TestApplySkillHappyPath:
         # Store now has the skill.
         assert (store_root / "index.json").exists()
         index = json.loads((store_root / "index.json").read_text())
-        assert any(e["name"] == "test-org/test-skill" for e in index)
+        stored = next(e for e in index if e["name"] == "test-org/test-skill")
+        assert stored["artifact_hash"]
 
     def test_idempotent_second_call_unchanged(self, tmp_path, monkeypatch):
         skill = _make_skill(tmp_path)

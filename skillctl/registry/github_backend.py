@@ -8,6 +8,7 @@ Repo layout::
           <version>/
             skill.yaml       # manifest JSON
             content           # skill content (single file or archive)
+            artifact.zip      # complete immutable artifact bundle
             metadata.json     # eval scores, timestamps
 
 The backend maintains a local clone for fast reads and pushes to GitHub
@@ -130,6 +131,7 @@ class GitHubBackend(StorageBackend):
         manifest_json: str,
         content: bytes,
         metadata: dict,
+        artifact: bytes | None = None,
     ) -> str:
         """Write skill files to the repo, commit, and push.
 
@@ -143,6 +145,8 @@ class GitHubBackend(StorageBackend):
         # Write files
         (skill_dir / "skill.yaml").write_text(manifest_json)
         (skill_dir / "content").write_bytes(content)
+        if artifact is not None:
+            (skill_dir / "artifact.zip").write_bytes(artifact)
         (skill_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
         content_hash = hashlib.sha256(content).hexdigest()
@@ -191,15 +195,50 @@ class GitHubBackend(StorageBackend):
             raise NotFoundError(f"{name}@{version}")
         return content_path.read_bytes()
 
+    def get_skill_artifact(self, name: str, version: str) -> bytes:
+        """Read the complete artifact, synthesizing one for legacy records."""
+        from skillctl.artifact import build_minimal_artifact
+        from skillctl.manifest import ManifestLoader
+
+        _validate_name_version(name, version)
+        namespace, skill_name = name.split("/", 1)
+        skill_dir = self._skills_dir / namespace / skill_name / version
+        artifact_path = skill_dir / "artifact.zip"
+        if artifact_path.is_file():
+            return artifact_path.read_bytes()
+
+        manifest_path = skill_dir / "skill.yaml"
+        content_path = skill_dir / "content"
+        if not manifest_path.is_file() or not content_path.is_file():
+            raise NotFoundError(f"{name}@{version}")
+        try:
+            raw = json.loads(manifest_path.read_text())
+            manifest = ManifestLoader()._dict_to_manifest(raw)
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise SkillctlError(
+                code="E_INVALID_ARTIFACT",
+                what=f"Cannot synthesize legacy artifact for {name}@{version}",
+                why=str(exc),
+                fix="Re-publish this skill version with a complete artifact",
+            ) from exc
+        return build_minimal_artifact(manifest, content_path.read_bytes())
+
     def update_metadata(self, name: str, version: str, metadata: dict) -> None:
-        """Update metadata.json for a skill version, commit, and push."""
+        """Merge fields into metadata.json for a skill version, commit, and push."""
         _validate_name_version(name, version)
         namespace, skill_name = name.split("/", 1)
         meta_path = self._skills_dir / namespace / skill_name / version / "metadata.json"
         if not meta_path.parent.is_dir():
             raise NotFoundError(f"{name}@{version}")
 
-        meta_path.write_text(json.dumps(metadata, indent=2))
+        existing: dict = {}
+        if meta_path.is_file():
+            try:
+                existing = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                existing = {}
+        existing.update(metadata)
+        meta_path.write_text(json.dumps(existing, indent=2))
         self._git("add", "-A")
         self._git("commit", "-m", f"update-meta: {name}@{version}", "--allow-empty")
         self._push()
@@ -231,7 +270,7 @@ class GitHubBackend(StorageBackend):
 
         # Search skill content files by hash
         if self._skills_dir.is_dir():
-            for content_file in self._skills_dir.rglob("content"):
+            for content_file in self._iter_blob_files():
                 data = content_file.read_bytes()
                 if hashlib.sha256(data).hexdigest() == content_hash:
                     return data
@@ -244,7 +283,7 @@ class GitHubBackend(StorageBackend):
             return True
         # Check skill content files
         if self._skills_dir.is_dir():
-            for content_file in self._skills_dir.rglob("content"):
+            for content_file in self._iter_blob_files():
                 data = content_file.read_bytes()
                 if hashlib.sha256(data).hexdigest() == content_hash:
                     return True
@@ -256,6 +295,11 @@ class GitHubBackend(StorageBackend):
             blob_path.unlink()
             return
         raise NotFoundError(content_hash)
+
+    def _iter_blob_files(self):
+        """Yield content and artifact files stored in skill version directories."""
+        yield from self._skills_dir.rglob("content")
+        yield from self._skills_dir.rglob("artifact.zip")
 
     # ------------------------------------------------------------------
     # Index rebuild — scan repo and populate SQLite for FTS search
@@ -341,6 +385,8 @@ class GitHubBackend(StorageBackend):
         # Compute content hash
         content_bytes = content_path.read_bytes()
         content_hash = hashlib.sha256(content_bytes).hexdigest()
+        artifact_path = ver_dir / "artifact.zip"
+        bundle_hash = hashlib.sha256(artifact_path.read_bytes()).hexdigest() if artifact_path.is_file() else None
 
         # Extract fields from manifest
         meta_section = manifest_dict.get("metadata", {})
@@ -348,15 +394,17 @@ class GitHubBackend(StorageBackend):
         return SkillRecord(
             id=None,
             name=full_name,
-            namespace=namespace,
+            namespace=metadata.get("rbac_namespace", namespace),
             version=version,
             description=meta_section.get("description", ""),
             content_hash=content_hash,
+            artifact_hash=bundle_hash,
             tags=meta_section.get("tags", []),
             authors=meta_section.get("authors", []),
             license=meta_section.get("license"),
             eval_grade=metadata.get("eval_grade"),
             eval_score=metadata.get("eval_score"),
+            status=metadata.get("status", "published"),
             created_at=metadata.get("created_at", ""),
             updated_at=metadata.get("updated_at", ""),
             manifest_json=manifest_json,

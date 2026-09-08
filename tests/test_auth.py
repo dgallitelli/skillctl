@@ -56,6 +56,14 @@ def test_create_token_stores_hash_not_raw(auth: AuthManager, db: MetadataDB):
         assert raw not in str(dict(r))
 
 
+def test_create_token_accepts_hierarchical_namespace(auth: AuthManager):
+    raw = auth.create_token("team-bot", ["write:org/acme/team-ml"])
+
+    token = auth.verify_token(raw)
+    assert token is not None
+    assert token.permissions == ["write:org/acme/team-ml"]
+
+
 # -- verify_token -----------------------------------------------------------
 
 

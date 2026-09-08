@@ -1,4 +1,5 @@
-// SkillsOps governance gate for Jenkins (declarative pipeline).
+// SkillsOps starter pipeline for Jenkins (declarative pipeline).
+// Preview status: review permissions and pin dependencies before production use.
 pipeline {
   agent any
   environment {
@@ -15,7 +16,7 @@ pipeline {
     stage('Security audit') {
       steps { sh 'for s in skills/*/; do skillctl eval audit "$s" --fail-on-warning; done' }
     }
-    stage('Compliance') {
+    stage('Control-mapping preview (non-certifying)') {
       when { branch 'main' }
       steps { sh 'for s in skills/*/; do skillctl compliance report "$s" --framework eu-ai-act --format md; done' }
     }

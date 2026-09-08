@@ -1,4 +1,4 @@
-"""Data lineage tracking for SkillsOps (Milestone 4)."""
+"""Experimental storage for lineage explicitly supplied by callers."""
 
 from skillctl.lineage.store import LineageStore
 

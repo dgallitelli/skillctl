@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from skillctl.errors import SkillctlError
+from skillctl.experimental import warn_experimental
 
 _DEPLOY_DB = Path.home() / ".skillctl" / "deployments.db"
 
@@ -166,7 +167,10 @@ def cmd_deploy_history(args) -> int:
 
 
 def register_deploy_commands(sub) -> None:
-    dp = sub.add_parser("deploy", help="Progressive skill deployment (canary/blue-green/staged)")
+    dp = sub.add_parser(
+        "deploy",
+        help="[experimental] Model rollouts in a local SQLite state machine",
+    )
     dsub = dp.add_subparsers(dest="deploy_command")
 
     def _common(p):
@@ -229,4 +233,8 @@ def dispatch_deploy(args) -> int:
     if handler is None:
         print("Usage: skillctl deploy {canary|blue-green|staged|status|promote|rollback|history}", file=sys.stderr)
         return 1
+    warn_experimental(
+        "deployment modeling",
+        "Commands update local SQLite state only; they do not route registry or agent-runtime traffic.",
+    )
     return handler(args)

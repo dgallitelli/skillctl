@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from skillctl.errors import SkillctlError
+from skillctl.experimental import warn_experimental
 
 _LINEAGE_DB = Path.home() / ".skillctl" / "lineage.db"
 _AUDIT_LOG = Path.home() / ".skillctl" / "registry" / "audit.jsonl"
@@ -151,14 +152,17 @@ def cmd_identity_inspect(args) -> int:
 
 
 def register_enterprise_commands(sub) -> None:
-    ci = sub.add_parser("ci", help="CI/CD pipeline templates")
+    ci = sub.add_parser("ci", help="[preview] Generate CI/CD starter templates")
     ci_sub = ci.add_subparsers(dest="ci_command")
     ci_sub.add_parser("list", help="List available CI templates")
     init = ci_sub.add_parser("init", help="Write a governance pipeline template")
     init.add_argument("--system", required=True, choices=["github", "gitlab", "jenkins"])
     init.add_argument("--output", default=None, help="Output path (default: system convention)")
 
-    fx = sub.add_parser("forensics", help="Incident forensics over data lineage")
+    fx = sub.add_parser(
+        "forensics",
+        help="[experimental] Query caller-recorded local lineage",
+    )
     fx_sub = fx.add_subparsers(dest="forensics_command")
     prov = fx_sub.add_parser("provenance", help="Trace a data item back to its sources")
     prov.add_argument("--data", required=True)
@@ -175,9 +179,15 @@ def register_enterprise_commands(sub) -> None:
     inv.add_argument("--until", default=None)
     inv.add_argument("--lineage-db", default=None)
 
-    idy = sub.add_parser("identity", help="Federated identity utilities")
+    idy = sub.add_parser(
+        "identity",
+        help="[experimental] Inspect locally signed HS256 identity tokens",
+    )
     idy_sub = idy.add_subparsers(dest="identity_command")
-    insp = idy_sub.add_parser("inspect", help="Validate an OIDC (HS256) token and show resolved roles")
+    insp = idy_sub.add_parser(
+        "inspect",
+        help="Validate a locally signed HS256 JWT and show mapped roles",
+    )
     insp.add_argument("--token", required=True)
     insp.add_argument("--secret", required=True)
     insp.add_argument("--issuer", default=None)
@@ -191,6 +201,10 @@ def dispatch_ci(args) -> int:
     if handler is None:
         print("Usage: skillctl ci {list|init}", file=sys.stderr)
         return 1
+    warn_experimental(
+        "CI/CD templates",
+        "Generated files are starter templates; pin dependencies and review permissions before use.",
+    )
     return handler(args)
 
 
@@ -203,6 +217,10 @@ def dispatch_forensics(args) -> int:
     if handler is None:
         print("Usage: skillctl forensics {provenance|who-accessed|invocations}", file=sys.stderr)
         return 1
+    warn_experimental(
+        "lineage forensics",
+        "Results include only data explicitly recorded by callers and are not an exhaustive audit record.",
+    )
     return handler(args)
 
 
@@ -211,4 +229,8 @@ def dispatch_identity(args) -> int:
     if handler is None:
         print("Usage: skillctl identity inspect --token <jwt> --secret <s>", file=sys.stderr)
         return 1
+    warn_experimental(
+        "identity inspection",
+        "This HS256 utility is not connected to registry authentication and does not implement IdP JWKS validation.",
+    )
     return handler(args)

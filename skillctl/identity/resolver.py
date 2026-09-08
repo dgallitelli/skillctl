@@ -1,8 +1,7 @@
-"""Identity resolution: validate IdP tokens and map groups → SkillsOps roles.
+"""Experimental HS256 identity resolution and group-to-role mapping.
 
-The OIDC adapter validates HS256 JWTs (stdlib crypto). Resolved identities are
-cached with a TTL and can be turned into an RBAC ``Identity`` so federated users
-flow through the same authorization engine as local users (M1).
+The registry does not call this module. Embedding applications may validate a
+locally signed HS256 JWT and turn it into an in-memory RBAC ``Identity``.
 """
 
 from __future__ import annotations
@@ -25,7 +24,10 @@ class IdentityError(Exception):
 
 
 class OIDCAdapter:
-    """Validates OIDC (HS256 JWT) tokens into an :class:`IdentityToken`."""
+    """Validate a caller-configured HS256 JWT into an :class:`IdentityToken`.
+
+    This is not OIDC discovery or JWKS-based identity-provider integration.
+    """
 
     def __init__(self, config: IdentityProviderConfig, secret: str):
         self.config = config

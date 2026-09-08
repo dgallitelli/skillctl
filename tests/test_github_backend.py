@@ -80,6 +80,20 @@ def test_store_and_read_skill(git_repo: GitHubBackend):
     assert retrieved == CONTENT
 
 
+def test_store_and_read_complete_artifact(git_repo: GitHubBackend):
+    artifact = b"PK-complete-artifact"
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {"artifact_hash": hashlib.sha256(artifact).hexdigest()},
+        artifact=artifact,
+    )
+
+    assert git_repo.get_skill_artifact("my-org/hello", "1.0.0") == artifact
+
+
 def test_store_creates_git_commit(git_repo: GitHubBackend):
     git_repo.store_skill("my-org/hello", "1.0.0", MANIFEST, CONTENT, {})
 
@@ -131,13 +145,41 @@ def test_rebuild_index_idempotent(git_repo: GitHubBackend, db: MetadataDB):
 
 
 def test_update_metadata(git_repo: GitHubBackend):
-    git_repo.store_skill("my-org/hello", "1.0.0", MANIFEST, CONTENT, {"eval_grade": None})
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {"eval_grade": None, "status": "draft", "rbac_namespace": "org/acme"},
+    )
     git_repo.update_metadata("my-org/hello", "1.0.0", {"eval_grade": "B", "eval_score": 80.0})
 
     meta_path = git_repo._skills_dir / "my-org" / "hello" / "1.0.0" / "metadata.json"
     meta = json.loads(meta_path.read_text())
     assert meta["eval_grade"] == "B"
     assert meta["eval_score"] == 80.0
+    assert meta["status"] == "draft"
+    assert meta["rbac_namespace"] == "org/acme"
+
+
+def test_rebuild_index_preserves_governance_metadata(git_repo: GitHubBackend, db: MetadataDB):
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {
+            "status": "draft",
+            "rbac_namespace": "org/acme/team-ml",
+        },
+    )
+
+    git_repo.rebuild_index(db)
+
+    record = db.get_skill("my-org/hello", "1.0.0")
+    assert record is not None
+    assert record.status == "draft"
+    assert record.namespace == "org/acme/team-ml"
 
 
 @pytest.mark.anyio

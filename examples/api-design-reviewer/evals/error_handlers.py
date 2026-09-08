@@ -24,7 +24,9 @@ def unprocessable(error):
 @app.errorhandler(500)
 def server_error(error):
     # Leaks stack trace to the client
-    return jsonify({
-        "error": "Internal server error",
-        "traceback": traceback.format_exc(),
-    }), 500
+    return jsonify(
+        {
+            "error": "Internal server error",
+            "traceback": traceback.format_exc(),
+        }
+    ), 500

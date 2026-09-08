@@ -1,6 +1,7 @@
-# SkillsOps governance gate for GitLab CI.
+# SkillsOps starter pipeline for GitLab CI.
 # Drop this in .gitlab-ci.yml (or include it).
-stages: [validate, audit, compliance, publish]
+# Preview status: review permissions and pin dependencies before production use.
+stages: [validate, audit, control-mapping, publish]
 
 default:
   image: python:3.12-slim
@@ -17,8 +18,9 @@ security-audit:
   script:
     - for skill in skills/*/; do skillctl eval audit "$skill" --fail-on-warning; done
 
-compliance:
-  stage: compliance
+control-mapping-preview:
+  # Non-certifying local quality check; not proof of regulatory compliance.
+  stage: control-mapping
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:

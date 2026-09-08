@@ -1,4 +1,4 @@
-"""Multi-registry federation for SkillsOps (Milestone 4)."""
+"""Experimental programmatic artifact-copy helper for two registries."""
 
 from skillctl.federation.promote import FederationError, PromotionResult, promote_skill
 

@@ -1,7 +1,8 @@
-"""Progressive deployment for SkillsOps (Milestone 3).
+"""Experimental local deployment state model for SkillsOps.
 
 Canary / blue-green / staged rollouts with consistent-hash traffic routing,
-health monitoring, and automatic rollback — every transition audited.
+health evaluation, and rollback are library primitives. They do not control
+registry or agent-runtime traffic without an embedding application.
 """
 
 from skillctl.deployment.engine import DeploymentEngine, DeploymentError

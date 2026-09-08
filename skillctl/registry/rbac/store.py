@@ -31,6 +31,7 @@ from skillctl.registry.rbac.models import (
     RoleAssignment,
     role_from_str,
 )
+from skillctl.registry.migrations import Migration, apply_migrations, has_column
 
 # ---------------------------------------------------------------------------
 # Password hashing (stdlib pbkdf2; no external deps)
@@ -132,6 +133,19 @@ _CREATE_INDEXES = [
 ]
 
 
+def _add_identity_token_columns(conn: sqlite3.Connection) -> None:
+    for column, sql_type in (
+        ("user_id", "TEXT"),
+        ("scopes", "TEXT"),
+        ("last_used_at", "TEXT"),
+    ):
+        if not has_column(conn, "tokens", column):
+            conn.execute(f"ALTER TABLE tokens ADD COLUMN {column} {sql_type}")
+
+
+_MIGRATIONS = (Migration(1, "add-identity-token-columns", _add_identity_token_columns),)
+
+
 class RBACStore:
     """RBAC persistence over a shared SQLite connection."""
 
@@ -143,20 +157,10 @@ class RBACStore:
     def initialize(self) -> None:
         """Create RBAC tables and migrate the tokens table. Idempotent."""
         self.conn.executescript(_CREATE_USERS + _CREATE_ROLE_ASSIGNMENTS + _CREATE_NAMESPACES + _CREATE_AUTH_DECISIONS)
-        self._migrate_tokens_table()
+        apply_migrations(self.conn, "rbac", _MIGRATIONS)
         for idx in _CREATE_INDEXES:
             self.conn.execute(idx)
         self.conn.commit()
-
-    def _migrate_tokens_table(self) -> None:
-        """Add ``user_id`` / ``scopes`` columns to the existing tokens table."""
-        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(tokens)").fetchall()}
-        if "user_id" not in cols:
-            self.conn.execute("ALTER TABLE tokens ADD COLUMN user_id TEXT")
-        if "scopes" not in cols:
-            self.conn.execute("ALTER TABLE tokens ADD COLUMN scopes TEXT")
-        if "last_used_at" not in cols:
-            self.conn.execute("ALTER TABLE tokens ADD COLUMN last_used_at TEXT")
 
     # -- users ---------------------------------------------------------------
 

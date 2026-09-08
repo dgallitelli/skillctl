@@ -1,12 +1,13 @@
-"""Multi-registry federation (Milestone 4).
+"""Experimental programmatic artifact promotion between two registries.
 
 Promote a skill version from one registry to another (dev → staging → prod) with
-a role gate (enforced by the target registry's RBAC) and an optional compliance
-gate. Works over HTTP clients so it is testable against in-process registries.
+the target registry's normal RBAC. Trusted compliance verification is not
+implemented, so compliance-gated calls fail closed.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import Optional
@@ -46,13 +47,21 @@ def promote_skill(
     """Pull ``name@version`` from *source_client* and publish it via *target_client*.
 
     The target registry's RBAC enforces *who* may publish/promote into
-    ``target_namespace``. The compliance gate (``require_compliance``) blocks
-    promotion to higher environments unless ``compliance_ok`` is True.
+    ``target_namespace``. Compliance-gated promotion fails closed because the
+    local control-mapping reports are explicitly non-enforcing; a future
+    signed-evidence verifier must replace the legacy caller-supplied boolean.
     """
-    if require_compliance and not compliance_ok:
+    if require_compliance:
+        if not compliance_ok:
+            reason = compliance_reason or "report not passing"
+        else:
+            reason = (
+                "no trusted compliance verifier is configured; "
+                "caller-supplied status and control-mapping previews cannot authorize promotion"
+            )
         return PromotionResult(
             promoted=False,
-            reason=f"Compliance gate failed: {compliance_reason or 'report not passing'}",
+            reason=f"Compliance gate failed: {reason}",
             name=name,
             version=version,
             target_namespace=target_namespace,
@@ -69,12 +78,24 @@ def promote_skill(
     if content_resp.status_code != 200:
         raise FederationError(f"Source content for {name}@{version} missing ({content_resp.status_code})")
     content = content_resp.content
+    artifact_resp = source_client.get(f"/api/v1/skills/{ns}/{skill}/{version}/artifact")
+    if artifact_resp.status_code != 200:
+        raise FederationError(f"Source artifact for {name}@{version} missing ({artifact_resp.status_code})")
+    artifact = artifact_resp.content
+    source_artifact_hash = hashlib.sha256(artifact).hexdigest()
 
     # 2. Create on the target registry (RBAC: requires skill:create).
     create = target_client.post(
         "/api/v1/skills",
         data={"manifest": json.dumps(manifest), "namespace": target_namespace},
-        files={"content": ("SKILL.md", content, "application/octet-stream")},
+        files={
+            "content": ("SKILL.md", content, "application/octet-stream"),
+            "artifact": (
+                "artifact.zip",
+                artifact,
+                "application/vnd.skillctl.artifact.v1+zip",
+            ),
+        },
     )
     if create.status_code == 403:
         return PromotionResult(
@@ -87,6 +108,14 @@ def promote_skill(
         )
     if create.status_code not in (201, 409):  # 409 = already present, treat as idempotent
         raise FederationError(f"Create on target failed ({create.status_code}): {create.text}")
+    if create.status_code == 409:
+        existing = target_client.get(f"/api/v1/skills/{ns}/{skill}/{version}")
+        existing_hash = existing.json().get("artifact_hash") if existing.status_code == 200 else None
+        if existing_hash != source_artifact_hash:
+            raise FederationError(
+                "Create on target conflicted with a different immutable artifact "
+                f"(source={source_artifact_hash}, target={existing_hash or 'unknown'})"
+            )
 
     # 3. Publish on the target registry (RBAC: requires skill:publish).
     publish = target_client.post(

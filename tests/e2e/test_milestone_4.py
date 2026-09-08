@@ -308,8 +308,9 @@ def test_e2e_multi_registry_promotion(tmp_path):
     )
     assert not blocked.promoted and "Compliance gate" in blocked.reason
 
-    # Promote to prod as ADMIN with compliance PASSED → succeeds.
-    ok = promote_skill(
+    # A caller-supplied "passed" boolean is not trusted evidence. Until a
+    # signed verifier exists, compliance-gated promotion fails closed.
+    unverified = promote_skill(
         source_client=stg_admin_client,
         target_client=_client(prod_app, prod_admin["token"]),
         name="demo/tool",
@@ -318,4 +319,5 @@ def test_e2e_multi_registry_promotion(tmp_path):
         require_compliance=True,
         compliance_ok=True,
     )
-    assert ok.promoted, ok.reason
+    assert not unverified.promoted
+    assert "no trusted compliance verifier" in unverified.reason

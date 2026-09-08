@@ -4,13 +4,21 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./registry-data:/data
+      - registry-data:/data
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: "1"
+      # Set this from a secret manager for production. When absent, the image
+      # creates a persistent development key in the named data volume.
+      SKILLCTL_HMAC_KEY: ${SKILLCTL_HMAC_KEY:-}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
+
+volumes:
+  registry-data:

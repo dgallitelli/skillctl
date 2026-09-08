@@ -1,7 +1,8 @@
-"""Runtime policy enforcement for SkillsOps (Milestone 2).
+"""Experimental, opt-in runtime policy hooks for SkillsOps.
 
-A pipeline of pre/post-execution hooks evaluates every skill invocation. The
-:class:`SkillInterceptor` is the runtime entry point ("air marshal").
+The registry and installed agent runtimes do not invoke these hooks. An
+embedding execution host must explicitly route calls through
+:class:`SkillInterceptor`.
 """
 
 from skillctl.policy.engine import PolicyEngine

@@ -108,7 +108,8 @@ def run_unified_report(
     sections: dict = {}
     audit_norm: Optional[float] = None
     contract_norm: Optional[float] = None
-    overall_passed = True
+    # A report with no checks is not a successful governance decision.
+    overall_passed = include_audit or include_contract
 
     # ---- Security audit (80%) ----
     if include_audit:
@@ -129,6 +130,9 @@ def run_unified_report(
         except Exception as exc:
             print(f"Audit error: {exc}", file=sys.stderr)
             sections["audit"] = {"error": str(exc)}
+            overall_passed = False
+    else:
+        sections["audit"] = {"skipped": True}
 
     # ---- Schema contract (20%) ----
     if include_contract:
@@ -146,6 +150,9 @@ def run_unified_report(
         except Exception as exc:
             print(f"Contract error: {exc}", file=sys.stderr)
             sections["contract"] = {"error": str(exc)}
+            overall_passed = False
+    else:
+        sections["contract"] = {"skipped": True}
 
     # ---- Overall grade ----
     overall_score = compute_weighted_score(audit_norm, contract_norm)

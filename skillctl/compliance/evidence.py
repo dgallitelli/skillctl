@@ -33,6 +33,7 @@ class EvidenceCollector:
         attestation_store=None,
         deployment_store=None,
         registry_db=None,
+        audit_hmac_key: Optional[bytes] = None,
     ) -> None:
         self.skill_path = skill_path
         self.audit_log_path = Path(audit_log_path) if audit_log_path else None
@@ -40,6 +41,8 @@ class EvidenceCollector:
         self.attestation_store = attestation_store
         self.deployment_store = deployment_store
         self.registry_db = registry_db
+        self.audit_hmac_key = audit_hmac_key
+        self.collection_errors: list[dict] = []
 
     def collect_for_control(
         self,
@@ -82,7 +85,7 @@ class EvidenceCollector:
             if etype == EvidenceType.POLICY_EVALUATION:
                 return self._policy(skill_name)
             if etype == EvidenceType.RBAC_ASSIGNMENT:
-                return self._rbac()
+                return self._rbac(skill_name)
             if etype == EvidenceType.SKILL_METADATA:
                 return self._metadata()
             if etype == EvidenceType.VERSION_HISTORY:
@@ -90,10 +93,17 @@ class EvidenceCollector:
             if etype == EvidenceType.DEPLOYMENT_RECORD:
                 return self._deployment(skill_name)
             if etype == EvidenceType.MANUAL_ATTESTATION:
-                return self._attestation(control.id, skill_name, skill_version)
+                return self._attestation(control.id, skill_name, skill_version, framework_id)
             if etype == EvidenceType.OTEL_TRACE:
                 return []  # No trace backend queried in this build.
-        except Exception:  # noqa: BLE001 - evidence collection must never crash a report
+        except Exception as exc:  # noqa: BLE001 - failures become explicit missing evidence
+            self.collection_errors.append(
+                {
+                    "control_id": control.id,
+                    "evidence_type": etype.value,
+                    "error": str(exc),
+                }
+            )
             return []
         return []
 
@@ -157,19 +167,54 @@ class EvidenceCollector:
 
     def _audit_integrity(self) -> dict:
         if not self.audit_log_path:
-            return {}
-        # Structural presence here; key-based HMAC verification happens in the
-        # registry (which holds the signing key).
-        return {"chain_present": True, "log": str(self.audit_log_path)}
+            return {"verified": False, "reason": "audit log path unavailable"}
+        if self.audit_hmac_key is None:
+            return {
+                "verified": False,
+                "reason": "HMAC key unavailable",
+                "log": str(self.audit_log_path),
+            }
+        from skillctl.registry.audit import AuditLogger
 
-    def _rbac(self) -> list[dict]:
+        valid, invalid, parse_errors = AuditLogger(
+            self.audit_log_path,
+            hmac_key=self.audit_hmac_key,
+        ).verify_integrity()
+        return {
+            "verified": valid > 0 and invalid == 0 and parse_errors == 0,
+            "valid": valid,
+            "invalid": invalid,
+            "parse_errors": parse_errors,
+            "log": str(self.audit_log_path),
+        }
+
+    def _rbac(self, skill_name: str) -> list[dict]:
         if self.rbac_store is None:
             return []
         try:
-            users = self.rbac_store.count_users()
             decisions = self.rbac_store.read_decisions(limit=1000)
-            denials = sum(1 for d in decisions if not d.get("allowed"))
-            return [{"users": users, "auth_decisions": len(decisions), "denials": denials}]
+            scoped = []
+            for decision in decisions:
+                context = decision.get("request_context")
+                if isinstance(context, str):
+                    try:
+                        context = json.loads(context)
+                    except json.JSONDecodeError:
+                        context = {}
+                resource = (context or {}).get("resource", "")
+                if skill_name in resource:
+                    scoped.append(decision)
+            if not scoped:
+                return []
+            denials = sum(1 for decision in scoped if not decision.get("allowed"))
+            return [
+                {
+                    "subject_scoped": True,
+                    "auth_decisions": len(scoped),
+                    "denials": denials,
+                    "namespaces": sorted({d["namespace"] for d in scoped if d.get("namespace")}),
+                }
+            ]
         except Exception:  # noqa: BLE001
             return []
 
@@ -180,6 +225,7 @@ class EvidenceCollector:
 
         manifest, _ = ManifestLoader().load(self.skill_path)
         md = manifest.metadata
+        governance = manifest.governance or {}
         return [
             {
                 "name": md.name,
@@ -189,6 +235,9 @@ class EvidenceCollector:
                 "category": md.category,
                 "capabilities": manifest.spec.capabilities,
                 "tags": md.tags,
+                "data_sources": governance.get("data_sources"),
+                "accuracy_metrics": governance.get("accuracy_metrics"),
+                "allowed_tools": governance.get("allowed_tools"),
             }
         ]
 
@@ -211,20 +260,32 @@ class EvidenceCollector:
             deployments = self.deployment_store.list_for_skill(skill_name)
             if not deployments:
                 return []
+            rollback_capable = any(bool(deployment.get("from_version")) for deployment in deployments)
             return [
                 {
                     "deployment_count": len(deployments),
                     "strategies": sorted({d["strategy"] for d in deployments}),
-                    "rollback_capable": True,
+                    "rollback_capable": rollback_capable,
                 }
             ]
         except Exception:  # noqa: BLE001
             return []
 
-    def _attestation(self, control_id: str, skill_name: str, skill_version: str) -> list[dict]:
+    def _attestation(
+        self,
+        control_id: str,
+        skill_name: str,
+        skill_version: str,
+        framework_id: str,
+    ) -> list[dict]:
         if self.attestation_store is None:
             return []
-        att = self.attestation_store.get_active(control_id, skill_name, skill_version)
+        att = self.attestation_store.get_active(
+            control_id,
+            skill_name,
+            skill_version,
+            framework_id=framework_id,
+        )
         if att is None:
             return []
         return [att.to_dict()]

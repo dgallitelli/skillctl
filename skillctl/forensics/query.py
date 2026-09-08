@@ -1,8 +1,7 @@
-"""Incident forensics toolkit (Milestone 4).
+"""Experimental queries over caller-recorded lineage and optional audit files.
 
-Answers investigative questions over the data-lineage store and the HMAC audit
-log: "what did skill X do between A and B?", "who accessed customer data?",
-"which invocations of skill X touched PII in this window?".
+Results are only as complete and trustworthy as the records supplied by the
+embedding application.
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -27,6 +27,8 @@ class InstallRecord:
     scope: str  # "project" or "global"
     installed_at: str
     content_hash: str
+    artifact_root: str | None = None
+    resources: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -141,7 +143,13 @@ class InstallationTracker:
         if not path.exists():
             return True
         current_hash = hashlib.sha256(path.read_bytes()).hexdigest()
-        return current_hash != record.content_hash
+        if current_hash != record.content_hash:
+            return True
+        return any(
+            not Path(resource_path).is_file()
+            or hashlib.sha256(Path(resource_path).read_bytes()).hexdigest() != expected_hash
+            for resource_path, expected_hash in record.resources.items()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -404,6 +412,15 @@ def install_skill(
 
     name, version = parse_ref(ref)
     content_bytes, entry = store.pull(name, version)
+    artifact_bytes, _ = store.pull_artifact(name, version)
+    from skillctl.artifact import inspect_artifact
+
+    artifact = inspect_artifact(
+        artifact_bytes,
+        expected_name=name,
+        expected_version=version,
+        expected_content=content_bytes,
+    )
     skill_content = content_bytes.decode("utf-8", errors="replace")
 
     if not skill_content.strip():
@@ -450,6 +467,16 @@ def install_skill(
 
         formatted = cfg.format_fn(skill_basename, frontmatter, body)
         content_hash = hashlib.sha256(formatted.encode()).hexdigest()
+        artifact_root = (
+            target_path.parent
+            if target_name == "claude"
+            else target_path.parent / ".skillctl-artifacts" / skill_basename / version
+        )
+        resource_files = {
+            artifact_root.joinpath(*Path(item.path).parts): item
+            for item in artifact.files
+            if not (target_name == "claude" and item.path == "SKILL.md")
+        }
 
         if dry_run:
             results.append(
@@ -462,14 +489,36 @@ def install_skill(
             )
             continue
 
+        conflicts = [
+            path
+            for path, item in resource_files.items()
+            if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != item.sha256
+        ]
+        if conflicts and not force:
+            results.append(
+                InstallResult(
+                    target=target_name,
+                    success=False,
+                    path=str(target_path),
+                    message=f"Supporting file already exists with different content: {conflicts[0]}",
+                )
+            )
+            continue
+
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(formatted)
+        for resource_path, item in resource_files.items():
+            resource_path.parent.mkdir(parents=True, exist_ok=True)
+            resource_path.write_bytes(item.content)
+            resource_path.chmod(item.mode)
 
         record = InstallRecord(
             path=str(target_path),
             scope="global" if global_scope else "project",
             installed_at=datetime.now(timezone.utc).isoformat(),
             content_hash=content_hash,
+            artifact_root=str(artifact_root),
+            resources={str(path): item.sha256 for path, item in resource_files.items()},
         )
         tracker.add(ref, target_name, record)
         results.append(
@@ -477,7 +526,11 @@ def install_skill(
                 target=target_name,
                 success=True,
                 path=str(target_path),
-                message=f"Installed to {target_path}",
+                message=(
+                    f"Installed to {target_path}"
+                    if target_name == "claude"
+                    else f"Installed to {target_path}; supporting files preserved at {artifact_root}"
+                ),
             )
         )
 
@@ -517,8 +570,18 @@ def uninstall_skill(
 
         if path.exists():
             path.unlink()
-            if path.parent.is_dir() and not any(path.parent.iterdir()):
-                path.parent.rmdir()
+        for resource_path, expected_hash in record.resources.items():
+            resource = Path(resource_path)
+            if resource.is_file() and hashlib.sha256(resource.read_bytes()).hexdigest() == expected_hash:
+                resource.unlink()
+
+        artifact_root = Path(record.artifact_root) if record.artifact_root else path.parent
+        current = artifact_root
+        while current != current.parent and current.is_dir() and not any(current.iterdir()):
+            current.rmdir()
+            if current == path.parent:
+                break
+            current = current.parent
 
         tracker.remove(ref, target_name)
         results.append(

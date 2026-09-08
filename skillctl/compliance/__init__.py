@@ -1,8 +1,9 @@
-"""Compliance mapping for SkillsOps (Milestone 3).
+"""Experimental, non-certifying compliance control mapping for SkillsOps.
 
 Maps governance primitives (security scan, RBAC, policy, audit, deployment) to
 regulatory framework controls (EU AI Act, ISO/IEC 42001, NIST AI RMF) and
-generates audit-ready evidence reports.
+generates deterministic local previews. Reports are not certification or
+enforcement decisions.
 """
 
 from skillctl.compliance.attestation import Attestation, AttestationStore
