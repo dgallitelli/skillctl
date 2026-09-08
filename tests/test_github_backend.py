@@ -14,8 +14,15 @@ from skillctl.registry.storage import NotFoundError
 
 
 @pytest.fixture
-def git_repo(tmp_path):
+def git_repo(tmp_path, monkeypatch):
     """Create a bare git repo and a GitHubBackend clone of it."""
+    # Simulate a clean service/CI host with no global Git identity. The
+    # one-off identity below creates the seed commit without persisting config;
+    # GitHubBackend.setup() must configure its own fallback for later commits.
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_text("")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
     bare = tmp_path / "remote.git"
     subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True)
 
@@ -32,7 +39,22 @@ def git_repo(tmp_path):
     subprocess.run(["git", "clone", str(bare), str(clone_dir)], check=True, capture_output=True)
     (clone_dir / "README.md").write_text("# Skill Registry\n")
     subprocess.run(["git", "add", "-A"], cwd=str(clone_dir), check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=str(clone_dir), check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=SkillsOps Test",
+            "-c",
+            "user.email=skillsops-test@localhost",
+            "commit",
+            "-m",
+            "init",
+        ],
+        cwd=str(clone_dir),
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "branch", "-M", "main"], cwd=str(clone_dir), check=True, capture_output=True)
     subprocess.run(["git", "push", "origin", "main"], cwd=str(clone_dir), check=True, capture_output=True)
 
     # Now set up properly via setup()

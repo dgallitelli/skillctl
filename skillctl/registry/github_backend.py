@@ -118,6 +118,7 @@ class GitHubBackend(StorageBackend):
                     text=True,
                     env=env,
                 )
+        self._ensure_commit_identity()
         self._skills_dir.mkdir(exist_ok=True)
 
     # ------------------------------------------------------------------
@@ -413,6 +414,20 @@ class GitHubBackend(StorageBackend):
     # ------------------------------------------------------------------
     # Git helpers
     # ------------------------------------------------------------------
+
+    def _ensure_commit_identity(self) -> None:
+        """Configure a repository-local fallback identity when none exists."""
+        defaults = {
+            "user.name": "SkillsOps Registry",
+            "user.email": "skillctl@localhost",
+        }
+        for key, value in defaults.items():
+            try:
+                configured = self._git("config", "--get", key).stdout.strip()
+            except subprocess.CalledProcessError:
+                configured = ""
+            if not configured:
+                self._git("config", "--local", key, value)
 
     def _git_env(self):
         """Yield an env dict configured for non-interactive token auth.
