@@ -1,7 +1,8 @@
-"""Federated identity for SkillsOps (Milestone 4).
+"""Experimental local identity-token utilities for SkillsOps.
 
-OIDC (HS256 JWT) identity validation with group→role mapping that feeds the
-existing RBAC engine. SAML and RS256/JWKS are optional extensions.
+HS256 JWT validation and group→role mapping are available to embedding
+applications. The registry does not use this package for authentication, and
+OIDC discovery/JWKS validation is not implemented.
 """
 
 from skillctl.identity.models import (

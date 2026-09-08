@@ -8,15 +8,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from skillctl.artifact import build_artifact, build_minimal_artifact, inspect_artifact
+from skillctl.manifest import ManifestLoader
 from skillctl.registry.api import api_router
 from skillctl.registry.audit import AuditLogger
 from skillctl.registry.auth import AuthManager
 from skillctl.registry.db import MetadataDB
+from skillctl.registry.rbac.engine import RBACEngine
+from skillctl.registry.rbac.models import Role
+from skillctl.registry.rbac.store import RBACStore
 from skillctl.registry.storage import FilesystemBackend
 
 
@@ -70,6 +76,18 @@ def auth_client(auth_app):
     return TestClient(auth_app)
 
 
+@pytest.fixture
+def rbac_app(tmp_path):
+    """App with identity-bound RBAC enabled."""
+    app = _create_app(tmp_path, auth_disabled=False)
+    store = RBACStore(app.state.db.conn)
+    store.initialize()
+    app.state.rbac_store = store
+    app.state.rbac_engine = RBACEngine(store)
+    yield app
+    app.state.db.close()
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -96,14 +114,45 @@ SKILL_CONTENT = b"# Code Reviewer\nReview code for quality issues."
 def _publish(
     client: TestClient, manifest: dict | None = None, content: bytes | None = None, headers: dict | None = None
 ):
-    """Helper to publish a skill."""
+    """Helper to create and publish a skill."""
     m = manifest or VALID_MANIFEST
     c = content or SKILL_CONTENT
-    return client.post(
+    response = client.post(
         "/api/v1/skills",
         data={"manifest": json.dumps(m)},
         files={"content": ("SKILL.md", c, "application/octet-stream")},
         headers=headers or {},
+    )
+    if response.status_code == 201:
+        client.post(
+            "/api/v1/skills/publish",
+            json={"name": m["metadata"]["name"], "version": m["metadata"]["version"]},
+            headers=headers or {},
+        )
+    return response
+
+
+def _role_client(app: FastAPI, username: str, role: Role, namespace: str) -> TestClient:
+    store: RBACStore = app.state.rbac_store
+    user_id = store.create_user(username, "test-password")
+    store.add_assignment(user_id, role, namespace, assigned_by="test")
+    raw_token, _ = store.create_token(user_id, name=f"{username}-token", scopes=["*"])
+    return TestClient(app, headers={"Authorization": f"Bearer {raw_token}"})
+
+
+def _create_in_namespace(client: TestClient, name: str, namespace: str, version: str = "1.0.0"):
+    manifest = {
+        **VALID_MANIFEST,
+        "metadata": {
+            **VALID_MANIFEST["metadata"],
+            "name": name,
+            "version": version,
+        },
+    }
+    return client.post(
+        "/api/v1/skills",
+        data={"manifest": json.dumps(manifest), "namespace": namespace},
+        files={"content": ("SKILL.md", SKILL_CONTENT, "application/octet-stream")},
     )
 
 
@@ -118,8 +167,19 @@ class TestHealth:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
+        assert data["storage_status"] == "unknown"
         assert "version" in data
         assert data["skills_count"] == 0
+
+    def test_health_reports_degraded_storage(self, app):
+        app.state.storage_consistency = SimpleNamespace(status="degraded")
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/health")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "degraded"
+        assert response.json()["storage_status"] == "degraded"
 
     def test_health_reflects_skill_count(self, client: TestClient):
         _publish(client)
@@ -141,7 +201,59 @@ class TestPublish:
         assert data["version"] == "1.0.0"
         assert data["namespace"] == "my-org"
         assert data["content_hash"]  # non-empty
+        assert data["artifact_hash"]  # complete artifact identity
         assert data["tags"] == ["code-review", "quality"]
+
+    def test_publish_preserves_complete_artifact(self, client: TestClient, tmp_path: Path):
+        skill = tmp_path / "complete"
+        (skill / "scripts").mkdir(parents=True)
+        (skill / "references").mkdir()
+        manifest_dict = {
+            **VALID_MANIFEST,
+            "spec": {"content": {"path": "SKILL.md"}},
+        }
+        (skill / "skill.yaml").write_text(json.dumps(manifest_dict))
+        (skill / "SKILL.md").write_bytes(SKILL_CONTENT)
+        (skill / "scripts" / "run.py").write_text("print('ok')\n")
+        (skill / "references" / "guide.md").write_text("# Guide\n")
+        manifest = ManifestLoader()._dict_to_manifest(manifest_dict)
+        artifact = build_artifact(skill, manifest, SKILL_CONTENT)
+
+        response = client.post(
+            "/api/v1/skills",
+            data={"manifest": json.dumps(manifest_dict)},
+            files={
+                "content": ("SKILL.md", SKILL_CONTENT, "application/octet-stream"),
+                "artifact": (
+                    "artifact.zip",
+                    artifact,
+                    "application/vnd.skillctl.artifact.v1+zip",
+                ),
+            },
+        )
+
+        assert response.status_code == 201
+        downloaded = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0/artifact")
+        assert downloaded.status_code == 200
+        verified = inspect_artifact(downloaded.content)
+        assert verified.file("scripts/run.py").content == b"print('ok')\n"
+        assert verified.file("references/guide.md").content == b"# Guide\n"
+
+    def test_publish_rejects_artifact_content_mismatch(self, client: TestClient):
+        manifest = ManifestLoader()._dict_to_manifest(VALID_MANIFEST)
+        artifact = build_minimal_artifact(manifest, b"different content")
+
+        response = client.post(
+            "/api/v1/skills",
+            data={"manifest": json.dumps(VALID_MANIFEST)},
+            files={
+                "content": ("SKILL.md", SKILL_CONTENT, "application/octet-stream"),
+                "artifact": ("artifact.zip", artifact, "application/zip"),
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"]["code"] == "E_ARTIFACT_CONTENT_MISMATCH"
 
     def test_publish_duplicate_returns_409(self, client: TestClient):
         resp1 = _publish(client)
@@ -497,6 +609,122 @@ class TestAuthFlows:
 
 
 # ---------------------------------------------------------------------------
+# Registry trust boundaries
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryTrustBoundaries:
+    def test_publisher_cannot_mint_legacy_admin_token(self, rbac_app):
+        publisher = _role_client(rbac_app, "publisher", Role.PUBLISHER, "*")
+
+        resp = publisher.post(
+            "/api/v1/tokens",
+            json={"name": "escalated", "permissions": ["admin"]},
+        )
+
+        assert resp.status_code == 403
+        assert "cannot delegate" in json.dumps(resp.json()).lower()
+
+    def test_publisher_can_delegate_equivalent_scoped_write(self, rbac_app):
+        publisher = _role_client(rbac_app, "publisher", Role.PUBLISHER, "*")
+
+        resp = publisher.post(
+            "/api/v1/tokens",
+            json={"name": "team-writer", "permissions": ["write:org/team-a"]},
+        )
+
+        assert resp.status_code == 201
+
+    def test_artifact_uses_stored_rbac_namespace_for_publish(self, rbac_app):
+        team_a = _role_client(rbac_app, "team-a-publisher", Role.PUBLISHER, "org/team-a")
+        team_b = _role_client(rbac_app, "team-b-publisher", Role.PUBLISHER, "org/team-b")
+
+        created = _create_in_namespace(team_a, "catalog/tool", "org/team-a")
+        assert created.status_code == 201
+        assert created.json()["namespace"] == "org/team-a"
+
+        denied = team_b.post(
+            "/api/v1/skills/publish",
+            json={"name": "catalog/tool", "version": "1.0.0", "namespace": "org/team-b"},
+        )
+        assert denied.status_code == 403
+
+        published = team_a.post(
+            "/api/v1/skills/publish",
+            json={"name": "catalog/tool", "version": "1.0.0", "namespace": "org/team-a"},
+        )
+        assert published.status_code == 200
+
+    def test_publish_transition_is_idempotent_and_audited_once(self, rbac_app):
+        publisher = _role_client(rbac_app, "idempotent-publisher", Role.PUBLISHER, "org/team-a")
+        created = _create_in_namespace(publisher, "catalog/once", "org/team-a")
+        assert created.status_code == 201
+
+        body = {
+            "name": "catalog/once",
+            "version": "1.0.0",
+            "namespace": "org/team-a",
+        }
+        first = publisher.post("/api/v1/skills/publish", json=body)
+        second = publisher.post("/api/v1/skills/publish", json=body)
+
+        assert first.status_code == 200
+        assert first.json()["changed"] is True
+        assert second.status_code == 200
+        assert second.json()["changed"] is False
+        events = rbac_app.state.audit.read(action="skill.published")
+        matching = [event for event in events if event.resource == "catalog/once@1.0.0"]
+        assert len(matching) == 1
+
+    def test_namespace_cannot_change_between_versions(self, rbac_app):
+        team_a = _role_client(rbac_app, "team-a-owner", Role.PUBLISHER, "org/team-a")
+        global_admin = _role_client(rbac_app, "global-admin", Role.ADMIN, "*")
+
+        assert _create_in_namespace(team_a, "catalog/stable", "org/team-a").status_code == 201
+        moved = _create_in_namespace(global_admin, "catalog/stable", "org/team-b", version="2.0.0")
+
+        assert moved.status_code == 409
+        assert "namespace" in json.dumps(moved.json()).lower()
+
+    def test_viewer_cannot_discover_or_download_draft(self, rbac_app):
+        author = _role_client(rbac_app, "author", Role.AUTHOR, "org/team-a")
+        viewer = _role_client(rbac_app, "viewer", Role.VIEWER, "org/team-a")
+
+        created = _create_in_namespace(author, "catalog/draft", "org/team-a")
+        assert created.status_code == 201
+
+        listing = viewer.get("/api/v1/skills", params={"namespace": "org/team-a"})
+        assert listing.status_code == 200
+        assert listing.json()["total"] == 0
+
+        assert viewer.get("/api/v1/skills/catalog/draft/1.0.0").status_code == 404
+        assert viewer.get("/api/v1/skills/catalog/draft/1.0.0/content").status_code == 404
+        assert (
+            viewer.get(
+                "/api/v1/skills",
+                params={"namespace": "org/team-a", "include_drafts": "true"},
+            ).status_code
+            == 403
+        )
+
+        author_listing = author.get(
+            "/api/v1/skills",
+            params={"namespace": "org/team-a", "include_drafts": "true"},
+        )
+        assert author_listing.status_code == 200
+        assert author_listing.json()["total"] == 1
+        assert author.get("/api/v1/skills/catalog/draft/1.0.0").status_code == 200
+
+    def test_remote_registry_rejects_bare_skill_name(self, rbac_app):
+        author = _role_client(rbac_app, "bare-author", Role.AUTHOR, "org/team-a")
+
+        created = _create_in_namespace(author, "bare-name", "org/team-a")
+
+        assert created.status_code == 400
+        assert "namespace" in json.dumps(created.json()).lower()
+
+
+# ---------------------------------------------------------------------------
 # Full lifecycle
 # ---------------------------------------------------------------------------
 
@@ -523,7 +751,12 @@ class TestLifecycle:
         assert content_resp.status_code == 200
         assert content_resp.content == SKILL_CONTENT
 
-        # 5. Attach eval
+        # 5. Download and verify the complete artifact.
+        artifact_resp = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0/artifact")
+        assert artifact_resp.status_code == 200
+        assert inspect_artifact(artifact_resp.content).content_hash == content_hash
+
+        # 6. Attach eval
         eval_resp = client.put(
             "/api/v1/skills/my-org/code-reviewer/1.0.0/eval",
             json={"grade": "A", "score": 97.5},
@@ -531,20 +764,20 @@ class TestLifecycle:
         assert eval_resp.status_code == 200
         assert eval_resp.json()["eval_grade"] == "A"
 
-        # 6. Verify eval shows in detail
+        # 7. Verify eval shows in detail
         detail2 = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0")
         assert detail2.json()["eval_grade"] == "A"
         assert detail2.json()["eval_score"] == 97.5
 
-        # 7. Delete
+        # 8. Delete
         del_resp = client.delete("/api/v1/skills/my-org/code-reviewer/1.0.0")
         assert del_resp.status_code == 204
 
-        # 8. Verify gone
+        # 9. Verify gone
         gone_resp = client.get("/api/v1/skills/my-org/code-reviewer/1.0.0")
         assert gone_resp.status_code == 404
 
-        # 9. Health still works
+        # 10. Health still works
         health_resp = client.get("/api/v1/health")
         assert health_resp.status_code == 200
         assert health_resp.json()["skills_count"] == 0

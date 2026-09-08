@@ -1,8 +1,7 @@
-"""CI/CD pipeline templates for SkillsOps (Milestone 4).
+"""Preview CI/CD starter templates for SkillsOps.
 
-Ships ready-to-use governance pipelines for GitHub Actions, GitLab CI, and
-Jenkins that encode validate → audit → compliance → publish using real
-``skillctl`` commands.
+Templates encode validate, audit, control-mapping preview, and publish commands.
+Operators must review permissions, pinning, approvals, and secret management.
 """
 
 from __future__ import annotations

@@ -311,6 +311,7 @@ def apply_skill(
     # ``apply_skill`` from anything that runs during ``skillctl.cli``
     # module initialisation.
     from skillctl import cli as _cli
+    from skillctl.artifact import build_artifact
     from skillctl.manifest import ManifestLoader
     from skillctl.validator import SchemaValidator
 
@@ -362,10 +363,12 @@ def apply_skill(
     # 3. Resolve content
     base_dir = str(Path(path).parent) if Path(path).is_file() else path
     content = loader.resolve_content(manifest, base_dir)
+    content_bytes = content.encode()
+    artifact = build_artifact(path, manifest, content_bytes)
     ref = f"{manifest.metadata.name}@{manifest.metadata.version}"
 
     if dry_run:
-        push_result = store.push(manifest, content.encode(), dry_run=True)
+        push_result = store.push(manifest, content_bytes, dry_run=True, artifact=artifact)
         return ApplyResult(
             ref=ref,
             local_status="dry-run",
@@ -376,7 +379,7 @@ def apply_skill(
     # 4. Push to local store (idempotent)
     push_result: "PushResult | None" = None
     try:
-        push_result = store.push(manifest, content.encode())
+        push_result = store.push(manifest, content_bytes, artifact=artifact)
         local_status = "pushed"
     except SkillctlError as e:
         if e.code == "E_ALREADY_EXISTS":
@@ -399,7 +402,7 @@ def apply_skill(
             remote_status = "blocked (security)"
         else:
             try:
-                _cli._publish_to_registry(args_shim, manifest, content, resolved_registry)
+                _cli._publish_to_registry(args_shim, manifest, content, resolved_registry, artifact=artifact)
                 remote_status = "published"
             except Exception as e:  # noqa: BLE001 — preserve old behaviour
                 remote_status = f"failed ({e})"

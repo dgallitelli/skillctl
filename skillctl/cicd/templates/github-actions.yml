@@ -1,5 +1,6 @@
-# SkillsOps governance gate for GitHub Actions.
+# SkillsOps starter workflow for GitHub Actions.
 # Drop this in .github/workflows/skillsops.yml
+# Preview status: review permissions and pin dependencies before production use.
 name: SkillsOps Governance
 
 on:
@@ -40,8 +41,9 @@ jobs:
             skillctl eval report "$skill" --format json
           done
 
-      # 4. Compliance gate (PRs into main): non-zero exit on NON_COMPLIANT controls.
-      - name: Compliance report (EU AI Act)
+      # 4. Conservative local control-mapping check. This is non-certifying and
+      # does not establish regulatory compliance or verify human attestations.
+      - name: Control-mapping preview (EU AI Act)
         if: github.event_name == 'push'
         run: |
           for skill in skills/*/; do

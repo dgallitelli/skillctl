@@ -133,6 +133,22 @@ async def _lifespan(app: FastAPI):
         storage = FilesystemBackend(data_dir)
         app.state.github_backend = None
 
+    if isinstance(storage, FilesystemBackend):
+        storage_consistency = storage.check_consistency(db.referenced_blob_hashes())
+        if storage_consistency.status != "ok":
+            print(
+                "Registry storage consistency "
+                f"{storage_consistency.status}: "
+                f"missing={len(storage_consistency.missing)}, "
+                f"corrupted={len(storage_consistency.corrupted)}, "
+                f"orphaned={len(storage_consistency.orphaned)}, "
+                f"malformed={len(storage_consistency.malformed)}. "
+                "No files were changed.",
+                file=sys.stderr,
+            )
+    else:
+        storage_consistency = None
+
     auth_manager = AuthManager(db, disabled=config.auth_disabled)
 
     hmac_key = _resolve_hmac_key(config, data_dir)
@@ -170,6 +186,7 @@ async def _lifespan(app: FastAPI):
 
     app.state.db = db
     app.state.storage = storage
+    app.state.storage_consistency = storage_consistency
     app.state.auth_manager = auth_manager
     app.state.audit = audit
     app.state.rbac_store = rbac_store

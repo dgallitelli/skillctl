@@ -84,6 +84,18 @@ async def test_integrity_check_on_corrupted_blob(backend: FilesystemBackend):
         await backend.get_blob(h)
 
 
+@pytest.mark.anyio
+async def test_storing_again_repairs_corrupted_blob(backend: FilesystemBackend):
+    content = b"repairable content"
+    digest = await backend.store_blob(content)
+    backend._blob_path(digest).write_bytes(b"corrupted")
+
+    repaired_digest = await backend.store_blob(content)
+
+    assert repaired_digest == digest
+    assert await backend.get_blob(digest) == content
+
+
 # -- missing blob error -----------------------------------------------------
 
 
@@ -106,3 +118,39 @@ async def test_exists_returns_true_after_store(backend: FilesystemBackend):
 @pytest.mark.anyio
 async def test_exists_returns_false_for_missing(backend: FilesystemBackend):
     assert await backend.exists("ab" * 32) is False
+
+
+@pytest.mark.anyio
+async def test_consistency_inventory_reports_recovery_conditions(
+    backend: FilesystemBackend,
+):
+    corrupted = await backend.store_blob(b"referenced but corrupted")
+    orphaned = await backend.store_blob(b"not referenced")
+    missing = "cd" * 32
+    backend._blob_path(corrupted).write_bytes(b"tampered")
+    malformed = backend._blobs_dir / "bad" / "unexpected-name"
+    malformed.parent.mkdir(parents=True)
+    malformed.write_bytes(b"unknown")
+
+    report = backend.check_consistency({corrupted, missing})
+
+    assert report.status == "degraded"
+    assert report.missing == (missing,)
+    assert report.corrupted == (corrupted,)
+    assert report.orphaned == (orphaned,)
+    assert report.malformed == ("bad/unexpected-name",)
+
+
+@pytest.mark.anyio
+async def test_consistency_inventory_is_clean_for_referenced_blob(
+    backend: FilesystemBackend,
+):
+    digest = await backend.store_blob(b"referenced")
+
+    report = backend.check_consistency({digest})
+
+    assert report.status == "ok"
+    assert report.missing == ()
+    assert report.corrupted == ()
+    assert report.orphaned == ()
+    assert report.malformed == ()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from skillctl.registry.db import MetadataDB, SkillRecord
@@ -80,6 +82,7 @@ def test_insert_and_get_skill(db: MetadataDB):
     assert fetched.namespace == "my-org"
     assert fetched.version == "1.0.0"
     assert fetched.description == "Reviews code"
+    assert fetched.artifact_hash is None
     assert fetched.tags == ["code-review"]
     assert fetched.authors == [{"name": "Alice", "email": "alice@example.com"}]
 
@@ -92,6 +95,32 @@ def test_insert_duplicate_raises(db: MetadataDB):
     db.insert_skill(_make_skill())
     with pytest.raises(Exception):  # sqlite3.IntegrityError
         db.insert_skill(_make_skill())
+    assert db.count_search() == 1
+
+
+def test_lifecycle_transition_is_atomic_under_concurrency(tmp_path):
+    db = MetadataDB(tmp_path / "concurrent.db", check_same_thread=False)
+    db.initialize()
+    db.insert_skill(_make_skill(status="draft"))
+    try:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(
+                executor.map(
+                    lambda _: db.transition_skill_status(
+                        "my-org/code-reviewer",
+                        "1.0.0",
+                        expected="draft",
+                        target="published",
+                    ),
+                    range(16),
+                )
+            )
+
+        assert results.count("transitioned") == 1
+        assert results.count("already") == 15
+        assert db.get_skill("my-org/code-reviewer", "1.0.0").status == "published"
+    finally:
+        db.close()
 
 
 # -- get_versions -----------------------------------------------------------
@@ -253,6 +282,18 @@ def test_count_search(db: MetadataDB):
 
     total_other = db.count_search(namespace="other-org")
     assert total_other == 0
+
+
+def test_search_status_filter(db: MetadataDB):
+    db.insert_skill(_make_skill(name="my-org/draft", status="draft"))
+    db.insert_skill(_make_skill(name="my-org/published", status="published"))
+
+    published = db.search(status="published")
+    drafts = db.search(status="draft")
+
+    assert [record.name for record in published] == ["my-org/published"]
+    assert [record.name for record in drafts] == ["my-org/draft"]
+    assert db.count_search(status="published") == 1
 
 
 # -- edge cases --------------------------------------------------------------

@@ -31,10 +31,22 @@ jobs:
           python-version: "3.13"
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build twine
+
+      - name: Verify release candidate
+        run: |
+          pip install -e ".[dev,server,plugin,observability]" ruff pyright
+          pytest tests/ -m "not integration" -q
+          pytest tests/e2e -q
+          ruff check skillctl/ plugin/ tests/
+          ruff format --check skillctl/ plugin/ tests/
+          pyright skillctl/ --pythonversion 3.10
 
       - name: Build package
         run: python -m build
+
+      - name: Validate package metadata
+        run: twine check dist/*
 
       - name: Verify the built version matches the tag
         run: |

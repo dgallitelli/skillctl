@@ -760,28 +760,47 @@ def cmd_get_skill(args):
     name, version = _parse_ref(args.ref)
 
     if getattr(args, "remote", False):
-        # Pull from remote registry
+        # Pull the complete artifact from the remote registry.
+        from skillctl.artifact import extract_artifact
+
         registry_url = _require_registry_url(args)
         token = _get_registry_token(args)
         ns, skill_name = name.split("/", 1) if "/" in name else ("", name)
-        url = f"{registry_url}/api/v1/skills/{ns}/{skill_name}/{version}/content"
-        content = _registry_request("GET", url, token=token)
-
         output_dir = Path(getattr(args, "output", "."))
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / "SKILL.md"
-        output_file.write_bytes(content)
-        print(f"✓ Pulled {name}@{version} from remote to {output_file}")
+        artifact_url = f"{registry_url}/api/v1/skills/{ns}/{skill_name}/{version}/artifact"
+        try:
+            artifact = _registry_request("GET", artifact_url, token=token)
+            extract_artifact(
+                artifact,
+                output_dir,
+                expected_name=name,
+                expected_version=version,
+            )
+            print(f"✓ Pulled {name}@{version} from remote to {output_dir}")
+        except SkillctlError as exc:
+            # Compatibility with registries released before complete artifacts.
+            if exc.code != "E_REGISTRY_HTTP" or "HTTP 404" not in exc.what:
+                raise
+            content_url = f"{registry_url}/api/v1/skills/{ns}/{skill_name}/{version}/content"
+            content = _registry_request("GET", content_url, token=token)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_file = output_dir / "SKILL.md"
+            output_file.write_bytes(content)
+            print(f"✓ Pulled {name}@{version} from legacy remote to {output_file}")
     else:
-        # Pull from local store
-        store = ContentStore()
-        content, entry = store.pull(name, version)
+        # Pull and verify the complete artifact from the local store.
+        from skillctl.artifact import extract_artifact
 
+        store = ContentStore()
+        artifact, entry = store.pull_artifact(name, version)
         output_dir = Path(getattr(args, "output", "."))
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / "SKILL.md"
-        output_file.write_bytes(content)
-        print(f"✓ Pulled {name}@{version} to {output_file}")
+        extract_artifact(
+            artifact,
+            output_dir,
+            expected_name=name,
+            expected_version=version,
+        )
+        print(f"✓ Pulled {name}@{version} to {output_dir}")
         print(f"  Size: {entry['size']} bytes")
         print(f"  Hash: {entry['hash']}")
 
@@ -1776,17 +1795,28 @@ def cmd_logout():
 # ---------------------------------------------------------------------------
 
 
-def _publish_to_registry(args, manifest, content: str, registry_url: str):
-    """Publish a skill to the remote registry."""
+def _publish_to_registry(
+    args,
+    manifest,
+    content: str,
+    registry_url: str,
+    *,
+    artifact: bytes | None = None,
+):
+    """Create and publish a skill version in the remote registry."""
     import secrets as _secrets
+
+    from skillctl.artifact import build_minimal_artifact
 
     token = _get_registry_token(args)
     manifest_dict = manifest.to_dict()
+    content_bytes = content.encode()
+    artifact_bytes = artifact or build_minimal_artifact(manifest, content_bytes)
 
     boundary = f"----skillctl-{_secrets.token_hex(16)}"
     manifest_json = json.dumps(manifest_dict)
 
-    parts = (
+    prefix = (
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="manifest"\r\n'
         f"Content-Type: application/json\r\n"
@@ -1797,7 +1827,14 @@ def _publish_to_registry(args, manifest, content: str, registry_url: str):
         f"Content-Type: application/octet-stream\r\n"
         f"\r\n"
     )
-    body = parts.encode() + content.encode() + f"\r\n--{boundary}--\r\n".encode()
+    artifact_part = (
+        f"\r\n--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="artifact"; filename="artifact.zip"\r\n'
+        f"Content-Type: application/vnd.skillctl.artifact.v1+zip\r\n"
+        f"\r\n"
+    )
+    suffix = f"\r\n--{boundary}--\r\n"
+    body = prefix.encode() + content_bytes + artifact_part.encode() + artifact_bytes + suffix.encode()
 
     url = f"{registry_url}/api/v1/skills"
     _registry_request(
@@ -1806,4 +1843,18 @@ def _publish_to_registry(args, manifest, content: str, registry_url: str):
         token=token,
         body=body,
         content_type=f"multipart/form-data; boundary={boundary}",
+    )
+
+    publish_body = json.dumps(
+        {
+            "name": manifest.metadata.name,
+            "version": manifest.metadata.version,
+        }
+    ).encode()
+    _registry_request(
+        "POST",
+        f"{registry_url}/api/v1/skills/publish",
+        token=token,
+        body=publish_body,
+        content_type="application/json",
     )

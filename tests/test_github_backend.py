@@ -14,8 +14,15 @@ from skillctl.registry.storage import NotFoundError
 
 
 @pytest.fixture
-def git_repo(tmp_path):
+def git_repo(tmp_path, monkeypatch):
     """Create a bare git repo and a GitHubBackend clone of it."""
+    # Simulate a clean service/CI host with no global Git identity. The
+    # one-off identity below creates the seed commit without persisting config;
+    # GitHubBackend.setup() must configure its own fallback for later commits.
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_text("")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
     bare = tmp_path / "remote.git"
     subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True)
 
@@ -32,7 +39,22 @@ def git_repo(tmp_path):
     subprocess.run(["git", "clone", str(bare), str(clone_dir)], check=True, capture_output=True)
     (clone_dir / "README.md").write_text("# Skill Registry\n")
     subprocess.run(["git", "add", "-A"], cwd=str(clone_dir), check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=str(clone_dir), check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=SkillsOps Test",
+            "-c",
+            "user.email=skillsops-test@localhost",
+            "commit",
+            "-m",
+            "init",
+        ],
+        cwd=str(clone_dir),
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "branch", "-M", "main"], cwd=str(clone_dir), check=True, capture_output=True)
     subprocess.run(["git", "push", "origin", "main"], cwd=str(clone_dir), check=True, capture_output=True)
 
     # Now set up properly via setup()
@@ -78,6 +100,20 @@ def test_store_and_read_skill(git_repo: GitHubBackend):
 
     retrieved = git_repo.get_skill_content("my-org/hello", "1.0.0")
     assert retrieved == CONTENT
+
+
+def test_store_and_read_complete_artifact(git_repo: GitHubBackend):
+    artifact = b"PK-complete-artifact"
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {"artifact_hash": hashlib.sha256(artifact).hexdigest()},
+        artifact=artifact,
+    )
+
+    assert git_repo.get_skill_artifact("my-org/hello", "1.0.0") == artifact
 
 
 def test_store_creates_git_commit(git_repo: GitHubBackend):
@@ -131,13 +167,41 @@ def test_rebuild_index_idempotent(git_repo: GitHubBackend, db: MetadataDB):
 
 
 def test_update_metadata(git_repo: GitHubBackend):
-    git_repo.store_skill("my-org/hello", "1.0.0", MANIFEST, CONTENT, {"eval_grade": None})
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {"eval_grade": None, "status": "draft", "rbac_namespace": "org/acme"},
+    )
     git_repo.update_metadata("my-org/hello", "1.0.0", {"eval_grade": "B", "eval_score": 80.0})
 
     meta_path = git_repo._skills_dir / "my-org" / "hello" / "1.0.0" / "metadata.json"
     meta = json.loads(meta_path.read_text())
     assert meta["eval_grade"] == "B"
     assert meta["eval_score"] == 80.0
+    assert meta["status"] == "draft"
+    assert meta["rbac_namespace"] == "org/acme"
+
+
+def test_rebuild_index_preserves_governance_metadata(git_repo: GitHubBackend, db: MetadataDB):
+    git_repo.store_skill(
+        "my-org/hello",
+        "1.0.0",
+        MANIFEST,
+        CONTENT,
+        {
+            "status": "draft",
+            "rbac_namespace": "org/acme/team-ml",
+        },
+    )
+
+    git_repo.rebuild_index(db)
+
+    record = db.get_skill("my-org/hello", "1.0.0")
+    assert record is not None
+    assert record.status == "draft"
+    assert record.namespace == "org/acme/team-ml"
 
 
 @pytest.mark.anyio

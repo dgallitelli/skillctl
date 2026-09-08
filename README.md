@@ -14,8 +14,7 @@
 <p align="center">
   <a href="https://github.com/dgallitelli/skillsops/actions/workflows/ci.yml"><img src="https://github.com/dgallitelli/skillsops/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.10%20|%203.12%20|%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/coverage-82%25-green" alt="Coverage">
-  <img src="https://img.shields.io/badge/pyright-strict-green" alt="Type Checked">
+  <img src="https://img.shields.io/badge/pyright-checked-green" alt="Type Checked">
   <img src="https://img.shields.io/badge/license-MPL--2.0-blue" alt="License">
   <img src="https://img.shields.io/badge/pip--audit-clean-green" alt="Security">
 </p>
@@ -55,15 +54,16 @@ vendor lock-in, no requirement to host skills off-site.
 |---|---|---|
 | `validate` — schema, semver, capability checks | stable | Bad manifests should never reach the store. |
 | `eval audit` — static security audit (9 categories, ~35 finding codes, ~70 regex patterns; `--strict` adds an AST pass for Python) | stable | Block leaked secrets, prompt injection, exfil URLs, unsafe deserialization, encoded payloads in CI. |
-| `apply` / `get` / `describe` / `delete` / `diff` — content-addressed local store | stable | SHA-256 hashing, integrity verification, structural version diffs. |
+| `apply` / `get` / `describe` / `delete` / `diff` — content-addressed local store | stable | Deterministic complete-skill bundles, per-file SHA-256 integrity, structural version diffs. |
 | `bump` — semver version edits in `skill.yaml` | stable | `--major` / `--minor` / `--patch` with breaking-change detection. |
 | `install` / `uninstall` — multi-IDE deploy (Claude Code, Cursor, Windsurf, Copilot, Kiro) | stable | One source SKILL.md, native frontmatter on every IDE. |
 | `serve` — self-hosted FastAPI registry with token auth, hash-chained audit log | stable | Run governance on infra you control.  See [SECURITY.md](SECURITY.md) for the threat model. |
 | `auth` / `rbac` / `namespace` — role-based access control | stable | Users, 4 roles, hierarchical namespaces, scoped tokens; every decision audited.  See [docs/rbac.md](docs/rbac.md). |
-| `policy` / `observe` — runtime policy hooks + OpenTelemetry | stable | Rate-limit, data-boundary, PII redaction, time-window, output-size; OPA/Cedar; traced + audited.  See [docs/runtime-policy.md](docs/runtime-policy.md). |
-| `compliance` — EU AI Act / ISO 42001 / NIST AI RMF evidence reports | stable | Maps governance to controls; risk classification; attestations.  See [docs/compliance.md](docs/compliance.md). |
-| `deploy` — canary / blue-green / staged rollouts | stable | Consistent-hash routing, health checks, auto-rollback, audited.  See [docs/deployment.md](docs/deployment.md). |
-| `identity` / `ci` / `forensics` — federation, ABAC, lineage, CI/CD | stable | OIDC→RBAC, attribute policies, data lineage + forensics, pipeline templates.  See [docs/enterprise.md](docs/enterprise.md). |
+| `policy` / `observe` — opt-in policy and telemetry libraries | experimental | Useful hooks, but the registry and installed agent runtimes do not invoke them automatically. See [docs/runtime-policy.md](docs/runtime-policy.md). |
+| `compliance` — framework control-mapping previews | experimental | Deterministic, non-certifying gap analysis; not a trusted compliance or promotion gate. See [docs/compliance.md](docs/compliance.md). |
+| `deploy` — local rollout state-machine model | experimental | Models routing and rollback in SQLite; it does not control live registry or runtime traffic. See [docs/deployment.md](docs/deployment.md). |
+| `identity` / `forensics` / federation | experimental | Local HS256 inspection, caller-recorded lineage queries, and a programmatic registry-copy helper; trust boundaries are not integrated. See [docs/enterprise.md](docs/enterprise.md). |
+| `ci` — CI/CD starter templates | preview | Review, pin, and adapt generated pipelines before production use. |
 | `eval report` — deterministic governance score (80% security audit + 20% schema contract) | stable | Reproducible: same inputs always yield the same score. |
 | Claude Code MCP plugin (5 core tools: validate, audit, bump, diff, publish) | stable | Use SkillsOps from inside an agentic IDE. |
 | `export` / `import` — portable archives | stable | Backup, share, migrate between hosts. |
@@ -94,6 +94,16 @@ namespace-scoped permissions enforce tenant isolation; rate limiting,
 CORS, and TrustedHost middleware are on by default.  See
 [SECURITY.md](SECURITY.md) for the full threat model and hardening
 checklist.
+
+For a local container deployment:
+
+```bash
+docker compose up --build
+```
+
+The Compose file uses a named volume for `/data`. It generates and persists an
+audit HMAC key when `SKILLCTL_HMAC_KEY` is absent; production deployments
+should inject that variable from a secrets manager.
 
 ---
 
@@ -145,9 +155,10 @@ Each IDE has its own conventions:
 | GitHub Copilot | `.github/instructions/<name>.instructions.md` | `applyTo: "<glob>"` |
 | Kiro         | `.kiro/steering/<name>.md`           | `inclusion`, `fileMatchPattern` |
 
-`skillctl install` reads one source SKILL.md and writes the right file
-with the right frontmatter to every target you ask for — no copy-paste
-drift.
+`skillctl install` writes the right primary file and frontmatter for every
+target. Complete artifact support files are installed beside `SKILL.md` for
+Claude Code. Single-file IDE formats retain them in a versioned
+`.skillctl-artifacts/` sidecar and report that location explicitly.
 
 ```bash
 skillctl install ./my-skill --target all                    # auto-detect
@@ -163,7 +174,7 @@ skillctl uninstall ./my-skill --target all
 ```bash
 pip install skillsops                  # core CLI
 pip install "skillsops[server]"        # + the registry server
-pip install "skillsops[plugin]"        # + MCP server for Claude Code plugin
+pip install "skillsops[plugin]"        # + MCP runtime for the separately installed Claude Code plugin
 pip install "skillsops[observability]" # + OpenTelemetry tracing
 pip install "skillsops[policy-opa]"    # + OPA policy integration
 pip install "skillsops[all]"           # everything
@@ -233,13 +244,13 @@ shared lifecycle.
 | Document | Purpose |
 |----------|---------|
 | [docs/0-architecture.md](docs/0-architecture.md) | System overview, module map, data flow diagrams |
-| [docs/1-skill-format.md](docs/1-skill-format.md) | Full CLI reference, skill format, registry server, eval suite, optimizer flags, API endpoints |
+| [docs/1-skill-format.md](docs/1-skill-format.md) | Full CLI reference, skill format, registry server, eval suite, API endpoints |
 | [docs/3-security-audit.md](docs/3-security-audit.md) | Audit categories, severities, suppression workflow |
 | [docs/rbac.md](docs/rbac.md) | RBAC: roles, permissions, namespaces, CLI, bootstrap, audit |
-| [docs/runtime-policy.md](docs/runtime-policy.md) | Runtime policy hooks, built-ins, OPA/Cedar, OpenTelemetry |
-| [docs/compliance.md](docs/compliance.md) | Compliance frameworks, evidence, risk classification, attestations |
-| [docs/deployment.md](docs/deployment.md) | Progressive deployment: canary/blue-green/staged, health, rollback |
-| [docs/enterprise.md](docs/enterprise.md) | Identity federation, ABAC, data lineage, forensics, federation, CI/CD |
+| [docs/runtime-policy.md](docs/runtime-policy.md) | Experimental opt-in policy hooks and OpenTelemetry |
+| [docs/compliance.md](docs/compliance.md) | Experimental non-certifying control mappings |
+| [docs/deployment.md](docs/deployment.md) | Experimental local rollout state model |
+| [docs/enterprise.md](docs/enterprise.md) | Experimental identity, ABAC, lineage, forensics, and federation utilities |
 | [SECURITY.md](SECURITY.md) | Threat model, controls, and how to report vulnerabilities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to set up a dev environment and send a PR |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
@@ -259,9 +270,9 @@ skillctl version   # current version
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,plugin]"
-pytest -m "not integration"      # unit tests
-pytest -m integration            # e2e + real Bedrock tests
+pip install -e ".[dev,server,plugin,observability]"
+pytest tests/ -m "not integration"  # unit and local integration tests
+pytest tests/e2e                   # real local filesystem/server/crypto E2E
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions.
@@ -270,13 +281,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions.
 
 ## Status
 
-Beta (`0.2.x`).  The core CLI surface (`apply`, `install`, `validate`,
+Beta (`0.1.0b8`).  The core CLI surface (`apply`, `install`, `validate`,
 `eval audit`, `eval report`, `bump`, `diff`, `get`, `describe`, `delete`,
-`serve`, `logs`) is stable and covered by 640+ unit tests plus an
-end-to-end and real-Bedrock integration suite.  The registry's REST API
+`serve`, `logs`) is covered by 790 non-E2E tests and 39 real local
+end-to-end tests.  The registry's REST API
 shape and the `skillctl:` frontmatter block may change before `1.0.0`
 based on user feedback.  The optimizer now lives in the separate
-`skillsops-optimize` package.
+`skillsops-optimize` package with its own test and dependency lifecycle.
 
 ## License
 

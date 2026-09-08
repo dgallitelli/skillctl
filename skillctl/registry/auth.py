@@ -19,8 +19,22 @@ from fastapi import Depends, HTTPException, Request  # type: ignore[import-not-f
 
 from skillctl.registry.db import MetadataDB
 
-# Permission strings accepted in tokens.
-PERMISSION_PATTERN = re.compile(r"^(admin|read|read:[a-z0-9-]+|write:[a-z0-9-]+)$")
+# Permission strings accepted in legacy tokens. Namespace scopes use the same
+# slash-delimited hierarchy as RBAC (for example ``org/acme/team-ml``).
+PERMISSION_PATTERN = re.compile(r"^(admin|read|(?:read|write):[a-z0-9-]+(?:/[a-z0-9-]+)*)$")
+
+
+def validate_permissions(permissions: list[str]) -> None:
+    """Validate legacy token permission strings without creating a token."""
+    if not isinstance(permissions, list) or not all(isinstance(p, str) for p in permissions):
+        raise ValueError("permissions must be a list of strings")
+    for permission in permissions:
+        if not PERMISSION_PATTERN.fullmatch(permission):
+            raise ValueError(
+                f"Invalid permission {permission!r}. Allowed: 'admin', 'read', "
+                "'read:<namespace>', 'write:<namespace>' "
+                "(namespace = slash-delimited [a-z0-9-]+ segments)."
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -75,14 +89,7 @@ class AuthManager:
         Raises ``ValueError`` if any permission string fails to match
         :data:`PERMISSION_PATTERN`.
         """
-        if not isinstance(permissions, list) or not all(isinstance(p, str) for p in permissions):
-            raise ValueError("permissions must be a list of strings")
-        for p in permissions:
-            if not PERMISSION_PATTERN.match(p):
-                raise ValueError(
-                    f"Invalid permission {p!r}. Allowed: 'admin', 'read', "
-                    "'read:<namespace>', 'write:<namespace>' (namespace = [a-z0-9-]+)."
-                )
+        validate_permissions(permissions)
 
         raw_token = secrets.token_hex(32)  # 64 hex chars
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()

@@ -39,7 +39,9 @@ def _write_skill(directory, name="proj/demo", version="1.0.0", description="A de
         f'  description: "{description}"\n'
         "spec:\n  content:\n    path: SKILL.md\n  capabilities:\n    - read_file\n"
     )
-    (directory / "SKILL.md").write_text("# Demo\n\nDoes a thing safely.\n")
+    (directory / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: {description}\n---\n\n# Demo\n\nDoes a thing safely.\n"
+    )
     return directory
 
 
@@ -75,7 +77,11 @@ def test_e2e_compliance_report_generation(tmp_path):
         details={"hook_name": "data-boundary", "decision": "allow"},
     )
 
-    collector = EvidenceCollector(skill_path=str(skill_dir), audit_log_path=str(tmp_path / "audit.jsonl"))
+    collector = EvidenceCollector(
+        skill_path=str(skill_dir),
+        audit_log_path=str(tmp_path / "audit.jsonl"),
+        audit_hmac_key=b"m3-key",
+    )
     fws = load_builtin_frameworks()
     gen = ComplianceReportGenerator(collector, fws)
     report = gen.generate("proj/demo", "1.0.0", "eu-ai-act")
@@ -101,7 +107,7 @@ def test_e2e_compliance_report_generation(tmp_path):
 
     # JSON + Markdown rendering work.
     assert gen.to_json(report)["framework_id"] == "eu-ai-act"
-    assert "Compliance Report" in gen.to_markdown(report)
+    assert "Control Mapping Assessment (Preview)" in gen.to_markdown(report)
 
 
 def test_e2e_manual_attestation_workflow(tmp_path):
@@ -126,6 +132,7 @@ def test_e2e_manual_attestation_workflow(tmp_path):
         framework_id="eu-ai-act",
         attested_by="publisher-bob",
         statement="Residual risks reviewed and accepted per risk assessment v3",
+        identity_verified=True,
     )
 
     # After attestation: art-9-2-b is compliant (manual evidence present).

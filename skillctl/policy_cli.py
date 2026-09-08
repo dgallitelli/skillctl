@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from skillctl.errors import SkillctlError
+from skillctl.experimental import warn_experimental
 
 _DEFAULT_AUDIT_LOG = Path.home() / ".skillctl" / "registry" / "audit.jsonl"
 
@@ -226,7 +227,10 @@ def cmd_observe_test(args) -> int:
 
 
 def register_policy_commands(sub) -> None:
-    policy_p = sub.add_parser("policy", help="Inspect and test runtime policies")
+    policy_p = sub.add_parser(
+        "policy",
+        help="[experimental] Inspect and dry-run opt-in policy hooks",
+    )
     policy_sub = policy_p.add_subparsers(dest="policy_command")
 
     lst = policy_sub.add_parser("list", help="List configured policies")
@@ -248,7 +252,10 @@ def register_policy_commands(sub) -> None:
     hist.add_argument("--actor", default=None)
     hist.add_argument("--audit-log", default=None, help="Path to audit.jsonl")
 
-    observe_p = sub.add_parser("observe", help="Observability (OpenTelemetry) status")
+    observe_p = sub.add_parser(
+        "observe",
+        help="[experimental] Inspect opt-in OpenTelemetry configuration",
+    )
     observe_sub = observe_p.add_subparsers(dest="observe_command")
     st = observe_sub.add_parser("status", help="Show OTel configuration/status")
     st.add_argument("--config", default=None)
@@ -272,6 +279,11 @@ def dispatch_policy(args) -> int:
     if handler is None:
         print("Usage: skillctl policy {list|validate|test|history}", file=sys.stderr)
         return 1
+    warn_experimental(
+        "runtime policy hooks",
+        "The registry and installed agent runtimes do not invoke them automatically; "
+        "the execution host must integrate SkillInterceptor.",
+    )
     return handler(args)
 
 
@@ -280,4 +292,8 @@ def dispatch_observe(args) -> int:
     if handler is None:
         print("Usage: skillctl observe {status|test}", file=sys.stderr)
         return 1
+    warn_experimental(
+        "observability hooks",
+        "Telemetry is emitted only by applications that explicitly configure and use the tracer.",
+    )
     return handler(args)

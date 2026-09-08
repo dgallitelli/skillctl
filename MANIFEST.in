@@ -1,5 +1,5 @@
 include LICENSE
 include README.md
 include CHANGELOG.md
-recursive-include skillctl *.yaml *.md *.json
-recursive-include plugin *.json *.md *.py *.sh
+recursive-include skillctl *.yaml
+recursive-include plugin *.json *.py *.sh

@@ -305,6 +305,34 @@ def _create_stored_skill(tmp_path: Path) -> tuple[str, ContentStore]:
     return "test/install-test@1.0.0", store
 
 
+def _create_complete_stored_skill(tmp_path: Path) -> tuple[str, ContentStore]:
+    """Create a stored skill with runtime supporting files."""
+    from skillctl.artifact import build_artifact
+
+    store = ContentStore(root=tmp_path / "complete-store")
+    skill_dir = tmp_path / "complete-src"
+    (skill_dir / "scripts").mkdir(parents=True)
+    (skill_dir / "references").mkdir()
+    (skill_dir / "skill.yaml").write_text(
+        "apiVersion: skillctl.io/v1\n"
+        "kind: Skill\n"
+        "metadata:\n"
+        "  name: test/complete\n"
+        "  version: 2.0.0\n"
+        "  description: Complete skill\n"
+        "spec:\n"
+        "  content:\n"
+        "    path: SKILL.md\n"
+    )
+    (skill_dir / "SKILL.md").write_text("# Complete\n")
+    (skill_dir / "scripts" / "run.py").write_text("print('ok')\n")
+    (skill_dir / "references" / "guide.md").write_text("# Guide\n")
+    manifest, _ = ManifestLoader().load(str(skill_dir))
+    content = (skill_dir / "SKILL.md").read_bytes()
+    store.push(manifest, content, artifact=build_artifact(skill_dir, manifest, content))
+    return "test/complete@2.0.0", store
+
+
 class TestInstallSkill:
     def test_install_to_claude(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -344,6 +372,41 @@ class TestInstallSkill:
         assert results[0].success
         installed_path = tmp_path / ".cursor" / "rules" / "install-test.mdc"
         assert installed_path.exists()
+
+    def test_install_preserves_supporting_files_for_claude(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".claude").mkdir()
+        ref, store = _create_complete_stored_skill(tmp_path)
+
+        result = install_skill(
+            ref=ref,
+            targets=["claude"],
+            store=store,
+            tracker_path=tmp_path / "installations.json",
+        )
+
+        assert result[0].success
+        root = tmp_path / ".claude" / "skills" / "complete"
+        assert (root / "scripts" / "run.py").read_text() == "print('ok')\n"
+        assert (root / "references" / "guide.md").is_file()
+        assert (root / "skill.yaml").is_file()
+
+    def test_install_preserves_sidecar_for_single_file_targets(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".cursor").mkdir()
+        ref, store = _create_complete_stored_skill(tmp_path)
+
+        result = install_skill(
+            ref=ref,
+            targets=["cursor"],
+            store=store,
+            tracker_path=tmp_path / "installations.json",
+        )
+
+        sidecar = tmp_path / ".cursor" / "rules" / ".skillctl-artifacts" / "complete" / "2.0.0"
+        assert result[0].success
+        assert "supporting files preserved" in result[0].message
+        assert (sidecar / "scripts" / "run.py").is_file()
 
     def test_install_refuses_overwrite_without_force(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

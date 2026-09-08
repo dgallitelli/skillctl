@@ -1,7 +1,7 @@
-"""Data lineage store (Milestone 4).
+"""Experimental caller-populated data lineage store.
 
-Records what data each skill invocation read and wrote, enabling forensic
-provenance queries. One SQLite row per (invocation, data item, relation).
+Records what an embedding application reports that an invocation read and
+wrote. SkillsOps does not collect or verify this information automatically.
 """
 
 from __future__ import annotations

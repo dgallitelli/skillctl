@@ -28,6 +28,7 @@ class Attestation:
     evidence_description: str = ""
     valid_until: str = ""
     superseded_by: Optional[str] = None
+    identity_verified: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -42,6 +43,7 @@ class Attestation:
             "evidence_description": self.evidence_description,
             "valid_until": self.valid_until,
             "superseded_by": self.superseded_by,
+            "identity_verified": self.identity_verified,
         }
 
 
@@ -57,7 +59,8 @@ CREATE TABLE IF NOT EXISTS attestations (
     statement TEXT NOT NULL,
     evidence_description TEXT DEFAULT '',
     valid_until TEXT NOT NULL,
-    superseded_by TEXT
+    superseded_by TEXT,
+    identity_verified INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -76,6 +79,9 @@ class AttestationStore:
 
     def initialize(self) -> None:
         self._conn.executescript(_CREATE)
+        columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(attestations)").fetchall()}
+        if "identity_verified" not in columns:
+            self._conn.execute("ALTER TABLE attestations ADD COLUMN identity_verified INTEGER NOT NULL DEFAULT 0")
         self._conn.commit()
 
     def add(
@@ -89,6 +95,7 @@ class AttestationStore:
         statement: str,
         evidence_description: str = "",
         expiry_days: int = 90,
+        identity_verified: bool = False,
     ) -> Attestation:
         now = datetime.now(timezone.utc)
         att = Attestation(
@@ -102,18 +109,20 @@ class AttestationStore:
             statement=statement,
             evidence_description=evidence_description,
             valid_until=(now + timedelta(days=expiry_days)).isoformat(),
+            identity_verified=identity_verified,
         )
         # Supersede any prior active attestation for the same control+skill+version.
         self._conn.execute(
             """UPDATE attestations SET superseded_by = ?
-               WHERE control_id = ? AND skill_name = ? AND skill_version = ? AND superseded_by IS NULL""",
-            (att.id, control_id, skill_name, skill_version),
+               WHERE control_id = ? AND skill_name = ? AND skill_version = ?
+                 AND framework_id = ? AND superseded_by IS NULL""",
+            (att.id, control_id, skill_name, skill_version, framework_id),
         )
         self._conn.execute(
             """INSERT INTO attestations
                (id, control_id, skill_name, skill_version, framework_id, attested_by, attested_at,
-                statement, evidence_description, valid_until, superseded_by)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)""",
+                statement, evidence_description, valid_until, superseded_by, identity_verified)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)""",
             (
                 att.id,
                 control_id,
@@ -125,19 +134,31 @@ class AttestationStore:
                 statement,
                 evidence_description,
                 att.valid_until,
+                1 if identity_verified else 0,
             ),
         )
         self._conn.commit()
         return att
 
-    def get_active(self, control_id: str, skill_name: str, skill_version: str) -> Optional[Attestation]:
+    def get_active(
+        self,
+        control_id: str,
+        skill_name: str,
+        skill_version: str,
+        framework_id: Optional[str] = None,
+    ) -> Optional[Attestation]:
         """Return a current (non-superseded, non-expired) attestation, if any."""
-        row = self._conn.execute(
-            """SELECT * FROM attestations
-               WHERE control_id = ? AND skill_name = ? AND skill_version = ? AND superseded_by IS NULL
-               ORDER BY attested_at DESC LIMIT 1""",
-            (control_id, skill_name, skill_version),
-        ).fetchone()
+        query = (
+            "SELECT * FROM attestations "
+            "WHERE control_id = ? AND skill_name = ? AND skill_version = ? "
+            "AND superseded_by IS NULL"
+        )
+        params: list[str] = [control_id, skill_name, skill_version]
+        if framework_id is not None:
+            query += " AND framework_id = ?"
+            params.append(framework_id)
+        query += " ORDER BY attested_at DESC LIMIT 1"
+        row = self._conn.execute(query, params).fetchone()
         if row is None:
             return None
         if row["valid_until"] and row["valid_until"] <= datetime.now(timezone.utc).isoformat():
@@ -154,6 +175,7 @@ class AttestationStore:
             evidence_description=row["evidence_description"],
             valid_until=row["valid_until"],
             superseded_by=row["superseded_by"],
+            identity_verified=bool(row["identity_verified"]),
         )
 
     def close(self) -> None:

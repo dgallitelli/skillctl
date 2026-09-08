@@ -1,42 +1,33 @@
 # Architecture
 
-SkillsOps is a governance platform for agent skills. It validates, evaluates, publishes, audits, and enforces policy on skills across any agent runtime. The system has four layers: a CLI, a local store, a registry server, and an automated optimizer.
+SkillsOps is a governance platform for agent skills. It validates, evaluates,
+packages, publishes, audits, and installs complete skill artifacts. The core
+system has three layers: the CLI, a local content-addressed store, and a
+self-hosted registry. The LLM-driven optimizer is a separate distribution.
 
 ## System Overview
 
 ```
-                                         +---------------------+
-                                         |   Agent Runtimes    |
-                                         | (Claude, GPT, etc.) |
-                                         +----------+----------+
-                                                    |
-                                              uses skills
-                                                    |
-+---------------------------------------------------v---------------------------------------------------+
-|                                          skillctl                                                      |
-|                                                                                                        |
-|   +-------------+     +-----------+     +---------------+     +-----------+     +------------------+   |
-|   |   CLI       |---->| Manifest  |---->|  Validator     |---->| Local     |---->| Registry Server  |   |
-|   | (cli.py)    |     | Loader    |     | (Schema rules) |     | Store     |     | (FastAPI)        |   |
-|   |             |     +-----------+     +---------------+     | (SHA-256) |     |                  |   |
-|   | apply       |                                              +-----------+     | API + Auth       |   |
-|   | create      |     +-----------+     +---------------+                        | SQLite + FTS5    |   |
-|   | get         |---->| Eval      |---->| Audit Suite    |     +-----------+     | Blob Storage     |   |
-|   | validate    |     | Suite     |     | - Security     |     | GitHub    |     | Audit Logging    |   |
-|   | eval        |     |           |     | - Structure    |     | Backend   |<--->| (JSONL + HMAC)   |   |
-|   | optimize    |     |           |     | - Permissions  |     | (git sync)|     +------------------+   |
-|   | serve       |     |           |---->| Functional     |     +-----------+                            |
-|   | diff        |     |           |     | - Agent runner |                                              |
-|   | doctor      |     |           |     | - LLM grading  |     +-----------+                            |
-|   | login       |     |           |---->| Trigger        |     | Optimizer |                            |
-|   +-------------+     |           |     | - Precision    |     | (LLM loop)|                            |
-|                        |           |     | - Recall       |     |           |                            |
-|                        +-----------+     +---------------+     | Analyze   |                            |
-|                                                |                | Generate  |                            |
-|                                                |   scores       | Evaluate  |                            |
-|                                                +--------------->| Promote   |                            |
-|                                                                 +-----------+                            |
-+----------------------------------------------------------------------------------------------------------+
+skill source directory
+        |
+        v
+ManifestLoader -> SchemaValidator -> deterministic artifact builder
+                                          |
+                         +----------------+----------------+
+                         |                                 |
+                         v                                 v
+              local content store                 security audit gate
+              content + artifact                         |
+              SHA-256 identities                         v
+                                               registry create/publish
+                                                         |
+                                      +------------------+------------------+
+                                      |                  |                  |
+                                      v                  v                  v
+                                 SQLite/FTS5       blob or Git store   HMAC audit log
+                                      |
+                                      v
+                         RBAC + immutable namespace
 ```
 
 ## Skill Lifecycle
@@ -44,22 +35,13 @@ SkillsOps is a governance platform for agent skills. It validates, evaluates, pu
 A skill is defined by two files: `skill.yaml` (the governance manifest) and `SKILL.md` (the agent instructions). Every mutation flows through a governance gate.
 
 ```
-Author writes skill          skillctl validate          skillctl apply
-skill.yaml + SKILL.md  --->  Schema validation    --->  Local store (SHA-256)
-                              Capability check           |
-                                                         +--> Registry publish (optional)
-                                                               |
-                                                               v
-                                                         skillctl eval audit
-                                                         Security scan (A-F grade)
-                                                               |
-                                                               v
-                                                         skillctl eval functional
-                                                         LLM-graded test cases
-                                                               |
-                                                               v
-                                                         skillctl optimize
-                                                         Iterative LLM improvement
+Author writes complete skill     skillctl validate       skillctl apply
+manifest + instructions +  --->  schema/capability  ---> immutable bundle
+scripts/references/assets        checks                   + local store
+                                                             |
+                                                             +--> security gate
+                                                                  + remote draft
+                                                                  + publish transition
 ```
 
 ## Module Map
@@ -68,13 +50,14 @@ skill.yaml + SKILL.md  --->  Schema validation    --->  Local store (SHA-256)
 
 | Module | Purpose |
 |--------|---------|
-| `cli.py` | Entry point. kubectl-style command dispatch (apply, create, get, delete, diff, validate, eval, optimize, install, uninstall, configure, serve, doctor, login). |
-| `install.py` | Multi-IDE skill installation. Target registry (Claude Code, Cursor, Windsurf, Copilot, Kiro), frontmatter translation, file operations, installation tracking via `~/.skillctl/installations.json`. |
+| `cli.py` | Entry point. kubectl-style command dispatch for lifecycle, registry, evaluation, policy, and administration commands. |
+| `artifact.py` | Deterministic ZIP artifact contract, per-file hashes/modes, content binding, safe verification and extraction. |
+| `install.py` | Multi-IDE skill installation, frontmatter translation, support-file preservation, and installation tracking via `~/.skillctl/installations.json`. |
 | `manifest.py` | Parses `skill.yaml` into `SkillManifest` dataclass. Auto-wraps plain `SKILL.md` files. |
 | `validator.py` | Schema validation: apiVersion, semver, name format, parameter types, capability checking. |
-| `store.py` | Content-addressed local storage under `~/.skillctl/store/`. SHA-256 hashing, atomic writes, integrity verification on pull, portable archive export (tar.gz/zip). |
+| `store.py` | Content-addressed local storage under `~/.skillctl/store/`. Stores legacy primary content plus complete immutable artifacts, with atomic writes, verification, export, and import. |
 | `diff.py` | Structural diff between two stored skill versions. Detects breaking changes (removed params, capabilities). |
-| `config.py` | Centralized typed config: `SkillctlConfig` with registry (local/agent-registry), optimizer (model, budget), and GitHub settings. Interactive wizard via `run_configure_wizard`. |
+| `config.py` | Centralized typed config for registry, compatibility optimizer settings, and GitHub authentication. |
 | `errors.py` | `SkillctlError(code, what, why, fix)` — all user-facing errors must use this format. `EvalError` subclasses it. |
 | `utils.py` | Shared utilities: `parse_ref` (name@version parsing), `read_skill_name_from_manifest`, `read_skill_name_from_frontmatter`. |
 | `github_auth.py` | GitHub OAuth device flow for `skillctl login`. |
@@ -87,10 +70,11 @@ Self-hostable FastAPI server. Start with `skillctl serve`.
 | Module | Purpose |
 |--------|---------|
 | `server.py` | App factory. Wires DB, storage, auth, audit, and API router with lifespan management. |
-| `api.py` | REST endpoints: publish, search (FTS5), download, delete, eval attachment, token management, health. |
-| `db.py` | SQLite with WAL mode. Skills table + FTS5 virtual table + tokens table. Parameterized queries throughout. |
-| `storage.py` | Content-addressed blob storage on filesystem. Atomic writes via temp-file-then-rename. Hash validation on read. |
-| `auth.py` | Three modes: disabled, token (HMAC-SHA256), GitHub. RBAC with namespace-scoped permissions. |
+| `api.py` | REST endpoints for draft creation, publish/unpublish, search, content/artifact download, delete, eval attachment, auth/RBAC, and health. |
+| `db.py` | SQLite with WAL mode, bounded writer waits, and atomic lifecycle compare-and-set. Skills, FTS5, token, identity, namespace, and authorization metadata. |
+| `migrations.py` | Ordered, transactional SQLite migrations shared by registry and RBAC persistence. Upgrade state is recorded in `schema_migrations`. |
+| `storage.py` | Content-addressed blob storage on filesystem. Atomic writes and corruption repair, hash validation on read, and non-destructive consistency inventory at startup. |
+| `auth.py` | Legacy-token compatibility and hierarchical permission validation. All decisions flow through RBAC middleware. |
 | `audit.py` | Append-only JSONL audit log with HMAC signatures for tamper detection. |
 | `github_backend.py` | Git-backed storage that syncs the registry to a GitHub repo for distributed deployments. |
 | `config.py` | Environment-variable-based server configuration. |
@@ -100,10 +84,10 @@ Self-hostable FastAPI server. Start with `skillctl serve`.
 Run with `skillctl eval <subcommand>`. Grades skills A-F.
 
 ```
-skillctl eval audit ./my-skill        # Static security scan (no LLM needed)
-skillctl eval functional ./my-skill   # Run test cases against agent runtime
-skillctl eval trigger ./my-skill      # Measure activation precision/recall
-skillctl eval report ./my-skill       # Unified report combining all three
+skillctl eval audit ./my-skill        # Static security/quality audit
+skillctl eval report ./my-skill       # 80% audit + 20% schema contract
+skillctl eval snapshot ./my-skill     # Save a deterministic baseline
+skillctl eval regression ./my-skill   # Compare with a saved baseline
 ```
 
 | Module | Purpose |
@@ -113,65 +97,35 @@ skillctl eval report ./my-skill       # Unified report combining all three
 | `audit/structure_check.py` | Validates skill completeness: frontmatter, headings, sections, documentation quality. |
 | `audit/permission_analyzer.py` | Checks declared capabilities vs actual tool usage. Detects over-privilege. |
 | `schemas.py` | `Finding`, `AuditReport`, `Severity`, `Category` — shared types for audit pipeline. |
-| `functional.py` | Runs eval cases from `evals.json` against an agent runtime. Measures outcome, process, style, efficiency. |
-| `grading.py` | Deterministic pattern matching + LLM-as-judge for assertion grading. |
-| `trigger.py` | Tests skill activation: should-trigger queries (recall) and should-not-trigger queries (specificity). |
-| `agent_runner.py` | Abstract runner protocol. Executes skills against any agent runtime. |
-| `compare.py` | A/B comparison of two skill versions on identical test cases. |
+| `contract.py` | Deterministic manifest and schema-contract scoring. |
 | `regression.py` | Re-runs audits against baselines to detect score degradation. |
-| `unified_report.py` | Aggregates audit + functional + trigger into a weighted composite score. |
+| `unified_report.py` | Fail-closed aggregation of audit and schema-contract results. |
 | `cost.py` | Token cost estimation using model pricing tables. |
 | `lifecycle.py` | Skill state machine: draft -> active -> deprecated -> archived. |
 | `html_report.py` | Renders audit results as a standalone HTML document. |
 
-### Optimizer (`skillctl/optimize/`)
+### Experimental integration libraries
 
-Run with `skillctl optimize ./my-skill`. Uses Claude Opus on Amazon Bedrock.
+The policy/observability, compliance, deployment, identity/ABAC,
+lineage/forensics, federation, and CI-template modules are composable previews,
+not part of the registry's enforcement path. In particular:
 
-```
-                     +------------------+
-                     | Initial Eval     |
-                     +--------+---------+
-                              |
-                     +--------v---------+
-              +----->| Failure Analysis |  (LLM identifies weaknesses)
-              |      +--------+---------+
-              |               |
-              |      +--------v---------+
-              |      | Variant Generation|  (LLM rewrites SKILL.md)
-              |      +--------+---------+
-              |               |
-              |      +--------v---------+
-              |      | Evaluate Variants |  (Full eval suite)
-              |      +--------+---------+
-              |               |
-              |      +--------v---------+
-              |      | Promotion Gate    |  (Score threshold check)
-              |      +--------+---------+
-              |           |         |
-              |        promote    reject
-              |           |         |
-              |           v         |
-              |      Write SKILL.md |
-              |                     |
-              +---------------------+
-                    (next cycle)
+- policy and telemetry run only when a host explicitly uses
+  `SkillInterceptor`;
+- deployment commands update a local state model and do not route live traffic;
+- compliance output is a non-certifying mapping preview and cannot authorize
+  promotion;
+- identity utilities are not registry authentication;
+- lineage and forensic results contain only caller-supplied records; and
+- compliance-gated federation fails closed until a trusted verifier exists.
 
-   Terminates on: convergence, budget exhaustion, or plateau detection
-```
+See the corresponding documents for each exact trust boundary.
 
-| Module | Purpose |
-|--------|---------|
-| `loop.py` | Core optimization loop. Orchestrates analyze -> generate -> eval -> promote cycles. |
-| `llm_client.py` | Provider-agnostic LLM client via LiteLLM. Default: `bedrock/us.anthropic.claude-opus-4-6-v1`. Supports any LiteLLM provider. Exponential backoff retries. |
-| `types.py` | `OptimizeConfig`, `Variant`, `CycleRecord`, `FailureAnalysis`, `PromotionDecision`, `ProvenanceEntry`. |
-| `variant_generator.py` | Prompts the LLM to rewrite SKILL.md targeting specific weaknesses. Round-robin weakness assignment. |
-| `failure_analyzer.py` | Prompts the LLM to identify root causes from eval results. |
-| `promotion_gate.py` | Threshold-based gate: variant score must exceed current best + threshold. |
-| `budget.py` | Token spend tracking with configurable USD limits. |
-| `eval_runner.py` | Bridge to the eval suite. Swaps SKILL.md, runs unified report, parses results. |
-| `provenance.py` | Full audit trail of optimization runs in JSONL under `~/.skillctl/optimize/`. |
-| `cli.py` | CLI handler for `optimize`, `optimize history`, `optimize diff`. |
+### Optimizer (`packages/skillsops-optimize/`)
+
+The LiteLLM-driven authoring optimizer is a separate package and command. It
+depends on the deterministic core evaluation APIs but is not part of the
+registry's governance decision path. See [4-optimization.md](4-optimization.md).
 
 ## Data Flow
 
@@ -190,17 +144,22 @@ SchemaValidator.validate()     Check apiVersion, semver, name, params, capabilit
 ManifestLoader.resolve_content()   Read SKILL.md content
     |
     v
-ContentStore.push()            SHA-256 hash -> ~/.skillctl/store/<prefix>/<hash>
-    |                          Atomic write (tempfile + os.replace)
-    |                          Index update (index.json)
+build_artifact()               Canonical ZIP + per-file SHA-256 inventory
+    |
+    v
+ContentStore.push()            Content hash + artifact hash
+    |                          Atomic writes + index update
     v
 scan_security()                Security gate (only for remote publish)
     |                          CRITICAL findings -> block publish
     v
-_publish_to_registry()         POST /api/v1/skills (multipart: manifest + content)
+_publish_to_registry()         POST /api/v1/skills
+    |                          multipart: manifest + content + artifact
+    v
+publish transition             POST /api/v1/skills/publish
     |                          (optional, only if registry URL configured)
     v
-Registry API                   Validate -> Store blob -> Insert SQLite -> Audit log
+Registry API                   Verify bundle -> store both blobs -> SQLite -> audit
 ```
 
 ### `skillctl eval audit`
@@ -230,7 +189,7 @@ calculate_grade()              A (90+), B (80+), C (70+), D (60+), F (<60)
 docker-compose.yml
     |
     v
-Dockerfile                     Python 3.12-slim, non-root user, port 8000
+Dockerfile                     Python 3.12-slim, non-root user, port 8080
     |
     v
 uvicorn                        ASGI server running the FastAPI app
@@ -243,10 +202,9 @@ skillctl serve                 Equivalent to: uvicorn skillctl.registry.server:c
 
 | Source | Purpose |
 |--------|---------|
-| `~/.skillctl/config.yaml` | Typed config managed by `skillctl configure`. Registry backend (local/agent-registry), optimizer model + budget, GitHub auth. Written with 0600 permissions. |
+| `~/.skillctl/config.yaml` | Typed config managed by `skillctl configure`. Registry, compatibility optimizer, and GitHub settings. Written with 0600 permissions. |
 | `~/.skillctl/store/` | Local content-addressed skill store. |
 | `~/.skillctl/index.json` | Store index mapping name@version to content hashes. |
-| `~/.skillctl/optimize/` | Optimization run provenance logs. |
 | `.skilleval.yaml` | Per-skill eval config: ignore codes, severity overrides, safe domains. |
 | `SKILLCTL_REGISTRY_URL` | Environment variable override for local registry URL. |
 | `SKILLCTL_REGISTRY_TOKEN` | Environment variable override for local registry token. |
@@ -254,28 +212,23 @@ skillctl serve                 Equivalent to: uvicorn skillctl.registry.server:c
 
 ## Claude Code Plugin (`plugin/`)
 
-The `plugin/` directory is a [Claude Code plugin](https://code.claude.com/docs/en/plugins) that exposes skillctl to agentic coding environments via MCP tools and skills.
+The `plugin/` directory is a
+[Claude Code plugin](https://code.claude.com/docs/en/plugins) that exposes the
+five core governance operations through MCP.
 
 ```
 plugin/
 ├── .claude-plugin/
 │   └── plugin.json              Plugin manifest (name, version, description)
-├── skills/
-│   ├── skill-lifecycle/
-│   │   └── SKILL.md             Guides the full validate → eval → optimize → publish workflow
-│   ├── create-skill/
-│   │   └── SKILL.md             Scaffolds and authors new skills
-│   └── diagnose-skill/
-│       └── SKILL.md             Interprets eval results and fixes findings
 ├── scripts/
-│   └── mcp_server.py            MCP stdio server wrapping skillctl as a Python library
+│   ├── launch_mcp.sh            Locates Python and launches the server
+│   └── mcp_server.py            Five-tool MCP stdio server
 └── .mcp.json                    Wires the MCP server for Claude Code discovery
 ```
 
 | Component | Purpose |
 |-----------|---------|
-| **Skills** | Teach Claude the governance workflow, skill authoring patterns, and diagnostic reasoning. Claude auto-invokes them based on conversation context. |
-| **MCP server** | Exposes 14 tools (validate, apply, list, describe, delete, diff, create, eval audit/functional/trigger/report, optimize, optimize history, install). Calls skillctl as a library — no shell-out, structured JSON I/O. |
+| **MCP server** | Exposes `validate`, `audit`, `bump`, `diff`, and `publish`. Calls skillctl as a library with structured JSON I/O. |
 | **Plugin hint** | `skillctl` CLI emits a `<claude-code-hint>` on stderr when `CLAUDECODE=1`, prompting Claude Code users to install the plugin. |
 
 ### MCP Server Architecture
@@ -291,28 +244,17 @@ FastMCP (mcp SDK)
     v
 Tool handlers
     |
-    +----> ManifestLoader, SchemaValidator     (validate, apply)
-    +----> ContentStore                         (list, describe, delete, apply)
-    +----> diff_skills                          (diff)
-    +----> run_audit                            (eval audit)
-    +----> run_functional_eval                  (eval functional)
-    +----> run_trigger_eval                     (eval trigger)
-    +----> run_unified_report                   (eval report)
-    +----> run_optimization                     (optimize)
-    +----> ProvenanceStore                      (optimize history)
+    +----> ManifestLoader, SchemaValidator     (validate)
+    +----> run_audit                           (audit)
+    +----> semver file update                  (bump)
+    +----> ContentStore, diff_skills           (diff)
+    +----> apply_skill                         (publish)
 ```
 
 All tools return structured JSON. Errors use the standard `SkillctlError(code, what, why, fix)` format.
 
-## LLM Provider
+## LLM Provider Boundary
 
-All LLM calls go through **LiteLLM**, a provider-agnostic completion library. The default model is `bedrock/us.anthropic.claude-opus-4-6-v1` (Claude Opus on Amazon Bedrock). Users can switch to any supported provider by passing a different `--model`:
-
-```bash
-skillctl optimize ./my-skill --model bedrock/us.anthropic.claude-opus-4-6-v1  # default
-skillctl optimize ./my-skill --model openai/gpt-4o
-skillctl optimize ./my-skill --model anthropic/claude-sonnet-4-6
-skillctl optimize ./my-skill --model ollama/llama3
-```
-
-Authentication is provider-specific (AWS credential chain for Bedrock, `OPENAI_API_KEY` for OpenAI, etc.). See [LiteLLM docs](https://docs.litellm.ai/docs/providers) for the full list.
+The SkillsOps core and registry make no LLM calls. Provider-dependent
+authoring logic lives in `packages/skillsops-optimize/`, which uses LiteLLM
+and owns its provider credentials, costs, and integration tests separately.

@@ -116,6 +116,44 @@ class TestCmdCreateSkill:
 
 
 # ---------------------------------------------------------------------------
+# remote publish lifecycle
+# ---------------------------------------------------------------------------
+
+
+class TestRemotePublish:
+    def test_create_is_followed_by_publish_transition(self, tmp_path, monkeypatch):
+        skill_dir = _make_skill_dir(tmp_path)
+        from skillctl.cli import _publish_to_registry
+        from skillctl.manifest import ManifestLoader
+
+        manifest, _ = ManifestLoader().load(str(skill_dir))
+        calls: list[dict] = []
+
+        def fake_request(method, url, **kwargs):
+            calls.append({"method": method, "url": url, **kwargs})
+            return b"{}"
+
+        monkeypatch.setattr("skillctl.cli._registry_request", fake_request)
+
+        _publish_to_registry(
+            _make_args(token="registry-token"),
+            manifest,
+            VALID_SKILL_MD,
+            "https://registry.example",
+        )
+
+        assert [call["url"] for call in calls] == [
+            "https://registry.example/api/v1/skills",
+            "https://registry.example/api/v1/skills/publish",
+        ]
+        assert json.loads(calls[1]["body"]) == {
+            "name": "test-org/test-skill",
+            "version": "1.0.0",
+        }
+        assert b'name="artifact"; filename="artifact.zip"' in calls[0]["body"]
+
+
+# ---------------------------------------------------------------------------
 # cmd_validate
 # ---------------------------------------------------------------------------
 

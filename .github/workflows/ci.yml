@@ -57,11 +57,26 @@ jobs:
 
       - name: Run tests
         if: matrix.python-version != '3.13'
-        run: pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q
+        run: pytest tests/ -m "not integration" -q
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.13'
-        run: pytest tests/ --ignore=tests/test_github_backend.py -m "not integration" -q --cov=skillctl --cov-report=term-missing:skip-covered
+        run: pytest tests/ -m "not integration" -q --cov=skillctl --cov-report=term-missing:skip-covered
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install end-to-end dependencies
+        run: pip install -e ".[dev,server,plugin,observability]"
+
+      - name: Run real local end-to-end suite
+        run: pytest tests/e2e -q
 
   test-optimize:
     # The optimizer was extracted to packages/skillsops-optimize in
@@ -145,6 +160,22 @@ jobs:
       - name: Build sdist + wheel
         run: python -m build
 
+      - name: Validate package metadata and contents
+        run: |
+          pip install twine
+          twine check dist/*
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          wheel = next(Path("dist").glob("skillsops-*.whl"))
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+          assert "skillctl/compliance/frameworks_data/eu_ai_act.yaml" in names
+          assert "skillctl/cicd/templates/github-actions.yml" in names
+          assert not any("__pycache__" in name or name.endswith(".pyc") for name in names)
+          PY
+
       - name: Install built wheel in a fresh venv
         run: |
           set -euo pipefail
@@ -160,3 +191,27 @@ jobs:
           echo "source=$source_version installed=$installed_version"
           /tmp/smoke-venv/bin/skillctl --help > /dev/null
           test "$source_version" = "$installed_version"
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build registry image
+        run: docker build --tag skillsops-registry:ci .
+
+      - name: Boot registry and verify health
+        run: |
+          set -euo pipefail
+          container=$(docker run --detach --publish 8080:8080 skillsops-registry:ci)
+          trap 'docker logs "$container"; docker rm --force "$container"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1

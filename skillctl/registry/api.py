@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 from typing import NoReturn
 
@@ -15,11 +16,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import Response  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field  # type: ignore[import-untyped]
 
+from skillctl.artifact import artifact_hash, build_minimal_artifact, inspect_artifact
+from skillctl.errors import SkillctlError
 from skillctl.manifest import ManifestLoader
-from skillctl.registry.auth import AuthManager
+from skillctl.registry.auth import AuthManager, validate_permissions
 from skillctl.registry.db import MetadataDB, SkillRecord
 from skillctl.registry.rbac.middleware import authorize, resolve_identity
-from skillctl.registry.rbac.models import Identity, Permission, role_from_str
+from skillctl.registry.rbac.models import ROLE_PERMISSIONS, Identity, Permission, Role, role_from_str
 from skillctl.registry.rbac.store import RBACStore
 from skillctl.validator import SchemaValidator
 from skillctl.version import __version__
@@ -36,6 +39,7 @@ class SkillSummary(BaseModel):
     tags: list[str]
     eval_grade: str | None
     eval_score: float | None
+    status: str
     created_at: str
 
 
@@ -45,11 +49,13 @@ class SkillDetail(BaseModel):
     version: str
     description: str
     content_hash: str
+    artifact_hash: str | None
     tags: list[str]
     authors: list[dict]
     license: str | None
     eval_grade: str | None
     eval_score: float | None
+    status: str
     manifest: dict
     versions: list[str]
     created_at: str
@@ -85,6 +91,7 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     skills_count: int
+    storage_status: str
 
 
 class ErrorResponse(BaseModel):
@@ -107,6 +114,7 @@ def _record_to_summary(r: SkillRecord) -> SkillSummary:
         tags=r.tags,
         eval_grade=r.eval_grade,
         eval_score=r.eval_score,
+        status=r.status,
         created_at=r.created_at,
     )
 
@@ -118,11 +126,13 @@ def _record_to_detail(r: SkillRecord, versions: list[str]) -> SkillDetail:
         version=r.version,
         description=r.description,
         content_hash=r.content_hash,
+        artifact_hash=r.artifact_hash,
         tags=r.tags,
         authors=r.authors,
         license=r.license,
         eval_grade=r.eval_grade,
         eval_score=r.eval_score,
+        status=r.status,
         manifest=json.loads(r.manifest_json),
         versions=versions,
         created_at=r.created_at,
@@ -134,6 +144,117 @@ def _error_response(status: int, code: str, what: str, why: str, fix: str) -> No
         status_code=status,
         detail=ErrorResponse(code=code, what=what, why=why, fix=fix).model_dump(),
     )
+
+
+_RBAC_NAMESPACE_PATTERN = re.compile(r"^[a-z0-9-]+(?:/[a-z0-9-]+)*$")
+
+
+def _validate_rbac_namespace(namespace: str) -> None:
+    if not _RBAC_NAMESPACE_PATTERN.fullmatch(namespace):
+        _error_response(
+            400,
+            "E_INVALID_NAMESPACE",
+            f"Invalid RBAC namespace '{namespace}'",
+            "Namespaces must contain slash-delimited lowercase alphanumeric or hyphen segments",
+            "Use a namespace such as 'my-org' or 'org/acme/team-ml'.",
+        )
+
+
+def _authorize_record_read(request: Request, identity: Identity, record: SkillRecord) -> None:
+    """Authorize a record read without exposing drafts to read-only users."""
+    permission = Permission.SKILL_READ if record.status == "published" else Permission.SKILL_UPDATE
+    decision = authorize(
+        request,
+        identity,
+        permission,
+        record.namespace,
+        resource=f"{record.name}@{record.version}",
+        raise_on_deny=False,
+    )
+    if not decision:
+        if record.status == "draft":
+            _error_response(
+                404,
+                "E_NOT_FOUND",
+                f"Skill '{record.name}@{record.version}' not found",
+                "No published skill with this name and version is visible",
+                "Check the name and version, or authenticate with draft access.",
+            )
+        authorize(
+            request,
+            identity,
+            permission,
+            record.namespace,
+            resource=f"{record.name}@{record.version}",
+        )
+
+
+def _get_skill_record_or_404(
+    db: MetadataDB,
+    name: str,
+    version: str,
+    *,
+    fix: str = "Check the name and version",
+) -> SkillRecord:
+    """Resolve one immutable registry record with a consistent not-found response."""
+    record = db.get_skill(name, version)
+    if record is None:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{name}@{version}' not found",
+            "No skill with this name and version exists",
+            fix,
+        )
+    return record
+
+
+def _authorize_record_action(
+    request: Request,
+    identity: Identity,
+    record: SkillRecord,
+    permission: Permission,
+) -> None:
+    """Authorize a mutation against the record's stored namespace."""
+    authorize(
+        request,
+        identity,
+        permission,
+        record.namespace,
+        resource=f"{record.name}@{record.version}",
+    )
+
+
+def _enforce_legacy_token_delegation(request: Request, identity: Identity, permissions: list[str]) -> None:
+    """Prevent a legacy token grant from exceeding the caller's RBAC authority."""
+    for legacy_permission in permissions:
+        if legacy_permission == "admin":
+            required = [(Permission.RBAC_ASSIGN, "*")]
+        elif legacy_permission == "read":
+            required = [(Permission.SKILL_READ, "*")]
+        elif legacy_permission.startswith("read:"):
+            required = [(Permission.SKILL_READ, legacy_permission.split(":", 1)[1])]
+        else:
+            namespace = legacy_permission.split(":", 1)[1]
+            required = [(permission, namespace) for permission in ROLE_PERMISSIONS[Role.PUBLISHER]]
+
+        for permission, namespace in required:
+            decision = authorize(
+                request,
+                identity,
+                permission,
+                namespace,
+                resource=f"legacy-token-grant:{legacy_permission}",
+                raise_on_deny=False,
+            )
+            if not decision:
+                _error_response(
+                    403,
+                    "E_TOKEN_ESCALATION",
+                    f"Cannot delegate legacy permission '{legacy_permission}'",
+                    f"The caller does not hold '{permission.value}' in namespace '{namespace}'",
+                    "Request only permissions within your effective roles and namespace scopes.",
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +271,15 @@ api_router = APIRouter(prefix="/api/v1")
 async def health(request: Request):
     db: MetadataDB = request.app.state.db
     count = db.count_search()
-    return HealthResponse(status="ok", version=__version__, skills_count=count)
+    consistency = getattr(request.app.state, "storage_consistency", None)
+    storage_status = consistency.status if consistency is not None else "unknown"
+    status = "degraded" if storage_status == "degraded" else "ok"
+    return HealthResponse(
+        status=status,
+        version=__version__,
+        skills_count=count,
+        storage_status=storage_status,
+    )
 
 
 # -- 6.1 Publish skill ------------------------------------------------------
@@ -161,6 +290,7 @@ async def publish_skill(
     request: Request,
     manifest: str = Form(...),
     content: UploadFile = File(...),  # type: ignore[assignment]
+    artifact: UploadFile | None = File(None),  # type: ignore[assignment]
     namespace: str | None = Form(None),
     identity: Identity = Depends(resolve_identity),
 ):
@@ -201,12 +331,23 @@ async def publish_skill(
             400, "E_VALIDATION", "Manifest validation failed", json.dumps(errors), "Fix the validation errors and retry"
         )
 
-    # Authorize: creating/uploading a skill requires SKILL_CREATE in its
-    # RBAC namespace. The RBAC namespace is an explicit operation parameter
-    # (hierarchical, e.g. "org/acme/team-ml"); it defaults to the skill name's
-    # first segment for backward compatibility when not supplied.
-    skill_segment = parsed.metadata.name.split("/")[0]
+    # Remote registry names are always distribution-qualified. Local-only
+    # operations may still use bare names.
+    name_parts = parsed.metadata.name.split("/", 1)
+    if len(name_parts) != 2:
+        _error_response(
+            400,
+            "E_NO_NAMESPACE",
+            f"Skill '{parsed.metadata.name}' has no distribution namespace",
+            "Remote registries require namespaced skill names to prevent collisions",
+            "Use metadata.name in the form '<namespace>/<skill>'.",
+        )
+
+    # The authorization namespace is immutable registry metadata. It may be
+    # more specific than the distribution-name prefix.
+    skill_segment = name_parts[0]
     rbac_namespace = namespace or skill_segment
+    _validate_rbac_namespace(rbac_namespace)
     authorize(
         request,
         identity,
@@ -215,7 +356,8 @@ async def publish_skill(
         resource=f"{parsed.metadata.name}@{parsed.metadata.version}",
     )
 
-    # Check duplicate
+    # Check duplicate and prevent an artifact identity moving between RBAC
+    # namespaces across versions.
     existing = db.get_skill(parsed.metadata.name, parsed.metadata.version)
     if existing is not None:
         _error_response(
@@ -224,6 +366,15 @@ async def publish_skill(
             f"Skill {parsed.metadata.name}@{parsed.metadata.version} already exists",
             "A skill with this name and version is already published",
             "Bump the version in your manifest and retry",
+        )
+    existing_versions = db.get_versions(parsed.metadata.name)
+    if existing_versions and any(item.namespace != rbac_namespace for item in existing_versions):
+        _error_response(
+            409,
+            "E_NAMESPACE_IMMUTABLE",
+            f"Skill '{parsed.metadata.name}' is already bound to another RBAC namespace",
+            "All versions of a skill must share one immutable authorization boundary",
+            "Publish under the existing RBAC namespace or choose a different skill name.",
         )
 
     # Store blob (enforce 50 MB upload limit)
@@ -238,6 +389,29 @@ async def publish_skill(
             "Reduce the size of your SKILL.md and related content",
         )
 
+    if artifact is None:
+        artifact_bytes = build_minimal_artifact(parsed, content_bytes)
+    else:
+        artifact_bytes = await artifact.read(max_size + 1)
+        if len(artifact_bytes) > max_size:
+            _error_response(
+                413,
+                "E_TOO_LARGE",
+                f"Artifact exceeds maximum size of {max_size // (1024 * 1024)} MB",
+                "Complete artifact bundles have a bounded upload size",
+                "Remove generated or unnecessary large files and rebuild the artifact",
+            )
+    try:
+        inspect_artifact(
+            artifact_bytes,
+            expected_name=parsed.metadata.name,
+            expected_version=parsed.metadata.version,
+            expected_content=content_bytes,
+        )
+    except SkillctlError as exc:
+        _error_response(400, exc.code, exc.what, exc.why, exc.fix)
+    bundle_hash = artifact_hash(artifact_bytes)
+
     github_backend = getattr(request.app.state, "github_backend", None)
     if github_backend is not None:
         from datetime import datetime, timezone as _tz
@@ -248,6 +422,9 @@ async def publish_skill(
             "updated_at": now,
             "eval_grade": None,
             "eval_score": None,
+            "status": "draft",
+            "rbac_namespace": rbac_namespace,
+            "artifact_hash": bundle_hash,
         }
         content_hash = github_backend.store_skill(
             name=parsed.metadata.name,
@@ -255,18 +432,29 @@ async def publish_skill(
             manifest_json=json.dumps(manifest_dict, indent=2),
             content=content_bytes,
             metadata=metadata,
+            artifact=artifact_bytes,
         )
     else:
         content_hash = await storage.store_blob(content_bytes)
+        stored_artifact_hash = await storage.store_blob(artifact_bytes)
+        if stored_artifact_hash != bundle_hash:
+            _error_response(
+                500,
+                "E_ARTIFACT_INTEGRITY",
+                "Stored artifact digest does not match the verified upload",
+                f"Expected {bundle_hash}, got {stored_artifact_hash}",
+                "Check the configured storage backend for corruption",
+            )
 
     # Insert metadata
     record = SkillRecord(
         id=None,
         name=parsed.metadata.name,
-        namespace=skill_segment,
+        namespace=rbac_namespace,
         version=parsed.metadata.version,
         description=parsed.metadata.description,
         content_hash=content_hash,
+        artifact_hash=bundle_hash,
         tags=parsed.metadata.tags,
         authors=[{"name": a.name, "email": a.email} for a in parsed.metadata.authors],
         license=parsed.metadata.license,
@@ -284,6 +472,11 @@ async def publish_skill(
                     await storage.delete_blob(content_hash)
                 except Exception:
                     pass
+            if winner and winner.artifact_hash != bundle_hash:
+                try:
+                    await storage.delete_blob(bundle_hash)
+                except Exception:
+                    pass
         _error_response(
             409,
             "E_ALREADY_EXISTS",
@@ -299,8 +492,11 @@ async def publish_skill(
         resource=f"{parsed.metadata.name}@{parsed.metadata.version}",
         details={
             "content_hash": content_hash,
+            "artifact_hash": bundle_hash,
             "size": len(content_bytes),
+            "artifact_size": len(artifact_bytes),
             "status": "draft",
+            "namespace": rbac_namespace,
             "token_id": identity.token_id,
         },
     )
@@ -328,6 +524,7 @@ async def list_skills(
     q: str | None = None,
     namespace: str | None = None,
     tag: str | None = None,
+    include_drafts: bool = False,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     identity: Identity = Depends(resolve_identity),
@@ -337,8 +534,13 @@ async def list_skills(
     # Authorize read on the requested namespace (or globally when unfiltered).
     authorize(request, identity, Permission.SKILL_READ, namespace or "*")
 
-    results = db.search(query=q, namespace=namespace, tag=tag, limit=limit, offset=offset)
-    total = db.count_search(query=q, namespace=namespace, tag=tag)
+    status = "published"
+    if include_drafts:
+        authorize(request, identity, Permission.SKILL_UPDATE, namespace or "*")
+        status = None
+
+    results = db.search(query=q, namespace=namespace, tag=tag, status=status, limit=limit, offset=offset)
+    total = db.count_search(query=q, namespace=namespace, tag=tag, status=status)
 
     return SearchResponse(
         skills=[_record_to_summary(r) for r in results],
@@ -360,8 +562,6 @@ async def get_skill(
 ):
     db: MetadataDB = request.app.state.db
 
-    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}")
-
     full_name = f"{namespace}/{name}"
     versions_list = db.get_versions(full_name)
     if not versions_list:
@@ -373,9 +573,29 @@ async def get_skill(
             "Check the namespace and name",
         )
 
-    # Return latest version
-    record = versions_list[0]
-    version_strings = [v.version for v in versions_list]
+    # Authors may inspect drafts; read-only callers receive only published
+    # versions and cannot infer the existence of a draft-only skill.
+    draft_namespace = versions_list[0].namespace
+    can_manage = authorize(
+        request,
+        identity,
+        Permission.SKILL_UPDATE,
+        draft_namespace,
+        resource=full_name,
+        raise_on_deny=False,
+    )
+    visible_versions = versions_list if can_manage else [v for v in versions_list if v.status == "published"]
+    if not visible_versions:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}' not found",
+            "No published versions are visible",
+            "Check the namespace and name, or authenticate with draft access.",
+        )
+    record = visible_versions[0]
+    _authorize_record_read(request, identity, record)
+    version_strings = [v.version for v in visible_versions]
     return _record_to_detail(record, version_strings)
 
 
@@ -389,8 +609,6 @@ async def get_skill_version(
 ):
     db: MetadataDB = request.app.state.db
 
-    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}@{version}")
-
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
@@ -402,7 +620,17 @@ async def get_skill_version(
             "Check the namespace, name, and version",
         )
 
-    version_strings = [v.version for v in db.get_versions(full_name)]
+    _authorize_record_read(request, identity, record)
+    versions = db.get_versions(full_name)
+    can_manage = authorize(
+        request,
+        identity,
+        Permission.SKILL_UPDATE,
+        record.namespace,
+        resource=full_name,
+        raise_on_deny=False,
+    )
+    version_strings = [v.version for v in versions if can_manage or v.status == "published"]
     return _record_to_detail(record, version_strings)
 
 
@@ -420,8 +648,6 @@ async def download_content(
     db: MetadataDB = request.app.state.db
     storage = request.app.state.storage
 
-    authorize(request, identity, Permission.SKILL_READ, namespace, resource=f"{namespace}/{name}@{version}")
-
     full_name = f"{namespace}/{name}"
     record = db.get_skill(full_name, version)
     if record is None:
@@ -432,6 +658,7 @@ async def download_content(
             "No skill with this name and version exists",
             "Check the namespace, name, and version",
         )
+    _authorize_record_read(request, identity, record)
 
     from skillctl.registry.storage import NotFoundError as BlobNotFound
 
@@ -464,6 +691,66 @@ async def download_content(
     return Response(content=blob, media_type=media_type, headers=headers)
 
 
+@api_router.get("/skills/{namespace}/{name}/{version}/artifact")
+async def download_artifact(
+    request: Request,
+    namespace: str,
+    name: str,
+    version: str,
+    identity: Identity = Depends(resolve_identity),
+):
+    """Download the complete, immutable artifact bundle."""
+    db: MetadataDB = request.app.state.db
+    storage = request.app.state.storage
+
+    full_name = f"{namespace}/{name}"
+    record = db.get_skill(full_name, version)
+    if record is None:
+        _error_response(
+            404,
+            "E_NOT_FOUND",
+            f"Skill '{full_name}@{version}' not found",
+            "No skill with this name and version exists",
+            "Check the namespace, name, and version",
+        )
+    _authorize_record_read(request, identity, record)
+
+    github_backend = getattr(request.app.state, "github_backend", None)
+    try:
+        if github_backend is not None:
+            bundle = github_backend.get_skill_artifact(full_name, version)
+        elif record.artifact_hash:
+            bundle = await storage.get_blob(record.artifact_hash)
+        else:
+            content = await storage.get_blob(record.content_hash)
+            parsed = ManifestLoader()._dict_to_manifest(json.loads(record.manifest_json))
+            bundle = build_minimal_artifact(parsed, content)
+    except Exception as exc:
+        from skillctl.registry.storage import NotFoundError as BlobNotFound
+
+        if not isinstance(exc, BlobNotFound):
+            raise
+        _error_response(
+            404,
+            "E_BLOB_MISSING",
+            f"Artifact blob for '{full_name}@{version}' is missing from storage",
+            "The blob may have been deleted or the storage is corrupted",
+            "Re-publish the skill to restore its complete artifact",
+        )
+
+    try:
+        inspect_artifact(
+            bundle,
+            expected_name=full_name,
+            expected_version=version,
+        )
+    except SkillctlError as exc:
+        _error_response(500, exc.code, exc.what, exc.why, exc.fix)
+
+    headers = {"Content-Disposition": f'attachment; filename="{name}-{version}.artifact.zip"'}
+    return Response(content=bundle, media_type="application/vnd.skillctl.artifact.v1+zip", headers=headers)
+
+
 # -- 6.5 Delete skill -------------------------------------------------------
 
 
@@ -479,47 +766,57 @@ async def delete_skill(
     storage = request.app.state.storage
     audit = request.app.state.audit
 
-    authorize(request, identity, Permission.SKILL_DELETE, namespace, resource=f"{namespace}/{name}@{version}")
-
     full_name = f"{namespace}/{name}"
-    record = db.get_skill(full_name, version)
-    if record is None:
-        _error_response(
-            404,
-            "E_NOT_FOUND",
-            f"Skill '{full_name}@{version}' not found",
-            "No skill with this name and version exists",
-            "Check the namespace, name, and version",
-        )
+    record = _get_skill_record_or_404(
+        db,
+        full_name,
+        version,
+        fix="Check the namespace, name, and version",
+    )
+    _authorize_record_action(request, identity, record, Permission.SKILL_DELETE)
 
     # Delete from DB first (so index is consistent even if blob delete fails)
     db.delete_skill(full_name, version)
 
-    # Only delete blob if no other record references the same content hash
-    other_refs = db.conn.execute(
-        "SELECT COUNT(*) FROM skills WHERE content_hash = ?",
-        (record.content_hash,),
-    ).fetchone()[0]
-
-    if other_refs == 0:
-        github_backend = getattr(request.app.state, "github_backend", None)
-        if github_backend is not None:
-            try:
-                github_backend.delete_skill(full_name, version)
-            except Exception:
-                pass
-        else:
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        try:
+            github_backend.delete_skill(full_name, version)
+        except Exception:
+            pass
+    else:
+        # Content-addressed blobs are shared across records and are deleted
+        # only after their final reference disappears.
+        other_content_refs = db.conn.execute(
+            "SELECT COUNT(*) FROM skills WHERE content_hash = ?",
+            (record.content_hash,),
+        ).fetchone()[0]
+        if other_content_refs == 0:
             try:
                 await storage.delete_blob(record.content_hash)
             except Exception:
                 pass
+        if record.artifact_hash:
+            other_artifact_refs = db.conn.execute(
+                "SELECT COUNT(*) FROM skills WHERE artifact_hash = ?",
+                (record.artifact_hash,),
+            ).fetchone()[0]
+            if other_artifact_refs == 0:
+                try:
+                    await storage.delete_blob(record.artifact_hash)
+                except Exception:
+                    pass
 
     # Audit log
     audit.log(
         action="skill.deleted",
         actor=identity.username,
         resource=f"{full_name}@{version}",
-        details={"content_hash": record.content_hash, "token_id": identity.token_id},
+        details={
+            "content_hash": record.content_hash,
+            "artifact_hash": record.artifact_hash,
+            "token_id": identity.token_id,
+        },
     )
 
     return Response(status_code=204)
@@ -540,18 +837,14 @@ async def attach_eval(
     db: MetadataDB = request.app.state.db
     audit = request.app.state.audit
 
-    authorize(request, identity, Permission.SKILL_UPDATE, namespace, resource=f"{namespace}/{name}@{version}")
-
     full_name = f"{namespace}/{name}"
-    record = db.get_skill(full_name, version)
-    if record is None:
-        _error_response(
-            404,
-            "E_NOT_FOUND",
-            f"Skill '{full_name}@{version}' not found",
-            "No skill with this name and version exists",
-            "Check the namespace, name, and version",
-        )
+    record = _get_skill_record_or_404(
+        db,
+        full_name,
+        version,
+        fix="Check the namespace, name, and version",
+    )
+    _authorize_record_action(request, identity, record, Permission.SKILL_UPDATE)
 
     db.update_eval(full_name, version, body.grade, body.score)
 
@@ -609,6 +902,10 @@ async def create_token(
     authorize(request, identity, Permission.TOKEN_CREATE, "*", resource=f"token:{body.name}")
 
     try:
+        # Validate strings before checking delegation so malformed values are
+        # reported as a client error rather than causing parser ambiguity.
+        validate_permissions(body.permissions)
+        _enforce_legacy_token_delegation(request, identity, body.permissions)
         raw_token = auth_manager.create_token(
             name=body.name,
             permissions=body.permissions,
@@ -811,27 +1108,85 @@ async def publish_skill_version(
     db: MetadataDB = request.app.state.db
     audit = request.app.state.audit
 
-    rbac_namespace = body.namespace or body.name.split("/")[0]
-    authorize(request, identity, Permission.SKILL_PUBLISH, rbac_namespace, resource=f"{body.name}@{body.version}")
+    record = _get_skill_record_or_404(
+        db,
+        body.name,
+        body.version,
+        fix="Create it first via POST /skills",
+    )
+    _authorize_record_action(request, identity, record, Permission.SKILL_PUBLISH)
+    if body.namespace is not None and body.namespace != record.namespace:
+        _error_response(
+            409,
+            "E_NAMESPACE_IMMUTABLE",
+            "Publish namespace does not match the artifact's stored namespace",
+            "The authorization namespace is fixed when the first version is created",
+            "Omit namespace or use the namespace returned by POST /skills.",
+        )
 
-    record = db.get_skill(body.name, body.version)
-    if record is None:
+    transition = db.transition_skill_status(
+        body.name,
+        body.version,
+        expected="draft",
+        target="published",
+    )
+    if transition == "missing":
         _error_response(
             404,
             "E_NOT_FOUND",
             f"Skill '{body.name}@{body.version}' not found",
-            "No skill with this name and version exists",
-            "Create it first via POST /skills",
+            "The skill was deleted during the publish request",
+            "Create the version again before publishing it.",
         )
+    if transition == "conflict":
+        _error_response(
+            409,
+            "E_LIFECYCLE_CONFLICT",
+            f"Cannot publish '{body.name}@{body.version}'",
+            "The stored lifecycle state is not draft or published",
+            "Inspect and repair the registry metadata before retrying.",
+        )
+    if transition == "already":
+        return {
+            "name": body.name,
+            "version": body.version,
+            "status": "published",
+            "changed": False,
+        }
 
-    db.set_skill_status(body.name, body.version, "published")
+    github_synced = True
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        from datetime import datetime, timezone as _tz
+
+        try:
+            github_backend.update_metadata(
+                body.name,
+                body.version,
+                {
+                    "status": "published",
+                    "rbac_namespace": record.namespace,
+                    "updated_at": datetime.now(_tz.utc).isoformat(),
+                },
+            )
+        except Exception:
+            github_synced = False
     audit.log(
         action="skill.published",
         actor=identity.username,
         resource=f"{body.name}@{body.version}",
-        details={"namespace": rbac_namespace, "token_id": identity.token_id},
+        details={
+            "namespace": record.namespace,
+            "token_id": identity.token_id,
+            "github_metadata_synced": github_synced,
+        },
     )
-    return {"name": body.name, "version": body.version, "status": "published"}
+    return {
+        "name": body.name,
+        "version": body.version,
+        "status": "published",
+        "changed": True,
+    }
 
 
 @api_router.post("/skills/unpublish")
@@ -844,27 +1199,80 @@ async def unpublish_skill_version(
     db: MetadataDB = request.app.state.db
     audit = request.app.state.audit
 
-    rbac_namespace = body.namespace or body.name.split("/")[0]
-    authorize(request, identity, Permission.SKILL_UNPUBLISH, rbac_namespace, resource=f"{body.name}@{body.version}")
+    record = _get_skill_record_or_404(db, body.name, body.version)
+    _authorize_record_action(request, identity, record, Permission.SKILL_UNPUBLISH)
+    if body.namespace is not None and body.namespace != record.namespace:
+        _error_response(
+            409,
+            "E_NAMESPACE_IMMUTABLE",
+            "Unpublish namespace does not match the artifact's stored namespace",
+            "The authorization namespace is fixed when the first version is created",
+            "Omit namespace or use the namespace returned by POST /skills.",
+        )
 
-    record = db.get_skill(body.name, body.version)
-    if record is None:
+    transition = db.transition_skill_status(
+        body.name,
+        body.version,
+        expected="published",
+        target="draft",
+    )
+    if transition == "missing":
         _error_response(
             404,
             "E_NOT_FOUND",
             f"Skill '{body.name}@{body.version}' not found",
-            "No skill with this name and version exists",
-            "Check the name and version",
+            "The skill was deleted during the unpublish request",
+            "Check the name and version.",
         )
+    if transition == "conflict":
+        _error_response(
+            409,
+            "E_LIFECYCLE_CONFLICT",
+            f"Cannot unpublish '{body.name}@{body.version}'",
+            "The stored lifecycle state is not published or draft",
+            "Inspect and repair the registry metadata before retrying.",
+        )
+    if transition == "already":
+        return {
+            "name": body.name,
+            "version": body.version,
+            "status": "draft",
+            "changed": False,
+        }
 
-    db.set_skill_status(body.name, body.version, "draft")
+    github_synced = True
+    github_backend = getattr(request.app.state, "github_backend", None)
+    if github_backend is not None:
+        from datetime import datetime, timezone as _tz
+
+        try:
+            github_backend.update_metadata(
+                body.name,
+                body.version,
+                {
+                    "status": "draft",
+                    "rbac_namespace": record.namespace,
+                    "updated_at": datetime.now(_tz.utc).isoformat(),
+                },
+            )
+        except Exception:
+            github_synced = False
     audit.log(
         action="skill.unpublished",
         actor=identity.username,
         resource=f"{body.name}@{body.version}",
-        details={"namespace": rbac_namespace, "token_id": identity.token_id},
+        details={
+            "namespace": record.namespace,
+            "token_id": identity.token_id,
+            "github_metadata_synced": github_synced,
+        },
     )
-    return {"name": body.name, "version": body.version, "status": "draft"}
+    return {
+        "name": body.name,
+        "version": body.version,
+        "status": "draft",
+        "changed": True,
+    }
 
 
 # -- authentication ---------------------------------------------------------

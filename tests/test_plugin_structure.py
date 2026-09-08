@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from skillctl.version import __version__
+
 PLUGIN_ROOT = Path(__file__).parent.parent / "plugin"
 
 EXPECTED_TOOLS = {"validate", "audit", "bump", "diff", "publish"}
@@ -27,7 +29,7 @@ class TestPluginManifest:
 
     def test_plugin_json_has_version(self):
         data = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text())
-        assert "version" in data
+        assert data["version"] == __version__
 
 
 class TestPluginMCP:

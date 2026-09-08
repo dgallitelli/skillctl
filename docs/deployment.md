@@ -1,8 +1,14 @@
-# Progressive Deployment (Milestone 3, Part B)
+# Progressive Deployment Model (Experimental)
 
-Roll out skill versions gradually to limit blast radius, with health-driven
-automatic rollback. Deployments are tracked in SQLite and every transition is
-audited.
+> **Trust boundary:** `skillctl deploy` updates a local SQLite state machine. It
+> is not connected to registry reads, an agent runtime, a scheduler, a service
+> mesh, or live traffic. `TrafficRouter` and health evaluation are library APIs
+> that a host must call explicitly. The CLI does not automatically collect
+> metrics, evaluate health, switch traffic, or append to the registry audit log.
+
+This experimental model lets integrators exercise canary, blue-green, staged,
+and rollback logic deterministically before connecting it to a real serving
+system.
 
 ## Strategies
 
@@ -15,6 +21,7 @@ audited.
 
 ## Traffic routing
 
+When called by an integrating host,
 `TrafficRouter.resolve_version(skill, namespace, actor_id, current_version)`
 returns the version to serve:
 
@@ -30,9 +37,11 @@ returns the version to serve:
 rate, and p99 latency from recorded invocation metrics over the evaluation
 window, comparing against a `HealthThreshold`. Health checks are **caller-driven**
 (`engine.check_health` / `engine.evaluate_and_maybe_rollback`) for deterministic,
-testable behaviour. With `auto_rollback`, a breach reverts traffic to the
-previous version and records the reason in the audit chain. A deployment below
-`min_sample_size` is reported healthy (not enough data to judge).
+testable behaviour. With `auto_rollback`, an explicit
+`evaluate_and_maybe_rollback` call changes the modeled route to the previous
+version. Audit events are emitted only if the embedding application supplies an
+audit logger. A deployment below `min_sample_size` is reported healthy because
+there is not enough data to judge; it is not proof of production health.
 
 ## CLI
 
@@ -48,6 +57,6 @@ skillctl deploy rollback <deployment-id> --reason "elevated error rate"
 skillctl deploy history [--skill my-org/skill]
 ```
 
-Deployments are recorded in `~/.skillctl/deployments.db`. The `deployment`
-evidence type lets a compliance report demonstrate rollback capability
-(EU AI Act Art 14-1-b, intervention mechanism).
+Deployments are recorded in `~/.skillctl/deployments.db`. A compliance mapping
+preview can inspect these records, but local modeled state does not demonstrate
+that production rollback capability exists.

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import json
 import tarfile
 import zipfile
+from pathlib import Path
 
 import yaml
 
@@ -63,6 +65,25 @@ def test_push_then_pull(store):
     assert pulled_content == content
     assert metadata["name"] == "test-org/test-skill"
     assert metadata["version"] == "1.0.0"
+    assert metadata["artifact_hash"]
+
+
+def test_push_then_pull_complete_artifact(store, tmp_path):
+    """The store preserves supporting files in the immutable artifact."""
+    from skillctl.artifact import build_artifact, inspect_artifact
+
+    skill = tmp_path / "skill"
+    (skill / "scripts").mkdir(parents=True)
+    (skill / "SKILL.md").write_text("# Complete\n")
+    (skill / "scripts" / "check.py").write_text("print('ok')\n")
+    manifest = _make_manifest()
+    manifest.spec.content = ContentRef(path="SKILL.md")
+    artifact = build_artifact(skill, manifest, b"# Complete\n")
+
+    store.push(manifest, b"# Complete\n", artifact=artifact)
+    pulled, _ = store.pull_artifact("test-org/test-skill", "1.0.0")
+
+    assert inspect_artifact(pulled).file("scripts/check.py").content == b"print('ok')\n"
 
 
 # -- push same name@version twice raises E_ALREADY_EXISTS -------------------
@@ -77,6 +98,17 @@ def test_push_duplicate_raises(store):
         store.push(manifest, b"content v1 again")
 
     assert exc_info.value.code == "E_ALREADY_EXISTS"
+
+
+def test_new_version_repairs_shared_corrupted_content_blob(store):
+    content = b"shared content"
+    first = store.push(_make_manifest(version="1.0.0"), content)
+    Path(first.path).write_bytes(b"corrupted")
+
+    store.push(_make_manifest(version="1.0.1"), content)
+
+    pulled, _ = store.pull("test-org/test-skill", "1.0.0")
+    assert pulled == content
 
 
 # -- pull non-existent skill raises E_NOT_FOUND ------------------------------
@@ -253,6 +285,7 @@ def test_export_one_skill_tar(store, tmp_path):
         assert "index.json" in names
         assert "skills/org/export-test@1.0.0/SKILL.md" in names
         assert "skills/org/export-test@1.0.0/skill.yaml" in names
+        assert "skills/org/export-test@1.0.0/artifact.zip" in names
 
         idx = json.loads(tar.extractfile("index.json").read())
         assert len(idx) == 1
@@ -402,6 +435,8 @@ def test_import_round_trip_tar(tmp_path):
     pulled_content, entry = store_b.pull("org/round-trip", "1.0.0")
     assert pulled_content == content
     assert entry["name"] == "org/round-trip"
+    bundle, _ = store_b.pull_artifact("org/round-trip", "1.0.0")
+    assert bundle
 
 
 def test_import_round_trip_zip(tmp_path):
@@ -466,3 +501,48 @@ def test_import_unsupported_extension_raises(tmp_path):
     with pytest.raises(SkillctlError) as exc_info:
         store.import_skills(bad_file)
     assert exc_info.value.code == "E_INVALID_FORMAT"
+
+
+def test_import_rejects_tar_symlink(tmp_path):
+    archive = tmp_path / "symlink.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        index = b"[]"
+        info = tarfile.TarInfo("index.json")
+        info.size = len(index)
+        tar.addfile(info, io.BytesIO(index))
+        link = tarfile.TarInfo("skills/link")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "../../outside"
+        tar.addfile(link)
+
+    with pytest.raises(SkillctlError) as exc_info:
+        ContentStore(root=tmp_path / "store").import_skills(archive)
+
+    assert exc_info.value.code == "E_INVALID_ARCHIVE"
+    assert "Links" in exc_info.value.why
+
+
+def test_import_rejects_duplicate_zip_paths(tmp_path):
+    archive = tmp_path / "duplicate.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("index.json", "[]")
+        with pytest.warns(UserWarning, match="Duplicate name"):
+            zf.writestr("index.json", "[]")
+
+    with pytest.raises(SkillctlError) as exc_info:
+        ContentStore(root=tmp_path / "store").import_skills(archive)
+
+    assert exc_info.value.code == "E_INVALID_ARCHIVE"
+    assert "Duplicate" in exc_info.value.why
+
+
+def test_import_rejects_traversal_from_index(tmp_path):
+    archive = tmp_path / "index-traversal.zip"
+    index = [{"name": "../../outside", "version": "1.0.0"}]
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("index.json", json.dumps(index))
+
+    with pytest.raises(SkillctlError) as exc_info:
+        ContentStore(root=tmp_path / "store").import_skills(archive)
+
+    assert exc_info.value.code == "E_INVALID_ARCHIVE"

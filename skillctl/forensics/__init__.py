@@ -1,4 +1,4 @@
-"""Incident forensics for SkillsOps (Milestone 4)."""
+"""Experimental queries over caller-recorded local lineage."""
 
 from skillctl.forensics.query import ForensicQuery
 

@@ -11,6 +11,7 @@ import hashlib
 import os
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 
 from skillctl.errors import SkillctlError
@@ -43,6 +44,26 @@ class IntegrityError(SkillctlError):
             why=f"Expected hash {content_hash} but got {actual_hash}.",
             fix="The stored blob is corrupted. Re-publish the skill to restore it.",
         )
+
+
+@dataclass(frozen=True)
+class StorageConsistency:
+    """Read-only inventory comparing registry metadata with stored blobs."""
+
+    referenced: int
+    stored: int
+    missing: tuple[str, ...]
+    corrupted: tuple[str, ...]
+    orphaned: tuple[str, ...]
+    malformed: tuple[str, ...]
+
+    @property
+    def status(self) -> str:
+        if self.missing or self.corrupted or self.malformed:
+            return "degraded"
+        if self.orphaned:
+            return "warning"
+        return "ok"
 
 
 # ---------------------------------------------------------------------------
@@ -106,16 +127,22 @@ class FilesystemBackend(StorageBackend):
         content_hash = self._sha256(content)
         dest = self._blob_path(content_hash)
 
-        if dest.exists():
-            # Idempotent — same content already stored.
+        if dest.exists() and self._sha256(dest.read_bytes()) == content_hash:
+            # Idempotent — intact content is already stored.
             return content_hash
 
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        # Atomic write: write to a temp file in the same directory, then rename.
+        # Atomic write (or corruption repair): write to a temp file in the
+        # same directory, fsync it, then replace the addressed blob.
         fd, tmp_path = tempfile.mkstemp(dir=dest.parent)
         try:
-            os.write(fd, content)
+            remaining = memoryview(content)
+            while remaining:
+                written = os.write(fd, remaining)
+                if written == 0:
+                    raise OSError("Unable to make progress writing blob")
+                remaining = remaining[written:]
             os.fsync(fd)
         finally:
             os.close(fd)
@@ -153,3 +180,33 @@ class FilesystemBackend(StorageBackend):
             raise NotFoundError(content_hash)
 
         dest.unlink()
+
+    def check_consistency(self, referenced_hashes: set[str]) -> StorageConsistency:
+        """Inventory missing, corrupted, and unreferenced blobs without mutating storage."""
+        valid_references = {digest for digest in referenced_hashes if self._HASH_RE.fullmatch(digest)}
+        malformed_references = sorted(referenced_hashes - valid_references)
+        stored_hashes: set[str] = set()
+        corrupted: list[str] = []
+        malformed_files: list[str] = []
+
+        for path in sorted(self._blobs_dir.rglob("*")):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(self._blobs_dir).as_posix()
+            digest = path.name
+            if not self._HASH_RE.fullmatch(digest) or path.parent.name != digest[:2]:
+                malformed_files.append(relative)
+                continue
+            stored_hashes.add(digest)
+            if self._sha256(path.read_bytes()) != digest:
+                corrupted.append(digest)
+
+        corrupted_set = set(corrupted)
+        return StorageConsistency(
+            referenced=len(referenced_hashes),
+            stored=len(stored_hashes),
+            missing=tuple(sorted(valid_references - stored_hashes)),
+            corrupted=tuple(sorted(corrupted_set & valid_references)),
+            orphaned=tuple(sorted(stored_hashes - valid_references)),
+            malformed=tuple(sorted([*malformed_references, *malformed_files])),
+        )

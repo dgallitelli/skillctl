@@ -1,4 +1,4 @@
-"""CLI subcommands for skillctl optimize."""
+"""CLI entry point for the standalone skillsops-optimize package."""
 
 from __future__ import annotations
 import argparse
@@ -20,7 +20,7 @@ def register_optimize_commands(subparsers):
 
 def _build_run_parser():
     """Build a standalone parser for optimize run flags."""
-    p = argparse.ArgumentParser(prog="skillctl optimize", add_help=False)
+    p = argparse.ArgumentParser(prog="skillsops-optimize", add_help=False)
     p.add_argument("path", nargs="?", default=".", help="Skill directory")
     p.add_argument("--variants", type=int, default=3)
     p.add_argument("--threshold", type=float, default=0.05)
@@ -106,7 +106,7 @@ def _handle_optimize_run(args):
 
 def _handle_history(remaining):
     """List past optimization runs."""
-    p = argparse.ArgumentParser(prog="skillctl optimize history")
+    p = argparse.ArgumentParser(prog="skillsops-optimize history")
     p.add_argument("--skill", default=None, help="Filter by skill name")
     p.add_argument("--json", action="store_true", dest="json_output")
     args = p.parse_args(remaining)
@@ -133,7 +133,7 @@ def _handle_history(remaining):
 
 def _handle_diff(remaining):
     """Show unified diff between original and promoted skill."""
-    p = argparse.ArgumentParser(prog="skillctl optimize diff")
+    p = argparse.ArgumentParser(prog="skillsops-optimize diff")
     p.add_argument("run_id", help="Run ID to show diff for")
     p.add_argument("--json", action="store_true", dest="json_output")
     args = p.parse_args(remaining)

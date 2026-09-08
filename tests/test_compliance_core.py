@@ -68,6 +68,7 @@ class TestAttestations:
         )
         active = store.get_active("art-9-2-b", "proj/x", "1.0.0")
         assert active is not None and active.attested_by == "bob"
+        assert active.identity_verified is False
 
     def test_supersession(self, store):
         store.add(control_id="c", skill_name="s", skill_version="1", framework_id="f", attested_by="a", statement="v1")
@@ -93,3 +94,23 @@ class TestAttestations:
         )
         assert store.get_active("c", "s", "1.0.0") is not None
         assert store.get_active("c", "s", "2.0.0") is None  # new version invalidates
+
+    def test_framework_specific(self, store):
+        store.add(
+            control_id="shared-control",
+            skill_name="s",
+            skill_version="1.0.0",
+            framework_id="framework-a",
+            attested_by="a",
+            statement="x",
+        )
+        store.add(
+            control_id="shared-control",
+            skill_name="s",
+            skill_version="1.0.0",
+            framework_id="framework-b",
+            attested_by="b",
+            statement="y",
+        )
+        assert store.get_active("shared-control", "s", "1.0.0", framework_id="framework-a") is not None
+        assert store.get_active("shared-control", "s", "1.0.0", framework_id="framework-b") is not None
