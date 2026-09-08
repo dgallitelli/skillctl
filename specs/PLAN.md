@@ -10,3 +10,6 @@
 8. ✅ **Cut the beta candidate** — Bump core and plugin metadata to `0.1.0b8`, finalize the changelog, and update release documentation.
 9. ✅ **Requalify release artifacts** — Re-run tests and static gates, then build and inspect the `0.1.0b8` wheel and source distribution.
 10. ✅ **Prepare reviewable commits** — Commit implementation and release metadata in coherent units without pushing or tagging.
+11. 🔄 **Open the release PR** — Push `codex/p0-stabilization` and open a pull request against `main`.
+12. ⬜ **Clear hosted validation** — Monitor required GitHub checks and repair release-blocking failures if any occur.
+13. ⬜ **Land and tag the candidate** — Merge the green pull request, tag the resulting release commit as `v0.1.0b8`, and prepare an unpublished GitHub prerelease draft.
